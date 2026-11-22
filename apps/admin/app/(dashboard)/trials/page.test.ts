@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 import { hasPermission } from "@/lib/admin-permissions";
+import { TRIAL_FOLLOW_UP_KEY, type TrialFollowUpRow } from "@/lib/trial-pipeline";
 import type { AdminAction, AdminRole } from "@/types/admin";
 
 /*
@@ -36,15 +37,38 @@ const PAUSED_TRIAL = {
   paused: true,
 };
 
-function render(as: AdminRole): string {
+function render(as: AdminRole, followUps?: TrialFollowUpRow[]): string {
   role = as;
   const client = new QueryClient();
   client.setQueryData(["admin", "trials"], {
     trials: [PAUSED_TRIAL],
     summary: { total: 1, expiringSoon: 1, expired: 0, healthy: 0 },
   });
+  if (followUps) client.setQueryData(TRIAL_FOLLOW_UP_KEY, followUps);
   return renderToStaticMarkup(createElement(QueryClientProvider, { client }, createElement(TrialsPage)));
 }
+
+const FOLLOW_UP: TrialFollowUpRow = {
+  id: PAUSED_TRIAL.id,
+  trial_day: 5,
+  days_remaining: 3,
+  is_expired: false,
+  groups: ["paused"],
+  follow_up: {
+    tenant_id: PAUSED_TRIAL.id,
+    owner_phone: "07701234567",
+    orders: 4,
+    delivered: 1,
+    shipped: true,
+    whatsapp_sent: 12,
+    whatsapp_cap: 200,
+    prime_linked: false,
+    trial_check: null,
+    trial_check_decision: null,
+    lock_reason: null,
+    last_call: null,
+  },
+};
 
 describe("a paused trial on Trials", () => {
   it("sends staff who may lift the pause to the shop page", () => {
@@ -59,5 +83,33 @@ describe("a paused trial on Trials", () => {
     expect(html).toContain("Paused: ask a super admin to lift it");
     expect(html).not.toContain("Paused: lift it to give days");
     expect(html).not.toContain("Extend");
+  });
+});
+
+// Fermi B12 item 1, concept A (Ali's pick, 22 Nov): chips above the list and
+// one follow-up line under each shop; the row itself stays as it was.
+describe("the follow-up line on Trials", () => {
+  it("adds the chips and a line of facts under the unchanged row, with WhatsApp and Mark contacted", () => {
+    const html = render("support_staff", [FOLLOW_UP]);
+    for (const chip of ["All", "Day 1", "Day 3", "Last day", "Locked", "Paused", "Not called"]) expect(html).toContain(`>${chip}<`);
+    expect(html).toContain('aria-pressed="true"');
+    expect(html).toContain("Day <span");
+    expect(html).toContain("5 of 7");
+    expect(html).toContain("4, 1 delivered");
+    expect(html).toContain("12/200");
+    expect(html).toContain('href="https://wa.me/9647701234567"');
+    expect(html).toContain("WhatsApp owner");
+    expect(html).toContain("Mark contacted");
+    // The row above it is as it was.
+    expect(html).toContain("Paused: ask a super admin to lift it");
+    expect(html).toContain("Najaf Gifts");
+  });
+
+  it("shows the list as it was while the follow-up facts are not read", () => {
+    const html = render("support_staff");
+    expect(html).not.toContain("Not called");
+    expect(html).not.toContain("WhatsApp owner");
+    expect(html).toContain("Najaf Gifts");
+    expect(html).toContain("Paused: ask a super admin to lift it");
   });
 });
