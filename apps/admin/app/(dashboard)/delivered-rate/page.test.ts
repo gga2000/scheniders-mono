@@ -27,7 +27,7 @@ const shop = (n: number, extra: Partial<WatchShop>): WatchShop => ({
   ...extra,
 });
 
-function render(shops: WatchShop[], median: number | null = 78): string {
+function render(shops: WatchShop[], median: number | null = 78, refreshFailed = false): string {
   const client = new QueryClient();
   const withFlags = shops.map((s) => ({ ...s, flags: watchFlags(s, median) }));
   client.setQueryData(["admin", "delivered-rate-watch"], {
@@ -41,6 +41,14 @@ function render(shops: WatchShop[], median: number | null = 78): string {
     flagged: withFlags.filter((s) => s.flags.length > 0).length,
     rules: { farBelowMedianShare: 0.7, stuckFlagMin: 5, stuckAfterDays: 14, minShippedForRate: 20 },
   });
+  if (refreshFailed) {
+    // The 5-minute re-read failed after this read, which was at 20:00 in Baghdad.
+    client.getQueryCache().find({ queryKey: ["admin", "delivered-rate-watch"] })?.setState({
+      status: "error",
+      error: new TypeError("Failed to fetch"),
+      dataUpdatedAt: Date.parse("2026-11-22T17:00:00Z"),
+    });
+  }
   return renderToStaticMarkup(createElement(QueryClientProvider, { client }, createElement(DeliveredRatePage)));
 }
 
@@ -79,5 +87,12 @@ describe("Delivered rate", () => {
 
   it("says when too few shops shipped for a median", () => {
     expect(render([shop(3, { shipped: 12, delivered: 10, rate: null })], null)).toContain("Not enough shops");
+  });
+
+  it("keeps the numbers after a failed re-read and says how old they are (round 22, R3-10)", () => {
+    expect(render(shops)).not.toContain("Could not refresh");
+    const html = render(shops, 78, true);
+    expect(html).toMatch(/Could not refresh the delivered rate\. These numbers are from (Sun 22 Nov, )?20:00\./);
+    expect(html).toContain(">Shop 1<");
   });
 });
