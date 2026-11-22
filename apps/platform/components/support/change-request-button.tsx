@@ -66,7 +66,7 @@ export function ChangeRequestButton() {
                     className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full border border-[var(--card-border)] bg-[var(--card-bg)] px-3.5 text-sm font-semibold text-foreground transition-all hover:border-[var(--foreground-muted)] active:scale-95"
                 >
                     <Lightbulb className="h-4 w-4 text-amber-500" />
-                    <span dir="auto">{t("changeRequest.button")}</span>
+                    <span dir="auto" className="whitespace-nowrap">{t("changeRequest.button")}</span>
                 </button>
             </PopoverTrigger>
             <PopoverContent
