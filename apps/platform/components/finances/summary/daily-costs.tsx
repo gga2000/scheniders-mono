@@ -162,10 +162,11 @@ export function DailyCosts({ summary, statement, previous, bulkBefore, onOpenTab
                     </span>
                     <p className="mt-2.5 text-left text-[13.5px] leading-relaxed text-muted" dir={dir}>
                         {/* The line to judge the figure by, from this period's own goods, delivery and refunds: first,
-                            so «هذا الرقم» sits next to the figure it means. */}
+                            so «هذا الرقم» sits next to the figure it means. When sales did not rise with the ads it
+                            states its condition, so the big figure is not read as "the ads pay". */}
                         {evenAds !== null && (
                             <>
-                                <TextWithTip text={t("fin.ads.even", { n: formatWhole(evenAds), count: evenAds })}>
+                                <TextWithTip text={t(noLift === null ? "fin.ads.even" : "fin.ads.evenIf", { n: formatWhole(evenAds), count: evenAds })}>
                                     <InfoTip text={t("fin.ads.evenTip")} textDir={dir} className="ms-1" testId="ad-even-info" />
                                 </TextWithTip>{" "}
                             </>

@@ -16,6 +16,7 @@ import {
   Area,
 } from "recharts";
 import { LoadError } from "@/components/shared/load-error";
+import { LoadFailedLine } from "@/components/shared/load-failed-line";
 import { formatCount, formatIQD, formatMonth } from "@/lib/format";
 import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
 import { adminFetch } from "@/lib/admin-fetch";
@@ -55,7 +56,7 @@ function EmptyChart({ text }: { text: string }) {
 }
 
 export default function RevenuePage() {
-  const { data, isLoading, isError, isFetching, refetch } = useQuery<RevenueData>({
+  const { data, isLoading, isError, error, isFetching, refetch, dataUpdatedAt } = useQuery<RevenueData>({
     queryKey: ["admin", "revenue"],
     queryFn: async () => {
       const res = await adminFetch("/api/revenue");
@@ -89,6 +90,16 @@ export default function RevenuePage() {
         <p className="text-[13px] text-foreground/70">
           Fees shops paid us: monthly plan, delivered orders and paid messages. Months on Baghdad time.
         </p>
+{isError && (
+  <LoadFailedLine
+    what="the fee numbers"
+    shownFrom={dataUpdatedAt}
+    error={error}
+    onRetry={() => refetch()}
+    retrying={isFetching}
+    className="mt-2"
+  />
+)}
       </div>
 
       {/* KPI Row */}

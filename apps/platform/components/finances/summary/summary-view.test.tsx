@@ -270,7 +270,7 @@ describe("SummaryView", () => {
         expect(list?.textContent).toContain("برايم، بعد أجرتها");
         // 3 unpaid, 2 listed: the third owes nothing after the delivery fee
         // the third is at the ordinary delivery company, whose fee is not known yet: it is left off only when free
-        expect(byTestId("money-unpaid-rest")?.textContent).toBe("وطلب مجاني: ستخصم شركة التوصيل أجرته من دفعتها.");
+        expect(byTestId("money-unpaid-rest")?.textContent).toBe("وطلب مجاني: ستخصم شركة التوصيل أجرته من دفعتها القادمة.");
         cleanup();
         // when the one left off is Prime's, its known fee can eat a cheap price too, and the line says so
         const p = summary();
@@ -379,7 +379,7 @@ describe("SummaryView", () => {
         expect(byTestId("statement-refunds-open")?.querySelector("a")?.getAttribute("href")).toBe("#courier-payments");
         // The refund not marked yet also warns at the top, and the warning scrolls to this card.
         const refundsAlert = document.querySelector('[data-alert="refunds_open"]');
-        expect(refundsAlert?.textContent).toContain("مبلغ مسترد لم تسجّله: الربح أكبر بـ20,000\u00a0د.ع");
+        expect(refundsAlert?.textContent).toContain("مبلغ مسترد لم تسجّله: الربح الظاهر أكبر من الحقيقي بـ20,000\u00a0د.ع");
         expect(refundsAlert?.getAttribute("href")).toBe("#courier-payments");
         expect(document.getElementById("courier-payments")).toBe(byTestId("money-payments"));
         // how these payments relate to "Paid to you" sits behind the card title's info icon
@@ -492,7 +492,7 @@ describe("SummaryView", () => {
         // 2 refused of 12 that reached a door.
         expect(byTestId("failed-share")?.textContent).toContain("17");
         expect(byTestId("failed-share")?.textContent).toContain("من كل 100");
-        expect(byTestId("failed-cost")?.textContent).toContain("طلبان · 80,000\u00a0د.ع");
+        expect(byTestId("failed-cost")?.textContent).toContain("طلبان بقيمة 80,000\u00a0د.ع");
         expect(byTestId("failed-cost")?.textContent).toContain("80,000");
         // the hundred squares are named: 17 came back, 83 were accepted
         expect(byTestId("returned-parcels")?.textContent).toContain("رُفضت: 17 من 100");
@@ -530,8 +530,8 @@ describe("SummaryView", () => {
         })));
         expect(document.querySelector('[data-cell="sales"]')?.textContent).toContain("27 طلباً");
         expect(document.querySelector('[data-cell="on_road"]')?.textContent).toContain("27 طرداً");
-        expect(byTestId("returned-parcels")?.textContent).toContain("36 طلباً · 80,000\u00a0د.ع");
-        expect(byTestId("returned-parcels")?.textContent).toContain("أجرة برايم عنها65,000");
+        expect(byTestId("returned-parcels")?.textContent).toContain("36 طلباً بقيمة 80,000\u00a0د.ع");
+        expect(byTestId("returned-parcels")?.textContent).toContain("أجرة برايم عن هذه الطلبات65,000");
         expect(byTestId("stock-shelf")?.textContent).toContain("29 منتجاً");
         expect(document.querySelector('[data-product="p1"]')?.textContent).toContain("5 قطع ·");
         expect(document.body.textContent).toContain("4 قطع مباعة بلا كلفة");
@@ -741,6 +741,8 @@ describe("SummaryView", () => {
         expect(ads?.textContent).toBe("شبه صفر في الفترة السابقة");
         expect(byTestId("statement-fall-cause")?.textContent).toBe("أغلب الانخفاض من «الإعلانات»: 60,000\u00a0د.ع الآن مقابل شبه صفر في الفترة السابقة.");
         // the ads card says the new ads did not raise sales, beside the line that assumes they made every sale
+        // the break-even line states its condition when sales did not rise, so the big figure is not read as "the ads pay"
+        expect(byTestId("ad-return")?.textContent).toContain("فقط إن جاءت منه كل مبيعاتك.");
         expect(byTestId("ads-no-lift")?.textContent).toBe("لم ترتفع مبيعاتك مع الإعلانات: أوقف أضعف حملة أسبوعاً وراقب الطلبات الجديدة.كانت إعلاناتك شبه صفر في الفترة السابقة. الرقم أعلاه يفترض أن كل مبيعاتك من الإعلان، فلا تحكم به وحده.");
         cleanup();
         renderView(query(s), query(summary({ ...before, sales: { ...before.sales, revenue: 430_000 } })));

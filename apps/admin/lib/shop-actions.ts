@@ -8,7 +8,7 @@
  */
 import type { AdminAction } from "@/types/admin";
 import { formatDay, formatIQD } from "@/lib/format";
-import { renewalOffOpens } from "@/lib/billing-lock-label";
+import { RENEWAL_STOP_WORDS, renewalOffOpens } from "@/lib/billing-lock-label";
 
 export interface ShopFacts {
   /** The tenant's status as the record read returns it: trial, active, limited, suspended, cancelled. */
@@ -194,6 +194,25 @@ export function renewalOnWords(facts: RenewalOnFacts, now: Date = new Date()): s
   }
   const after = facts.periodEnd ? ` after ${formatDay(facts.periodEnd, now)}` : "";
   return `${on} The month${after} is charged from the wallet as usual.`;
+}
+
+/**
+ * What stopping renewal does, said before it is done, from the same facts as
+ * renewalOnWords (round 22). The demo store renews at no charge whatever the
+ * switch says (renew_subscription_core skips renewal off for it). A shop that
+ * is locked already stays locked, and no hourly run charges it any more. A
+ * trial's end is not charged; otherwise this month runs to its end.
+ */
+export function renewalOffWords(facts: RenewalOnFacts, now: Date = new Date()): string {
+  if (facts.demo) return "The demo store still renews each month at no charge: this switch changes nothing there.";
+  if (facts.lock) {
+    return `The shop stays locked, and no job charges it. It opens when ${renewalOffOpens(facts.lock.price_iqd)}.`;
+  }
+  if (facts.onTrial) return `When the trial ends it is not charged, and the shop locks until ${renewalOffOpens()}.`;
+  if (facts.periodEnd && Date.parse(facts.periodEnd) <= now.getTime()) {
+    return `This month ended ${formatDay(facts.periodEnd, now)}. It is not charged, and the shop locks until ${renewalOffOpens()}.`;
+  }
+  return RENEWAL_STOP_WORDS;
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;

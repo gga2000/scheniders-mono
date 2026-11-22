@@ -34,6 +34,12 @@ interface BulkActionDialogProps {
  */
 type BulkOutcome = { done: number; failed: BulkFailure[]; repeats: number };
 
+/**
+ * A picked plan, amount or day count. Theme colours, so it shows in dark too:
+ * a fixed near-black border was darker than the unpicked ones there (round 22).
+ */
+const PICKED = "border-foreground bg-foreground/5 text-foreground";
+
 const shops = (n: number) => (n === 1 ? "1 shop" : `${n} shops`);
 
 /** Before the press: how many picked shops move, and that the ones already on the plan stay as they are. */
@@ -184,12 +190,15 @@ export function BulkActionDialog({
     onSuccess: (outcome, payload) => {
       queryClient.invalidateQueries({ queryKey: ["admin", "merchants"] });
       if (outcome.failed.length > 0) {
-        // Staff left Merchants during the write: say it where they are now.
+        // Staff left Merchants during the write: say it where they are now, and
+        // drop the picked shops as Close does, so the next step does not pick
+        // up the shops already done (round 22).
         if (!stillDrawn()) {
           const total = outcome.done + outcome.failed.length;
           toast.error(`${title}: done for ${outcome.done} of ${total} ${total === 1 ? "merchant" : "merchants"}.`, {
             description: notDoneLines(outcome.failed).join(" "),
           });
+          onSuccess();
         }
         setPartial(outcome);
         return;
@@ -332,9 +341,10 @@ export function BulkActionDialog({
                     <button
                       key={opt.value}
                       onClick={() => setSelectedPlan(opt.value)}
+                      aria-pressed={selectedPlan === opt.value}
                       className={`px-4 py-3 rounded-xl border cursor-pointer transition-all text-sm font-semibold text-left ${
                         selectedPlan === opt.value
-                          ? "border-[#1E1E1E] bg-[#1E1E1E]/5 text-foreground"
+                          ? PICKED
                           : "border-[var(--card-border)] text-foreground/70 hover:border-foreground/30"
                       }`}
                     >
@@ -366,9 +376,10 @@ export function BulkActionDialog({
                       <button
                         key={amt}
                         onClick={() => { setTopUpAmount(amt); setTopUpCustom(""); }}
+                        aria-pressed={!topUpCustom && topUpAmount === amt}
                         className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${
                           !topUpCustom && topUpAmount === amt
-                            ? "border-[#1E1E1E] bg-[#1E1E1E]/5 text-foreground"
+                            ? PICKED
                             : "border-[var(--card-border)] bg-foreground/5 text-foreground/70 hover:bg-foreground/10 hover:text-foreground"
                         }`}
                       >
@@ -455,9 +466,10 @@ export function BulkActionDialog({
                     <button
                       key={d}
                       onClick={() => setExtensionDays(d)}
+                      aria-pressed={extensionDays === d}
                       className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all border ${
                         extensionDays === d
-                          ? "border-[#1E1E1E] bg-[#1E1E1E]/5 text-foreground"
+                          ? PICKED
                           : "border-[var(--card-border)] bg-foreground/5 text-foreground/70 hover:bg-foreground/10 hover:text-foreground"
                       }`}
                     >

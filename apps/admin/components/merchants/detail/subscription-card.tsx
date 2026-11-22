@@ -9,9 +9,8 @@ import { hasPermission } from "@/lib/admin-permissions";
 import type { MerchantDetail } from "@/hooks/use-merchant-detail";
 import { formatDay, formatDayTime, formatUntilDay } from "@/lib/format";
 import { isStaffReason } from "@/lib/billing-lock-tools";
-import { RENEWAL_STOP_WORDS } from "@/lib/billing-lock-label";
 import { effectiveStatus } from "@/lib/effective-status";
-import { renewalOnWords, renewalWords, shopActionKey } from "@/lib/shop-actions";
+import { renewalOffWords, renewalOnWords, renewalWords, shopActionKey, type RenewalOnFacts } from "@/lib/shop-actions";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
 import { ConfirmButton, PanelFields, postJson, useRereadShop, useWriteFailed } from "./action-ui";
 
@@ -96,17 +95,14 @@ export function SubscriptionCard({ merchantId, tenant, subscription, billingLock
   }
 
   const soon = (end: string) => new Date(end).getTime() - now.getTime() < DAY_MS;
-  const turnsOn = renewalOnWords(
-    {
-      demo: tenant.is_demo,
-      status: tenant.status,
-      onTrial,
-      periodEnd: trialEnd ?? subscription?.current_period_end ?? null,
-      lock: billingLock?.locked ? { price_iqd: billingLock.price_iqd } : null,
-      walletIqd,
-    },
-    now,
-  );
+  const facts: RenewalOnFacts = {
+    demo: tenant.is_demo,
+    status: tenant.status,
+    onTrial,
+    periodEnd: trialEnd ?? subscription?.current_period_end ?? null,
+    lock: billingLock?.locked ? { price_iqd: billingLock.price_iqd } : null,
+    walletIqd,
+  };
 
   return (
     <section className="pastel-card p-5" aria-label="Trial and month">
@@ -171,7 +167,7 @@ export function SubscriptionCard({ merchantId, tenant, subscription, billingLock
                   />
                 </PanelFields>
                 <span className="mb-2 block text-[13px] leading-snug text-foreground/75">
-                  {stopping ? RENEWAL_STOP_WORDS : turnsOn}
+                  {stopping ? renewalOffWords(facts, now) : renewalOnWords(facts, now)}
                 </span>
                 <span className="flex gap-2">
                   <ConfirmButton

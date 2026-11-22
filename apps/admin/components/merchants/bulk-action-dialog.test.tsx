@@ -21,6 +21,8 @@ const { toast } = await import("sonner");
 const IDS = ["5b0c9a52-7f3e-4c1a-9d2e-1a2b3c4d5e6f", "6c1d0b63-8f4f-4d2b-8e3f-2b3c4d5e6f70"];
 
 const client = new QueryClient();
+/** The Merchants page's "clear the picked shops", which the dialog calls once a step ran. */
+const picksCleared = vi.fn();
 
 function tree(action: string | null, ids = IDS, planOf?: ReadonlyMap<string, string>) {
   return createElement(
@@ -32,7 +34,7 @@ function tree(action: string | null, ids = IDS, planOf?: ReadonlyMap<string, str
       selectedIds: ids,
       planOf,
       onClose: () => {},
-      onSuccess: () => {},
+      onSuccess: picksCleared,
     }),
   );
 }
@@ -55,11 +57,24 @@ afterEach(() => {
   cleanup();
   localStorage.clear();
   send.mockReset();
+  picksCleared.mockReset();
   vi.mocked(toast.error).mockReset();
   vi.mocked(toast.success).mockReset();
 });
 
 describe("bulk Change Plan", () => {
+  // Round 22 (UX new 8): the picked plan's border was a fixed near-black, darker
+  // than the unpicked ones in dark. It now uses the theme's foreground.
+  it("marks the picked plan, in theme colours", () => {
+    dialog();
+    const internal = screen.getByRole("button", { name: "Internal (no billing)" });
+    fireEvent.click(internal);
+    expect(internal.getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByRole("button", { name: "Start" }).getAttribute("aria-pressed")).toBe("false");
+    expect(internal.className).toContain("border-foreground");
+    expect(internal.className).not.toMatch(/#1E1E1E/i);
+  });
+
   it("says what will happen before the press, in the merchant's plan words", () => {
     dialog();
     fireEvent.click(screen.getByRole("button", { name: "Internal (no billing)" }));
@@ -139,6 +154,9 @@ describe("a bulk write", () => {
         description: "Not done for Basra Shoes: Wallet not found",
       }),
     );
+    // Round 22 (round 21 UX new 1, the part left): the shops stayed picked on
+    // Merchants, so the next step picked up the shop already done.
+    expect(picksCleared).toHaveBeenCalledTimes(1);
   });
 
   it("says a refusal in a toast when staff left the page", async () => {

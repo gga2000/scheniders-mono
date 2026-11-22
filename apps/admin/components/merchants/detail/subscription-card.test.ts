@@ -268,3 +268,26 @@ describe("SubscriptionCard after a lost answer", () => {
     expect(JSON.parse(String(init.body))).toEqual({ auto_renew: false, reason: REASON });
   });
 });
+
+// Round 22 (UX new 4): the demo store's Stop renewing panel said it would lock.
+describe("SubscriptionCard stopping renewal on the demo store", () => {
+  it("says the switch changes nothing there", () => {
+    auth.role = "super_admin";
+    draw(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(SubscriptionCard, {
+          merchantId: "t1",
+          tenant: { ...tenant, is_demo: true } as MerchantDetail["tenant"],
+          subscription,
+          billingLock: null,
+          walletIqd: 0,
+        }),
+      ),
+    );
+    fireEvent.click(screen.getByRole("switch", { name: "Renew each month" }));
+    expect(screen.getByText("The demo store still renews each month at no charge: this switch changes nothing there.")).toBeTruthy();
+    expect(screen.queryByText(/the shop locks/)).toBeNull();
+  });
+});
