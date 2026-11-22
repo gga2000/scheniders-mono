@@ -22,6 +22,8 @@ interface ConvertTrialFormProps {
   requestIds: RequestIds;
   /** A locked trial opens again with the free time: the sentence says so. */
   locked: boolean;
+  /** Staff turned monthly renewal off: free time turns it back on, and the sentence says so (audit round 21). */
+  renewalOff: boolean;
   onDone: () => void;
 }
 
@@ -31,7 +33,7 @@ interface ConvertTrialFormProps {
  * the day the free time ends. One name, "free time", from this form to the
  * status line and the timeline (round 19: it had four).
  */
-export function ConvertTrialForm({ shopId, shopName, requestIds, locked, onDone }: ConvertTrialFormProps) {
+export function ConvertTrialForm({ shopId, shopName, requestIds, locked, renewalOff, onDone }: ConvertTrialFormProps) {
   const [days, setDays] = useState(30);
   const [why, setWhy] = useState("");
   const ready = isStaffReason(why);
@@ -66,6 +68,7 @@ export function ConvertTrialForm({ shopId, shopName, requestIds, locked, onDone 
       <WillHappen>
         The trial ends now and free time runs to {formatDay(endAfterDays(null, days))}.
         {locked && " The store opens again now."} Nothing is charged today; the first charge is on that day.
+        {renewalOff && " Monthly renewal is off now: this turns it back on, so the shop is charged every month after the free time."}
       </WillHappen>
       <StaffReasonInput value={why} onChange={setWhy} placeholder="Why? Paid in cash for a year..." className="mb-3" />
       <ErrorLine error={convert.error} />

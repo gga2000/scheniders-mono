@@ -106,8 +106,12 @@ export function changeTitle(action: string, details: Record<string, unknown> | n
       const period = num(d.duration_days) ?? n;
       const started = period === null ? "Started free time" : `Started ${nDays(period)} of free time`;
       const plan = text(d.plan);
-      if (!plan) return `${started}, no charge`;
-      return plan === "internal" ? `${started} on ${planLabel(plan)}, no charge` : `${started} on the ${planLabel(plan)} plan, no charge`;
+      // Free time turns monthly renewal on; when staff had turned it off, the row says so (20261122165740).
+      const renewal = d.auto_renew_turned_on === true ? ", monthly renewal turned back on" : "";
+      if (!plan) return `${started}, no charge${renewal}`;
+      return plan === "internal"
+        ? `${started} on ${planLabel(plan)}, no charge${renewal}`
+        : `${started} on the ${planLabel(plan)} plan, no charge${renewal}`;
     }
     case "add_lock_orders": {
       const orders = num(d.orders);

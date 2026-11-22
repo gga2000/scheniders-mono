@@ -2,3 +2,4 @@
 20261118230357_subscriptions_one_per_shop.sql
 20261119050417_convert_trial_one_step.sql
 20261119053314_convert_trial_refuses_prospect_store.sql
+20261122165740_convert_trial_logs_renewal_on.sql

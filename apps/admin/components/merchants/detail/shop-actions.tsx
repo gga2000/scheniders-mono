@@ -53,6 +53,8 @@ interface ShopActionsProps {
   /** What the shop comes back as from hold (Reactivate says so). */
   comeback: Comeback;
   trialEndsAt: string | null;
+  /** Staff turned monthly renewal off: the free-time panel warns it turns it back on. */
+  renewalOff: boolean;
   /** The lock card holds the store-orders tool; this brings it into view. */
   onGiveOrders: () => void;
   onAddNote: () => void;
@@ -82,6 +84,7 @@ export function ShopActions({
   freeDaysFrom,
   comeback,
   trialEndsAt,
+  renewalOff,
   onGiveOrders,
   onAddNote,
   startOpen = null,
@@ -214,6 +217,7 @@ export function ShopActions({
                     shopName={shopName}
                     requestIds={requestIds.convert}
                     locked={facts.locked}
+                    renewalOff={renewalOff}
                     onDone={done}
                   />
                 )}
