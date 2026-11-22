@@ -14,6 +14,15 @@
 --   end a flagged store's trial, or mark it checked; a later signal shows as
 --   news after a decision; only the service role decides;
 --   no raw identifier is stored, and the API roles cannot read the tables.
+--   Customer overlap: once a trial store has 30 real orders, 30% (and at
+--   least 5) of their customers having ordered from one earlier unpaid store
+--   ends the trial and lists the store for staff with the counts; test,
+--   practice, return and replacement orders and unconfirmed carts do not count,
+--   a deleted order does; paying, house and later stores are not earlier
+--   stores; a trial that already ended is listed with nothing to withhold;
+--   customer digests are keyed hashes that never match an owner phone; the
+--   hourly sweep reads late orders, never ends a trial staff gave back, and
+--   makes no news when nothing changed.
 
 \set ON_ERROR_STOP 1
 
@@ -220,3 +229,158 @@ SELECT pg_temp.check(
 UPDATE public.tenants SET status = 'active' WHERE id = 'b0000000-0000-4000-8000-000000000303';
 UPDATE public.tenants SET contact_phone = '07701112233' WHERE id = 'b0000000-0000-4000-8000-000000000303';
 SELECT pg_temp.check(pg_temp.verdict('b0000000-0000-4000-8000-000000000303') IS NULL, 'a paying store is never flagged');
+
+-- 13. Customer overlap (20261122163224). Customer i has phone 0780 000 000i.
+-- Orders are dated within the last hour, as live orders are when the hourly
+-- sweep reads them; a store's orders are a second apart, in the order given.
+CREATE FUNCTION pg_temp.orders(p_tenant text, p_customers integer[], p_start timestamptz) RETURNS void LANGUAGE sql AS $$
+  INSERT INTO public.orders (tenant_id, phone, status, created_at)
+  SELECT p_tenant::uuid, '0780' || lpad(c::text, 7, '0'), 'completed', p_start + (n - 1) * interval '1 second'
+    FROM unnest(p_customers) WITH ORDINALITY AS u(c, n);
+$$;
+CREATE FUNCTION pg_temp.customer(p_i integer) RETURNS text LANGUAGE sql AS $$
+  SELECT public.trial_fingerprint_digest('customer', '780' || lpad(p_i::text, 7, '0'));
+$$;
+CREATE FUNCTION pg_temp.signals(p_tenant text) RETURNS jsonb LANGUAGE sql AS $$
+  SELECT signals FROM public.trial_checks WHERE tenant_id = p_tenant::uuid;
+$$;
+
+SELECT pg_temp.check(
+  (SELECT command = 'SELECT public.trial_customer_sweep()' FROM cron.job WHERE jobname = 'trial-customer-overlap'),
+  'the sweep runs every hour');
+SELECT pg_temp.check(
+  NOT has_table_privilege('authenticated', 'public.trial_customer_digests', 'SELECT')
+  AND NOT has_table_privilege('anon', 'public.trial_customer_digests', 'SELECT')
+  AND NOT has_table_privilege('authenticated', 'public.trial_customer_sweep_state', 'SELECT')
+  AND (SELECT bool_and(relrowsecurity) FROM pg_class
+        WHERE oid IN ('public.trial_customer_digests'::regclass, 'public.trial_customer_sweep_state'::regclass))
+  AND NOT has_function_privilege('authenticated', 'public.trial_customer_sweep()', 'EXECUTE')
+  AND NOT has_function_privilege('authenticated', 'public.trial_customer_overlap(uuid)', 'EXECUTE'),
+  'merchants cannot read customer digests or run the sweep, and RLS is on');
+
+-- F: trial ended unpaid 13 days ago, customers 1-40 (customer 5's order was
+-- deleted), plus a test order, a practice order and an unconfirmed cart.
+SELECT pg_temp.shop('c0000000-0000-4000-8000-00000000000f', 'trial', interval '20 days', '07910000001', 'f@example.com');
+SELECT pg_temp.orders('c0000000-0000-4000-8000-00000000000f', array(SELECT generate_series(1, 40)), now() - interval '57 minutes');
+UPDATE public.orders SET deleted_at = now()
+ WHERE tenant_id = 'c0000000-0000-4000-8000-00000000000f' AND phone = '07800000005';
+INSERT INTO public.orders (tenant_id, phone, status, created_at, is_test, guide_practice) VALUES
+  ('c0000000-0000-4000-8000-00000000000f', '07800000099', 'completed', now() - interval '57 minutes', true, false),
+  ('c0000000-0000-4000-8000-00000000000f', '07800000098', 'completed', now() - interval '57 minutes', false, true),
+  ('c0000000-0000-4000-8000-00000000000f', '07800000097', 'pending_checkout', now() - interval '57 minutes', false, false);
+-- J pays and shares all of F's customers; the house store shares them too.
+SELECT pg_temp.shop('c0000000-0000-4000-8000-00000000000a', 'active', interval '60 days', '07910000002', 'j@example.com');
+SELECT pg_temp.orders('c0000000-0000-4000-8000-00000000000a', array(SELECT generate_series(1, 40)), now() - interval '58 minutes');
+SELECT pg_temp.orders('b0000000-0000-4000-8000-000000000101', array(SELECT generate_series(1, 40)), now() - interval '58 minutes');
+
+-- G: trial since 2 days, its first orders are excluded kinds with F's
+-- customers 31-34, then 29 real orders: F's customers 1-9 and 20 new ones.
+SELECT pg_temp.shop('c0000000-0000-4000-8000-000000000001', 'trial', interval '2 days', '07910000003', 'g@example.com');
+INSERT INTO public.orders (tenant_id, phone, status, created_at, is_test, guide_practice, is_return, is_replacement) VALUES
+  ('c0000000-0000-4000-8000-000000000001', '07800000031', 'completed', now() - interval '55 minutes', true, false, false, false),
+  ('c0000000-0000-4000-8000-000000000001', '07800000032', 'completed', now() - interval '55 minutes', false, true, false, false),
+  ('c0000000-0000-4000-8000-000000000001', '07800000033', 'pending_checkout', now() - interval '55 minutes', false, false, false, false),
+  ('c0000000-0000-4000-8000-000000000001', '07800000034', 'refund_delivered', now() - interval '55 minutes', false, false, true, false),
+  ('c0000000-0000-4000-8000-000000000001', '07800000035', 'completed', now() - interval '55 minutes', false, false, false, true);
+SELECT pg_temp.orders('c0000000-0000-4000-8000-000000000001',
+                      array(SELECT generate_series(1, 9)) || array(SELECT generate_series(1001, 1020)),
+                      now() - interval '50 minutes');
+
+SELECT pg_temp.check(
+  (public.trial_customer_sweep()) = jsonb_build_object('recorded', 40 + 40 + 29, 'checked', 1),
+  'the first sweep records F''s, J''s and G''s real customers, and checks only F (G has 29 orders)');
+SELECT pg_temp.check(
+  (SELECT count(*) = 40 AND bool_and(digest ~ '^[0-9a-f]{64}$') FROM public.trial_customer_digests
+    WHERE tenant_id = 'c0000000-0000-4000-8000-00000000000f')
+  AND EXISTS (SELECT 1 FROM public.trial_customer_digests
+               WHERE tenant_id = 'c0000000-0000-4000-8000-00000000000f' AND digest = pg_temp.customer(5)),
+  'only keyed hashes are kept, a deleted order still counts');
+SELECT pg_temp.check(
+  NOT EXISTS (SELECT 1 FROM public.trial_customer_digests
+               WHERE digest IN (pg_temp.customer(99), pg_temp.customer(98), pg_temp.customer(97))),
+  'a test order, a practice order and an unconfirmed cart are no customers');
+SELECT pg_temp.check(
+  NOT EXISTS (SELECT 1 FROM public.trial_customer_digests WHERE tenant_id = 'b0000000-0000-4000-8000-000000000101'),
+  'nothing of the house store''s customers is kept');
+SELECT pg_temp.check(
+  NOT EXISTS (SELECT 1 FROM public.trial_customer_digests
+               WHERE digest = public.trial_fingerprint_digest('phone', '7800000001')),
+  'a customer digest is never an owner-phone digest');
+SELECT pg_temp.check(pg_temp.verdict('c0000000-0000-4000-8000-00000000000f') IS NULL,
+  'F shares every customer with J, but J pays: no signal');
+SELECT pg_temp.check(pg_temp.verdict('c0000000-0000-4000-8000-000000000001') IS NULL AND pg_temp.running('c0000000-0000-4000-8000-000000000001'),
+  'under 30 orders, G is not checked');
+
+-- G's 30th order: 9 of its first 30 customers (30%) ordered from F.
+SELECT pg_temp.orders('c0000000-0000-4000-8000-000000000001', ARRAY[1021], now() - interval '1 minute');
+SELECT pg_temp.check(
+  (public.trial_customer_sweep())->>'checked' = '2',
+  'the next sweep checks G too');
+SELECT pg_temp.check(pg_temp.verdict('c0000000-0000-4000-8000-000000000001') = 'no_trial', '30% shared customers -> no trial');
+SELECT pg_temp.check(NOT pg_temp.running('c0000000-0000-4000-8000-000000000001'), 'G''s running trial ended');
+SELECT pg_temp.check(
+  pg_temp.signals('c0000000-0000-4000-8000-000000000001') = jsonb_build_array(jsonb_build_object(
+      'family', 'customers', 'source', 'customer_overlap', 'tenant_id', 'c0000000-0000-4000-8000-00000000000f',
+      'matched', 9, 'customers', 30)),
+  'staff see 9 of 30 customers shared with F, not with paying J, and the excluded orders are not in the 30');
+SELECT pg_temp.check(
+  (SELECT trial_withheld_at IS NOT NULL FROM public.trial_checks WHERE tenant_id = 'c0000000-0000-4000-8000-000000000001')
+  AND (SELECT details = jsonb_build_object('signals', jsonb_build_array('customers')) AND admin_label = 'system'
+         FROM public.admin_activity_logs WHERE tenant_id = 'c0000000-0000-4000-8000-000000000001' AND action = 'trial_withheld'),
+  'withheld and logged as a customer signal');
+
+-- H: 8 of 30 (27%) -> nothing. I: 30 orders, 4 customers, all F's -> under 5, nothing.
+SELECT pg_temp.shop('c0000000-0000-4000-8000-000000000002', 'trial', interval '1 day', '07910000004', 'h@example.com');
+SELECT pg_temp.orders('c0000000-0000-4000-8000-000000000002',
+                      array(SELECT generate_series(11, 18)) || array(SELECT generate_series(2001, 2022)),
+                      now() - interval '40 minutes');
+SELECT pg_temp.shop('c0000000-0000-4000-8000-000000000003', 'trial', interval '1 day', '07910000005', 'i@example.com');
+SELECT pg_temp.orders('c0000000-0000-4000-8000-000000000003',
+                      array(SELECT 21 + (g % 4) FROM generate_series(1, 30) g), now() - interval '40 minutes');
+-- L: trial ended 3 days ago, unpaid, 15 of 30 from F. M: created after G, F's customers 1-40.
+SELECT pg_temp.shop('c0000000-0000-4000-8000-000000000004', 'trial', interval '10 days', '07910000006', 'l@example.com');
+SELECT pg_temp.orders('c0000000-0000-4000-8000-000000000004',
+                      array(SELECT generate_series(1, 15)) || array(SELECT generate_series(3001, 3015)),
+                      now() - interval '40 minutes');
+SELECT pg_temp.shop('c0000000-0000-4000-8000-000000000005', 'trial', interval '1 hour', '07910000007', 'm@example.com');
+SELECT pg_temp.orders('c0000000-0000-4000-8000-000000000005', array(SELECT generate_series(1, 40)), now() - interval '30 minutes');
+SELECT public.trial_customer_sweep();
+SELECT pg_temp.check(pg_temp.verdict('c0000000-0000-4000-8000-000000000002') IS NULL, '27% shared customers is no signal');
+SELECT pg_temp.check(pg_temp.verdict('c0000000-0000-4000-8000-000000000003') IS NULL, 'four shared customers is no signal');
+SELECT pg_temp.check(
+  pg_temp.verdict('c0000000-0000-4000-8000-000000000004') = 'no_trial'
+  AND (SELECT trial_withheld_at IS NULL FROM public.trial_checks WHERE tenant_id = 'c0000000-0000-4000-8000-000000000004')
+  AND NOT EXISTS (SELECT 1 FROM public.admin_activity_logs WHERE tenant_id = 'c0000000-0000-4000-8000-000000000004' AND action = 'trial_withheld'),
+  'a trial that already ended is listed for staff, with nothing to withhold');
+SELECT pg_temp.check(
+  (SELECT array_agg(s->>'tenant_id' ORDER BY s->>'tenant_id') FROM jsonb_array_elements(pg_temp.signals('c0000000-0000-4000-8000-000000000005')) s)
+    = ARRAY['c0000000-0000-4000-8000-000000000001', 'c0000000-0000-4000-8000-000000000004', 'c0000000-0000-4000-8000-00000000000f'],
+  'M matches every earlier unpaid store it shares customers with');
+SELECT pg_temp.check(
+  NOT pg_temp.signals('c0000000-0000-4000-8000-000000000001') @> '[{"tenant_id": "c0000000-0000-4000-8000-000000000005"}]'::jsonb,
+  'a later store is never an earlier store');
+
+-- N: an owner phone equal to one of F's customers is no match.
+SELECT pg_temp.shop('c0000000-0000-4000-8000-000000000006', 'trial', interval '0 days', '07800000001', 'n@example.com');
+SELECT pg_temp.check(pg_temp.verdict('c0000000-0000-4000-8000-000000000006') IS NULL, 'customer and owner phones never cross');
+
+-- Staff give G its trial back: the hourly re-check neither ends it nor makes news.
+SELECT pg_temp.check(
+  (public.admin_trial_check_decide('c0000000-0000-4000-8000-000000000001', 'allow_trial', 'Shared supplier, different owner', 7,
+                                   'a0000000-0000-4000-8000-000000000002', 'helper@fermi.test'))->>'success' = 'true',
+  'staff can give G its trial back');
+SELECT public.trial_customer_sweep();
+SELECT pg_temp.check(pg_temp.running('c0000000-0000-4000-8000-000000000001'), 'the sweep never ends a trial staff gave back');
+SELECT pg_temp.check(
+  (SELECT updated_at <= decided_at FROM public.trial_checks WHERE tenant_id = 'c0000000-0000-4000-8000-000000000001'),
+  'an hourly re-check with nothing new is no news');
+
+-- An order committed late, dated just before the last sweep, is still read.
+INSERT INTO public.orders (tenant_id, phone, status, created_at)
+SELECT 'c0000000-0000-4000-8000-00000000000f', '07800000077', 'completed', swept_through - interval '30 minutes'
+  FROM public.trial_customer_sweep_state;
+SELECT public.trial_customer_sweep();
+SELECT pg_temp.check(
+  EXISTS (SELECT 1 FROM public.trial_customer_digests
+           WHERE tenant_id = 'c0000000-0000-4000-8000-00000000000f' AND digest = pg_temp.customer(77)),
+  'a late order is recorded by the next sweep');
