@@ -8,10 +8,9 @@ import { createRequestIds } from "@/lib/request-ids";
 import { isStaffReason } from "@/lib/billing-lock-tools";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
 import { isBulkFailureList, notDoneLines, tooManyShops, type BulkFailure } from "@/lib/bulk-not-done";
-import { adminFetch } from "@/lib/admin-fetch";
 import { toast } from "sonner";
 import { formatIQD } from "@/lib/format";
-import { useStillDrawn, WillHappen } from "./detail/action-ui";
+import { ANSWER_LOST_SHOPS, AnswerLost, failureOf, sendJson, useStillDrawn, WillHappen } from "./detail/action-ui";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -167,19 +166,17 @@ export function BulkActionDialog({
       tenant_ids: string[];
       params?: Record<string, unknown>;
     }) => {
-      const res = await adminFetch("/api/bulk", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data: unknown = await res.json().catch(() => null);
-      const body = typeof data === "object" && data !== null ? (data as Record<string, unknown>) : {};
-      if (!res.ok) {
+      // A dropped connection, or a gateway's 5xx with no words, throws
+      // AnswerLost: the step may have been done for every shop (round 21).
+      const answer = await sendJson("/api/bulk", payload);
+      const body =
+        typeof answer.data === "object" && answer.data !== null ? (answer.data as Record<string, unknown>) : {};
+      if (!answer.ok) {
         // Done for some shops, not for others: report it, do not offer a blind retry.
         if (Array.isArray(body.succeeded) && isBulkFailureList(body.failed)) {
           return { ...doneFrom(body, payload.tenant_ids.length), failed: body.failed } satisfies BulkOutcome;
         }
-        throw new Error(typeof body.error === "string" ? body.error : "Failed to execute bulk action");
+        throw failureOf(answer.status, answer.data, "Failed to execute bulk action");
       }
       return { ...doneFrom(body, payload.tenant_ids.length), failed: [] } satisfies BulkOutcome;
     },
@@ -202,8 +199,12 @@ export function BulkActionDialog({
       onClose();
     },
     onError: (err: Error) => {
-      if (!stillDrawn()) toast.error(`${title} was not done. ${err.message}`);
-      setError(err.message);
+      // A lost answer may hide a step that was done: read the list again, and
+      // never call it "not done" (round 21).
+      const lost = err instanceof AnswerLost;
+      if (lost) queryClient.invalidateQueries({ queryKey: ["admin", "merchants"] });
+      if (!stillDrawn()) toast.error(lost ? `${title}: ${ANSWER_LOST_SHOPS}` : `${title} was not done. ${err.message}`);
+      setError(lost ? ANSWER_LOST_SHOPS : err.message);
     },
   });
 

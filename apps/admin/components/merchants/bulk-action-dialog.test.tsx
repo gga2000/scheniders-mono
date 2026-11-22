@@ -171,6 +171,52 @@ describe("a bulk write", () => {
 });
 
 /*
+ * Round 21 (structure new 1, UX new 1): a bulk top-up whose answer was lost
+ * (a dropped connection, a gateway's 502 with no words) said "Failed to fetch"
+ * in the dialog and "Top Up Wallets was not done." once staff had left. The
+ * wallets may have been credited, and the natural retry credited them again.
+ */
+describe("a bulk write whose answer is lost", () => {
+  const ANSWER_LOST_SHOPS = "No answer came back, so this may have been done. Check the shops before trying again.";
+
+  it("says it may have been done when the connection drops", async () => {
+    send.mockRejectedValue(new TypeError("Failed to fetch"));
+    dialog(IDS, "top-up");
+    topUp("Cash at the office");
+    expect((await screen.findByText(ANSWER_LOST_SHOPS)).textContent).toBe(ANSWER_LOST_SHOPS);
+    expect(screen.queryByText(/Failed to fetch/)).toBeNull();
+  });
+
+  it("says it may have been done when a gateway answers 502 with no words", async () => {
+    send.mockResolvedValue(new Response("An error occurred with your deployment", { status: 502 }));
+    dialog(IDS, "top-up");
+    topUp("Cash at the office");
+    expect(await screen.findByText(ANSWER_LOST_SHOPS)).toBeTruthy();
+    expect(screen.queryByText("Failed to execute bulk action")).toBeNull();
+  });
+
+  it("never says not done in the toast after staff left the page", async () => {
+    let answer: (res: Response) => void = () => {};
+    send.mockReturnValue(new Promise<Response>((resolve) => (answer = resolve)));
+    const view = dialog(IDS, "top-up");
+    topUp("Cash at the office");
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(1));
+
+    view.unmount();
+    answer(new Response("upstream timed out", { status: 504 }));
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith(`Top Up Wallets: ${ANSWER_LOST_SHOPS}`));
+    expect(vi.mocked(toast.error).mock.calls.flat().join(" ")).not.toMatch(/not done/);
+  });
+
+  it("still says the server's own refusal as not done", async () => {
+    send.mockResolvedValue(new Response(JSON.stringify({ error: "Made-up refusal." }), { status: 500 }));
+    dialog(IDS, "top-up");
+    topUp("Cash at the office");
+    expect(await screen.findByText("Made-up refusal.")).toBeTruthy();
+  });
+});
+
+/*
  * Round 20 (UX new 4 and new 6): bulk Top Up's reason was a plain box that
  * said the rule only after Confirm, Confirm stayed dark with a short reason
  * and did nothing, a step that went through closed in silence, and Change
