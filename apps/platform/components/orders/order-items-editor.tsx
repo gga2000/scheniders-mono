@@ -9,6 +9,7 @@ import { DiscountBadge } from "./discount-badge";
 import { DiscountPresetSelector } from "./discount-preset-selector";
 import { mergeOrderItems } from "@/lib/merge-order-items";
 import { orderItemLabel } from "@/lib/orders/item-label";
+import { computeRefundPayout } from "@/lib/order-money";
 
 interface OrderItemsEditorProps {
     isEditing: boolean;
@@ -50,6 +51,9 @@ export function OrderItemsEditor({
      * per unit (historical LightFunnels orders) are shown as one line × N.
      */
     const itemsToShow: OrderItem[] = isEditing ? currentItems() : mergeOrderItems(order.items);
+
+    /** The pickup fee a refund keeps (its delivery_fee), shown as its own line; 0 on other orders. */
+    const refundFeeKept = order.is_return ? Math.max(0, Math.round(Number(order.delivery_fee) || 0)) : 0;
 
     const toggleOpenBox = (index: number) => {
         const items = [...currentItems()];
@@ -198,6 +202,14 @@ export function OrderItemsEditor({
                         )
                     )}
                 </div>
+                {/* A refund keeps its pickup fee: named here, so the total equals the banner's
+                    payout instead of the items alone (critic r18: −39,750 above, −44,750 here). */}
+                {!isEditing && refundFeeKept > 0 && (
+                    <div className="flex items-center justify-between px-4 py-2" data-refund-fee-row>
+                        <span className="text-sm text-muted">{t("refund.pickupFeeKept")}</span>
+                        <span className="font-mono text-sm text-foreground">{formatIQD(refundFeeKept)}</span>
+                    </div>
+                )}
                 {/* Total */}
                 <div className="flex items-center justify-between px-4 py-3 bg-[var(--background)]">
                     <span className="font-semibold text-foreground">{t("orderDetail.grandTotal")}</span>
@@ -220,7 +232,7 @@ export function OrderItemsEditor({
                         </div>
                     ) : (
                         <span className="text-lg font-bold text-foreground font-mono">
-                            {formatIQD(Number(order.price))}
+                            {formatIQD(order.is_return ? -computeRefundPayout(order) : Number(order.price))}
                         </span>
                     )}
                 </div>
