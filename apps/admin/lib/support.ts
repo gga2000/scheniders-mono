@@ -1,3 +1,4 @@
+import { answerLostWords } from "@/lib/answer-lost";
 import { z } from "zod";
 import { countLine } from "@/lib/load-failure";
 import { lockReasonWords } from "@/lib/billing-lock-label";
@@ -99,6 +100,20 @@ export function writesOnce(action: CaseAction): boolean {
 export const SUPPORT_SEND_UNSURE =
   "No answer came back, so this may have been done. Pressing again with the same words does it once at most.";
 
+/**
+ * Ending a notice whose answer was lost: pressing again could end a notice a
+ * teammate posted since, so look first. The route and the console say the same.
+ */
+export const SUPPORT_NOTICE_END_UNSURE = answerLostWords("the notice bar");
+
+/**
+ * Opening a merchant view whose answer was lost: the link never arrived, so a
+ * new press is the only way in; it ends the first look, and the merchant sees
+ * both visits.
+ */
+export const SUPPORT_VIEW_UNSURE =
+  "No answer came back, so a look may have opened. Pressing again opens a new one, and the merchant sees each visit.";
+
 /** The database's answer to an id it had already done: the first answer again, marked as a repeat. */
 export function wasRepeat(data: unknown): boolean {
   return typeof data === "object" && data !== null && "repeat" in data && data.repeat === true;
@@ -166,7 +181,9 @@ export function changeRequestClock(requestedAt: string, now: number): { label: s
   const minutes = (Date.parse(changeRequestDueAt(requestedAt)) - now) / 60_000;
   const late = minutes <= 0;
   const left = Math.abs(minutes);
-  const amount = left < 60 ? `${Math.max(1, Math.round(left))} min` : `${late ? Math.floor(left / 60) : Math.ceil(left / 60)} h`;
+  // Whole units, rounded down both ways, as formatUntil counts: "1 h" is 1 to
+  // 2 hours, so "1 h" left never means 59 minutes and "60 min" never shows.
+  const amount = left < 60 ? `${Math.max(1, Math.floor(left))} min` : `${Math.floor(left / 60)} h`;
   return { label: late ? `${amount} late` : amount, late };
 }
 

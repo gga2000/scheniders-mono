@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { SavedReplyInput, SupportSavedReply } from "@/lib/support";
 import { adminFetch } from "@/lib/admin-fetch";
+import { okOrLoadFailure } from "@/lib/load-failure";
 
 const KEY = ["admin", "support", "replies"] as const;
 
@@ -30,7 +31,7 @@ export function useSavedReplies() {
   return useQuery<SupportSavedReply[]>({
     queryKey: KEY,
     queryFn: async () =>
-      (await readJson<{ replies: SupportSavedReply[] }>(await adminFetch("/api/support/replies"))).replies,
+      ((await okOrLoadFailure(await adminFetch("/api/support/replies"), "the saved replies").json()) as { replies: SupportSavedReply[] }).replies,
     staleTime: 60_000,
   });
 }

@@ -7,6 +7,8 @@ import { cn } from "@/lib/utils";
 import { useSupportShopCheck } from "@/hooks/use-support-cases";
 import { shopCheckLines, type CheckState } from "@/lib/support-shop-check";
 import { formatTime } from "@/lib/format";
+import { LoadFailedLine } from "@/components/shared/load-failed-line";
+import { StaleLine } from "@/components/shared/stale-line";
 
 const STATE_ICON: Record<CheckState, { icon: typeof CheckCircle2; className: string; label: string }> = {
   ok: { icon: CheckCircle2, className: "text-[var(--ink-green)]", label: "Fine" },
@@ -33,14 +35,15 @@ export function SupportShopCheck({ caseId }: { caseId: string }) {
     );
   }
 
-  if (check.isError) {
+  if (check.isError && !check.data) {
     return (
-      <div className="rounded-xl border border-red-200 bg-red-500/5 p-3 text-xs text-[var(--ink-red)]">
-        Could not check this shop. {check.error.message}
-        <button type="button" onClick={() => check.refetch()} className="ml-1 font-semibold underline">
-          Try again
-        </button>
-      </div>
+      <LoadFailedLine
+        what="the shop check"
+        onRetry={() => void check.refetch()}
+        retrying={check.isFetching}
+        error={check.error}
+        className="rounded-xl border border-red-200 bg-red-500/5 p-3"
+      />
     );
   }
 
@@ -61,6 +64,7 @@ export function SupportShopCheck({ caseId }: { caseId: string }) {
 
   return (
     <div className="space-y-2">
+      <StaleLine read={check} what="the shop check" kept="page" />
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs font-semibold text-foreground">
           {broken > 0 ? `${broken} broken` : look > 0 ? `${look} worth a look` : "All fine"}

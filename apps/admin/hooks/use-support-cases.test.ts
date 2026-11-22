@@ -5,14 +5,20 @@
 // writes once per id.
 import { createElement, type ReactNode } from "react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { act, renderHook } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { act, renderHook, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 
 const adminFetch = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/admin-fetch", () => ({ adminFetch }));
 
-import { SUPPORT_SEND_UNSURE } from "@/lib/support";
-import { useSupportCaseAction, useSupportLogShopCall } from "./use-support-cases";
+import { SUPPORT_NOTICE_END_UNSURE, SUPPORT_SEND_UNSURE, SUPPORT_VIEW_UNSURE } from "@/lib/support";
+import {
+  useSupportCaseAction,
+  useSupportLogShopCall,
+  useSupportNoticeEnd,
+  useSupportTakeShop,
+  useSupportViewStart,
+} from "./use-support-cases";
 
 function wrapper({ children }: { children: ReactNode }) {
   const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
@@ -113,5 +119,72 @@ describe("Mark contacted on Trials logs one call per press that went through", (
 
     const [first, second] = sent();
     expect(second?.request_id).toBe(first?.request_id);
+  });
+});
+
+/*
+ * Round 24 (UX new 3): a send stayed "sending" until every support read on the
+ * page had re-read, so a slow scoreboard kept a sent reply spinning. It now
+ * waits only on its own conversation; the rest re-read on their own.
+ */
+describe("a send ends when its own read lands", () => {
+  it("settles once the conversation re-reads, while a slow panel is still reading", async () => {
+    adminFetch.mockImplementation(async () => ok());
+    const client = new QueryClient({ defaultOptions: { mutations: { retry: false }, queries: { retry: false } } });
+    const own = vi.fn(async () => ({ messages: 1 }));
+    let boardReads = 0;
+    const board = vi.fn(() => {
+      boardReads += 1;
+      return boardReads === 1 ? Promise.resolve({ rows: 1 }) : new Promise<{ rows: number }>(() => undefined);
+    });
+    const { result } = renderHook(
+      () => {
+        useQuery({ queryKey: ["admin", "support", "case", "case-1"], queryFn: own });
+        useQuery({ queryKey: ["admin", "support", "scoreboard", 7], queryFn: board });
+        return useSupportCaseAction("case-1");
+      },
+      { wrapper: ({ children }: { children: ReactNode }) => createElement(QueryClientProvider, { client }, children) },
+    );
+    await waitFor(() => expect(board).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      await result.current.mutateAsync({ action: "reply", body: "on it" });
+    });
+    expect(own).toHaveBeenCalledTimes(2);
+    expect(board).toHaveBeenCalledTimes(2);
+    expect(result.current.isPending).toBe(false);
+  });
+});
+
+/*
+ * Round 24 (structure new 5): ending a notice, taking a shop and opening or
+ * ending a merchant view posted outside the one sender, so a dropped
+ * connection read "Failed to fetch". Ending again could end a teammate's new
+ * notice, so its lost answer says to look first.
+ */
+describe("the steps with no id say a lost answer may have gone through", () => {
+  it("tells staff to check the notice bar before ending again", async () => {
+    adminFetch.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    const { result } = renderHook(() => useSupportNoticeEnd(), { wrapper });
+    await act(async () => {
+      await expect(result.current.mutateAsync()).rejects.toThrow(SUPPORT_NOTICE_END_UNSURE);
+    });
+    expect(adminFetch.mock.calls[0]?.[1]).toMatchObject({ method: "DELETE" });
+  });
+
+  it("says a look may have opened when its link never came back", async () => {
+    adminFetch.mockResolvedValueOnce(new Response("<html>Bad Gateway</html>", { status: 502 }));
+    const { result } = renderHook(() => useSupportViewStart(), { wrapper });
+    await act(async () => {
+      await expect(result.current.mutateAsync("33333333-3333-4333-8333-333333333333")).rejects.toThrow(SUPPORT_VIEW_UNSURE);
+    });
+  });
+
+  it("passes on the route's own refusal words", async () => {
+    adminFetch.mockResolvedValueOnce(new Response(JSON.stringify({ error: "This shop is gone." }), { status: 404 }));
+    const { result } = renderHook(() => useSupportTakeShop(), { wrapper });
+    await act(async () => {
+      await expect(result.current.mutateAsync("33333333-3333-4333-8333-333333333333")).rejects.toThrow("This shop is gone.");
+    });
   });
 });

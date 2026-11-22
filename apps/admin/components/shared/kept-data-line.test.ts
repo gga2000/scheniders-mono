@@ -10,7 +10,7 @@ import { describe, expect, it } from "vitest";
  * the lead page went on showing old numbers as today's. Each place that keeps
  * data now draws a `StaleLine`, which says the refresh failed and how old the
  * numbers are; it is the one place that says so, where the same block had
- * been pasted on 19 pages. The support desk's files are that thread's.
+ * been pasted on 19 pages. Since round 24 the support desk is checked too.
  *
  * Round 24 (structure new 2): the guard counted only reads that keep their
  * data, so a read that swapped a good list for its error ("isError ? …")
@@ -26,15 +26,10 @@ import { describe, expect, it } from "vitest";
 
 const ROOT = join(__dirname, "..", "..");
 const STALE_LINE = join(ROOT, "components", "shared", "stale-line.tsx");
-const SKIP = [
-  join(ROOT, "app", "(dashboard)", "support"),
-  join(ROOT, "components", "support"),
-];
 
 function sources(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const path = join(dir, entry.name);
-    if (SKIP.includes(path)) return [];
     if (entry.isDirectory()) return entry.name === "node_modules" ? [] : sources(path);
     return entry.name.endsWith(".tsx") && !entry.name.includes(".test.") ? [path] : [];
   });

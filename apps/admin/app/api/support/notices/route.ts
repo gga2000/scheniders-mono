@@ -7,6 +7,7 @@ import {
   NoticePostSchema,
   NoticeSchema,
   SUPPORT_NOTICE_COLUMNS,
+  SUPPORT_NOTICE_END_UNSURE,
   SUPPORT_SEND_UNSURE,
   SupportRequestIdSchema,
   supportRefusal,
@@ -79,9 +80,6 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({ notice: notice.data });
 }
 
-/** Ending's own lost answer: pressing again would end a notice posted since, so look first. */
-const NOTICE_END_UNSURE = "No answer came back, so the notice may have ended. Check the notice bar before trying again.";
-
 /** End the live notice now. */
 export async function DELETE(request: NextRequest) {
   const admin = await requireAdminPermission(request, "handle_support");
@@ -91,7 +89,7 @@ export async function DELETE(request: NextRequest) {
   if (error) {
     console.error("Support notice end error:", error);
     // Ending may have gone through; the bar shows whether a notice still runs.
-    return NextResponse.json({ error: NOTICE_END_UNSURE }, { status: 502 });
+    return NextResponse.json({ error: SUPPORT_NOTICE_END_UNSURE }, { status: 502 });
   }
 
   await logAdminAction(admin, "support_notice_ended", { details: { ended: data } });
