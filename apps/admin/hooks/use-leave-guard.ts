@@ -19,6 +19,9 @@ export function useLeaveGuard(unsaved: boolean): void {
   }, [unsaved]);
 }
 
+/** Holds from holdLeaveGuard not yet released: work still running in this tab. */
+let held = 0;
+
 /**
  * For work that goes on after its page is left (a product import keeps
  * running when staff move elsewhere in the console): a reload, a closed tab
@@ -30,7 +33,26 @@ export function useLeaveGuard(unsaved: boolean): void {
 export function holdLeaveGuard(): () => void {
   const ask = (event: BeforeUnloadEvent) => askBeforeUnload(event);
   window.addEventListener("beforeunload", ask);
-  return () => window.removeEventListener("beforeunload", ask);
+  held += 1;
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    held -= 1;
+    window.removeEventListener("beforeunload", ask);
+  };
+}
+
+export const SIGN_OUT_QUESTION = "A product import is still running in this tab. Signing out stops it. Sign out anyway?";
+
+/**
+ * Before Sign out, which is a button and not a link, so neither question
+ * here sees it: true when no held work runs, or when staff say to go on.
+ * Signing out with a run going on left it to whoever signed in next on the
+ * tab (console audit round 24, security new 2).
+ */
+export function mayStopHeldWork(): boolean {
+  return held === 0 || window.confirm(SIGN_OUT_QUESTION);
 }
 
 /** Whether a click on this link takes the tab to another page of the console. */

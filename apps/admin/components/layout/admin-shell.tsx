@@ -11,6 +11,7 @@ import { AdminSidebar } from "./admin-sidebar";
 import { AdminTopbar } from "./admin-topbar";
 import { AccessCheckNotice } from "./access-check-notice";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
+import { mayStopHeldWork } from "@/hooks/use-leave-guard";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { cn } from "@/lib/utils";
 import { readMenuCollapsed, writeMenuCollapsed } from "@/lib/menu-choice";
@@ -76,6 +77,7 @@ export function AdminShell({ children, pageName }: { children: React.ReactNode; 
   }, [isMobile, mobileMenuOpen]);
 
   const handleSignOut = async () => {
+    if (!mayStopHeldWork()) return;
     await signOut();
     router.push("/login");
   };
