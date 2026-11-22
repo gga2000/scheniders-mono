@@ -158,11 +158,11 @@ export function DailyCosts({ summary, statement, previous, bulkBefore, onOpenTab
                     <p className="mt-2.5 text-left text-[13.5px] leading-relaxed text-muted" dir={dir}>
                         {t("fin.ads.spent", { spent: money(spent) })}
                         {/* The line to judge the figure by, from this period's own goods, delivery and refunds. */}
-                        {evenAds !== null && <> {t("fin.ads.even", { n: formatWhole(evenAds), count: evenAds, now: formatWhole(brought) })}</>}
+                        {evenAds !== null && <> {t("fin.ads.even", { n: formatWhole(evenAds), count: evenAds })}</>}
                     </p>
                     {/* That line assumes every sale came from the ads; when sales did not rise as the ads began, say so beside it. */}
                     {noLift !== null && (
-                        <p className="mt-1.5 text-left text-[13.5px] leading-relaxed text-foreground" dir={dir} data-testid="ads-no-lift">
+                        <p className="mt-2.5 border-s-2 border-amber-400 ps-3 text-left text-[13px] leading-relaxed text-foreground" dir={dir} data-testid="ads-no-lift">
                             {/* Bulk-marked days in either period move sales between dates, so the comparison is rough: say so and point to new orders. */}
                             {isShownChange(-noLift)
                                 ? t(bulk || bulkBefore ? "fin.ads.noLiftBulk" : "fin.ads.noLift", { pct: formatChange(noLift) })

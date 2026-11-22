@@ -21,6 +21,7 @@ import { COST_COLORS, PROFIT_COLOR } from "./colors";
 import type { FinanceTab } from "./finance-tabs";
 import { LensSwitch } from "./lens-switch";
 import { COURIER_PAYMENTS_ID } from "./courier-payments";
+import { UNPAID_ORDERS_ID } from "./unpaid-orders";
 import { Money, formatWhole, useMoneyText } from "./money";
 import { StatementDetail } from "./statement-detail";
 import { SummaryCard } from "./summary-card";
@@ -75,6 +76,8 @@ export function ProfitStatement({ summary, statement, previous, onOpenTab }: Pro
     const loss = statement.netProfit < 0;
     /** What the cost bars leave of the track: the profit, drawn on its own row so the staircase ends in it. */
     const leftShare = Math.max(1 - [...steps.values()].reduce((sum, step) => sum + step.width, 0), 0);
+    /** The green row that ends the staircase: what stays of the sales, with its share. */
+    const showLeft = !loss && statement.sales > 0 && leftShare > 0;
     const perThousand = statement.margin === null ? null : Math.round(Math.abs(statement.margin) * 1000);
     const shown = statement.lines.filter((line) => line.amount !== 0);
     const empty = statement.lines.filter((line) => line.amount === 0);
@@ -218,7 +221,7 @@ export function ProfitStatement({ summary, statement, previous, onOpenTab }: Pro
                 );
             })}
 
-            {!loss && statement.sales > 0 && leftShare > 0 && (
+            {showLeft && (
                 <div className={cn(ROW, "border-t border-[var(--card-border)] py-[11px]")} data-testid="statement-left">
                     <span className="flex min-w-0 items-center gap-2.5">
                         <span className="size-2.5 shrink-0 rounded-[3px]" style={{ background: PROFIT_COLOR }} aria-hidden="true" />
@@ -245,9 +248,12 @@ export function ProfitStatement({ summary, statement, previous, onOpenTab }: Pro
             <div className="mt-3 flex items-end justify-between gap-6 border-t-2 border-foreground pt-4" data-line="net">
                 <div className="min-w-0">
                     <div className="text-left text-[17px] font-bold text-foreground" dir={dir}>{t("fin.line.net")}</div>
-                    <p className="mt-1 text-left text-[13.5px] leading-relaxed text-muted" dir={dir} data-testid="statement-plain">
-                        {perThousand !== null && t(loss ? "fin.statement.lose" : "fin.statement.keep", { n: formatWhole(perThousand) })}
-                    </p>
+                    {/* What stays of each 1,000, only when the green row above does not already show it as a share of sales. */}
+                    {perThousand !== null && !showLeft && (
+                        <p className="mt-1 text-left text-[13.5px] leading-relaxed text-muted" dir={dir} data-testid="statement-plain">
+                            {t(loss ? "fin.statement.lose" : "fin.statement.keep", { n: formatWhole(perThousand) })}
+                        </p>
+                    )}
                     {fallCause && (
                         <p className="mt-1 text-left text-[13.5px] leading-relaxed text-muted" dir={dir} data-testid="statement-fall-cause">
                             {t("fin.statement.fallCause", { line: t(`fin.line.${fallCause.id}`), amount: money(fallCause.amount) })}
@@ -312,8 +318,18 @@ export function ProfitStatement({ summary, statement, previous, onOpenTab }: Pro
                             </li>
                         )}
                         {feePending > 0 && (
-                            <li className="text-left" dir={dir} data-testid="statement-fee-pending">
-                                {t("fin.statement.feePending", { n: formatWhole(feePending), count: feePending })}
+                            <li className="flex items-center gap-4" data-testid="statement-fee-pending">
+                                <span className="min-w-0 flex-1 text-left" dir={dir}>
+                                    {t("fin.statement.feePending", { n: formatWhole(feePending), count: feePending })}
+                                </span>
+                                <a
+                                    href={`#${UNPAID_ORDERS_ID}`}
+                                    className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap font-semibold text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-current"
+                                    data-testid="statement-fee-pending-link"
+                                >
+                                    {t("fin.alert.refundsOpen.open")}
+                                    <ArrowUpRight className="size-3.5" aria-hidden="true" />
+                                </a>
                             </li>
                         )}
                     </ul>

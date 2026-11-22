@@ -92,7 +92,7 @@ describe("SummaryView", () => {
         expect(stat("stuck")).toBe("0");
     });
 
-    it("lists every cost line with a minus, folds the empty ones, then the net profit and what stays of each 1,000", () => {
+    it("lists every cost line with a minus, folds the empty ones, then the net profit and its share of sales once", () => {
         renderView(query(summary()));
         expect(line("sales")?.textContent).toContain("400,000");
         expect(line("product_cost")?.textContent).toContain("−150,000");
@@ -103,9 +103,8 @@ describe("SummaryView", () => {
         expect(line("salaries")).toBeNull();
         expect(byTestId("statement-quiet")?.textContent).toContain("الرواتب");
         expect(line("net")?.textContent).toContain("115,000");
-        // the total says what stays of each 1,000 under the label, once (no second "% of sales" for the same thing)
-        expect(byTestId("statement-plain")?.textContent).toContain("288");
-        expect(byTestId("statement-plain")?.textContent).not.toContain("%");
+        // the green row already says what stays as a share of sales, so no second "per 1,000" line says it again
+        expect(byTestId("statement-plain")).toBeNull();
         // the staircase ends in what is left: a green row for the profit, with its share of sales
         expect(byTestId("statement-left")?.textContent).toBe("يبقى لك29% من المبيعات115,000د.ع");
         // the share column adds up to 100, like the products table (37.5 + 15 + 7.5 + 10 + 1.25 + 28.75)
@@ -469,8 +468,11 @@ describe("SummaryView", () => {
         // 3 unpaid orders, 1 of them with Prime, whose fee is known: the other 2 wait for the company's statement
         renderView(query(s));
         expect(byTestId("statement-fee-pending")?.textContent).toBe(
-            "أجرة شركة التوصيل عن طلبين مسلّمين لم يصل كشفهما بعد.",
+            "أجرة شركة التوصيل عن طلبين مسلّمين في «لم يُدفع لك بعد»، لم يصل كشفهما بعد.اعرضها",
         );
+        // the link takes the merchant to those orders in the money card
+        expect(byTestId("statement-fee-pending-link")?.getAttribute("href")).toBe("#unpaid-orders");
+        expect(byTestId("money-unpaid-list")?.id).toBe("unpaid-orders");
         cleanup();
         renderView(query(summary({ cash: { ...s.cash, split: { ...s.cash.split, unpaid_prime: 3 } } })));
         expect(byTestId("statement-fee-pending")).toBeNull();
@@ -535,7 +537,7 @@ describe("SummaryView", () => {
         expect(figure).not.toContain("د.ع");
         expect(byTestId("ad-return")?.textContent).toContain("صرفت 60,000 د.ع على الإعلانات في هذه الفترة.");
         // the line to judge it by: 400,000 of sales leave 180,000 after goods, delivery and refunds
-        expect(byTestId("ad-return")?.textContent).toContain("يربح الإعلان إذا جلبت كل 1,000 دينار منه مبيعات فوق 2,222 ديناراً. أنت الآن عند 6,667، إن كانت كل مبيعاتك من الإعلان.");
+        expect(byTestId("ad-return")?.textContent).toContain("يربح الإعلان إذا جلبت كل 1,000 دينار منه مبيعات فوق 2,222 ديناراً، إن كانت كل مبيعاتك منه.");
         // no period before: nothing to say about whether the ads raised sales
         expect(byTestId("ads-no-lift")).toBeNull();
         expect(byTestId("ad-return")?.textContent).toContain("صرفت 60,000 د.ع على الإعلانات في هذه الفترة");
@@ -632,6 +634,10 @@ describe("SummaryView", () => {
         const rings = document.querySelectorAll("[data-jump]");
         expect(rings).toHaveLength(1);
         expect(rings[0]?.textContent).toBe("");
+        // the ring carries its date beside it, the same date the note under the chart names
+        const ringDate = byTestId("profit-path-jump-date")?.textContent ?? "";
+        expect(ringDate).not.toBe("");
+        expect(byTestId("profit-path-big")?.textContent).toContain(ringDate);
         expect(byTestId("profit-path-big")?.textContent).toContain("أكبر يوم");
         expect(byTestId("profit-path-big")?.textContent).toContain("6 طلبات");
         expect(byTestId("profit-path-big")?.textContent).toContain("ربح 95,000 د.ع");
@@ -723,10 +729,10 @@ describe("SummaryView", () => {
         expect(ads?.textContent).toBe("شبه صفر في الفترة السابقة");
         expect(byTestId("statement-fall-cause")?.textContent).toBe("أغلب هذا الانخفاض من «الإعلانات»: 60,000 د.ع في هذه الفترة، وكانت شبه صفر في الفترة السابقة.");
         // the ads card says the new ads did not raise sales, beside the line that assumes they made every sale
-        expect(byTestId("ads-no-lift")?.textContent).toBe("لكن في الفترة السابقة كانت إعلاناتك شبه صفر، ومبيعاتك الآن قريبة منها، فلا يظهر أن الإعلانات رفعت مبيعاتك. جرّب إيقاف أضعف حملة وراقب مبيعاتك.");
+        expect(byTestId("ads-no-lift")?.textContent).toBe("لكن إعلاناتك في الفترة السابقة كانت شبه صفر، ومبيعاتك الآن قريبة منها، فلا يظهر أن الإعلانات رفعتها. جرّب إيقاف أضعف حملة أسبوعاً وراقب الطلبات الجديدة.");
         cleanup();
         renderView(query(s), query(summary({ ...before, sales: { ...before.sales, revenue: 430_000 } })));
-        expect(byTestId("ads-no-lift")?.textContent).toBe("لكن في الفترة السابقة كانت إعلاناتك شبه صفر، ومبيعاتك الآن أقل بـ7%، فلا يظهر أن الإعلانات رفعت مبيعاتك. جرّب إيقاف أضعف حملة وراقب مبيعاتك.");
+        expect(byTestId("ads-no-lift")?.textContent).toBe("لكن إعلاناتك في الفترة السابقة كانت شبه صفر، ومبيعاتك الآن أقل بـ7%، فلا يظهر أن الإعلانات رفعتها. جرّب إيقاف أضعف حملة أسبوعاً وراقب الطلبات الجديدة.");
         cleanup();
         // the same ads both times: no words, no cause
         // the period before was mostly one day of marking orders delivered at once: the comparison is rough, so
@@ -735,7 +741,7 @@ describe("SummaryView", () => {
         const bulkBefore = [1, 1, 1, 1, 1, 15].map((orders, i) => ({ ...bulkDay, day: `2026-10-0${i + 1}`, orders }));
         renderView(query(s), query(summary({ ...before, sales: { ...before.sales, revenue: 430_000 }, daily: bulkBefore })));
         expect(byTestId("ads-no-lift")?.textContent).toBe(
-            "لكن إعلاناتك في الفترة السابقة كانت شبه صفر، ومبيعاتك الآن أقل بـ7%. والمقارنة تقريبية لأنك غيّرت حالة كثير من الطلبات إلى «مُسلَّم» دفعةً واحدة. لتعرف أثر الإعلان، أوقف أضعف حملة أسبوعاً وراقب عدد الطلبات الجديدة.",
+            "لكن إعلاناتك في الفترة السابقة كانت شبه صفر، ومبيعاتك الآن أقل بـ7% (مقارنة تقريبية، لأن كثيراً من الطلبات صارت «مُسلَّم» دفعةً واحدة). جرّب إيقاف أضعف حملة أسبوعاً وراقب الطلبات الجديدة.",
         );
         cleanup();
         renderView(query(s), query(summary()));
