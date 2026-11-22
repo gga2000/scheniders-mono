@@ -18,6 +18,7 @@ export const SUPPORT_REASONS = [
   "account_login",
   "bug",
   "how_to",
+  "change_request",
   "other",
 ] as const;
 
@@ -33,6 +34,7 @@ export const SUPPORT_REASON_LABELS: Record<SupportReason, string> = {
   account_login: "Account and login",
   bug: "Something is broken",
   how_to: "How do I",
+  change_request: "Change request",
   other: "Other",
 };
 
@@ -108,8 +110,16 @@ export interface SupportCaseRow {
   tenants: SupportCaseShop | null;
 }
 
+/** A row of the inbox list. */
+export interface SupportInboxRow extends SupportCaseRow {
+  /** The conversation holds a change request ("Need a change?" in the merchant header), promised within 24 hours. */
+  change_request: boolean;
+}
+
 /** What the merchant was looking at when they wrote (apps/platform lib/support/context). */
 export interface SupportMessageContext {
+  /** Sent from "Need a change?" in the merchant header: a change or feature they want built. */
+  kind?: "change_request";
   path?: string;
   orderNumber?: string;
   errorCode?: string;
@@ -206,7 +216,7 @@ export interface SupportShopCard {
 }
 
 export interface SupportCasesResponse {
-  cases: SupportCaseRow[];
+  cases: SupportInboxRow[];
   waitingOnUs: number;
 }
 
@@ -255,7 +265,7 @@ export function supportRefusal(error: { code?: string; message?: string } | null
 }
 
 /** Open cases: the merchant waiting longest first, then the ones waiting on the merchant. */
-export function sortInbox(cases: SupportCaseRow[]): SupportCaseRow[] {
+export function sortInbox<T extends SupportCaseRow>(cases: T[]): T[] {
   const rank = (c: SupportCaseRow) => (c.status === "waiting_us" ? 0 : c.status === "waiting_merchant" ? 1 : 2);
   return [...cases].sort((a, b) => {
     const byStatus = rank(a) - rank(b);

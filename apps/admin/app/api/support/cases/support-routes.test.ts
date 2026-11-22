@@ -122,6 +122,35 @@ describe("support inbox access", () => {
   });
 });
 
+describe("change requests in the inbox", () => {
+  const OTHER = "66666666-6666-4666-8666-666666666666";
+  const listed = [
+    { id: CASE_ID, status: "waiting_us", waiting_since: "2026-11-22T10:00:00Z", last_message_at: "2026-11-22T10:00:00Z" },
+    { id: OTHER, status: "waiting_merchant", waiting_since: null, last_message_at: "2026-11-22T09:00:00Z" },
+  ];
+
+  it("marks the open conversations that hold a change request, without listing ids in the URL", async () => {
+    dbQueue.push({ data: listed, error: null }, { data: null, error: null, count: 1 }, { data: [{ case_id: CASE_ID }], error: null });
+    const { GET } = await import("./route");
+    const body = await (await GET(req("/api/support/cases", "GET", "support"))).json();
+    expect(body.cases.map((c: { id: string; change_request: boolean }) => [c.id, c.change_request])).toEqual([
+      [CASE_ID, true],
+      [OTHER, false],
+    ]);
+    expect(dbCalls).toContainEqual({ method: "eq", args: ["context->>kind", "change_request"] });
+    expect(dbCalls).toContainEqual({ method: "neq", args: ["support_cases.status", "solved"] });
+    expect(dbCalls.some((c) => c.method === "in")).toBe(false);
+  });
+
+  it("asks only about the listed ids for the solved view", async () => {
+    dbQueue.push({ data: [listed[0]], error: null }, { data: null, error: null, count: 0 }, { data: [], error: null });
+    const { GET } = await import("./route");
+    const body = await (await GET(req("/api/support/cases?view=solved", "GET", "support"))).json();
+    expect(body.cases[0].change_request).toBe(false);
+    expect(dbCalls).toContainEqual({ method: "in", args: ["case_id", [CASE_ID]] });
+  });
+});
+
 describe("support case actions", () => {
   it.each([
     ["an unknown action", { action: "delete" }],
