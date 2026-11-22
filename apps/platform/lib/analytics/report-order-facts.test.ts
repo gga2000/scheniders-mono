@@ -70,6 +70,20 @@ describe("range-scoped calculators", () => {
     });
 });
 
+describe("period comparison while nothing has finished", () => {
+    it("has no delivery rate and no processing time, not 0% and 0 hours, and no change for either", () => {
+        const cur = [order({ status: "pending" }), order({ status: "in_transit" })];
+        const prev = [order({ delivered_at: "2026-10-17T10:00:00.000Z" })];
+        const c = calculatePeriodComparison(cur, prev);
+        expect(c.current.deliveryRate).toBeNull();
+        expect(c.current.avgProcessingTime).toBeNull();
+        expect(c.previous.deliveryRate).toBe(100);
+        expect(c.previous.avgProcessingTime).toBeCloseTo(48);
+        expect(c.changes.deliveryRate).toBeNull();
+        expect(c.changes.avgProcessingTime).toBeNull();
+    });
+});
+
 describe("csvCell", () => {
     it("escapes quotes and neutralises formulas", async () => {
         const { csvCell } = await import("@/lib/reports-export");

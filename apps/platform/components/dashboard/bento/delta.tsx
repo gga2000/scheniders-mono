@@ -12,7 +12,7 @@ interface DeltaProps {
  */
 export function formatDelta(pct: number): string {
     const abs = Math.abs(pct);
-    if (pct >= 1000) return `${Math.round(1 + pct / 100)}×`;
+    if (pct >= 1000) return `${Math.round(1 + pct / 100).toLocaleString("en-US")}×`;
     return `${abs >= 10 ? Math.round(abs) : abs.toFixed(1)}%`;
 }
 

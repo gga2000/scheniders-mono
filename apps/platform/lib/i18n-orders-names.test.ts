@@ -29,6 +29,17 @@ describe("Orders labels: one thing, one name", () => {
         });
     }
 
+    it("Reports names the refunds it adds to the Orders count with the Orders chip's word (critic r18)", () => {
+        // «+ 9 … = 327 في صفحة الطلبات» points the merchant at the Orders chip «الاسترجاعات 9».
+        for (const form of ["", ".one", ".two", ".few", ".many"]) {
+            const line = translations.ar[`reports.kpi.plusReturns${form}`];
+            expect(line).toMatch(/استرجاع/);
+            expect(line).not.toMatch(/مرتجع/);
+        }
+        expect(translations.en["reports.kpi.plusReturns"]).toMatch(/refunds/);
+        expect(translations.en["reports.kpi.plusReturns.one"]).toMatch(/refund\b/);
+    });
+
     it("ar: the words Ali picked", () => {
         expect(translations.ar["orders.chip.refunds"]).toBe("الاسترجاعات");
         expect(translations.ar["orders.chip.suspended"]).toBe("معلق");

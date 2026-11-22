@@ -30,23 +30,29 @@ export interface PeriodComparisonMetrics {
         totalOrders: number;
         deliveredOrders: number;
         rejectedOrders: number;
-        deliveryRate: number;
+        /** delivered ÷ (delivered + rejected); null when nothing in the period was delivered or rejected yet. */
+        deliveryRate: number | null;
         totalRevenue: number;
-        avgProcessingTime: number;
+        /** Hours from created to delivered; null when nothing in the period was delivered yet. */
+        avgProcessingTime: number | null;
     };
     previous: {
         totalOrders: number;
         deliveredOrders: number;
         rejectedOrders: number;
-        deliveryRate: number;
+        /** delivered ÷ (delivered + rejected); null when nothing in the period was delivered or rejected yet. */
+        deliveryRate: number | null;
         totalRevenue: number;
-        avgProcessingTime: number;
+        /** Hours from created to delivered; null when nothing in the period was delivered yet. */
+        avgProcessingTime: number | null;
     };
     changes: {
         orders: number; // percentage change
-        deliveryRate: number;
+        /** Points; null when either period has no rate. */
+        deliveryRate: number | null;
         revenue: number;
-        avgProcessingTime: number;
+        /** Percent; null when either period has no processing time. */
+        avgProcessingTime: number | null;
     };
 }
 
@@ -174,17 +180,18 @@ export function calculatePeriodComparison(
             }
         });
 
+        // No delivered order means no processing time, not 0 hours (critic r18: «0 ساعة» with a green trend).
         const avgProcessingTime = processingTimes.length > 0
             ? processingTimes.reduce((a, b) => a + b, 0) / processingTimes.length
-            : 0;
+            : null;
 
         return {
             totalOrders: total,
             deliveredOrders: delivered,
             rejectedOrders: rejected,
             // delivered ÷ (delivered + rejected): the KPI card's rule, so one page never shows two
-            // different "delivery rates".
-            deliveryRate: delivered + rejected > 0 ? (delivered / (delivered + rejected)) * 100 : 0,
+            // different "delivery rates". Null, not 0%, while nothing has finished.
+            deliveryRate: delivered + rejected > 0 ? (delivered / (delivered + rejected)) * 100 : null,
             totalRevenue: revenue,
             avgProcessingTime,
         };
@@ -201,9 +208,12 @@ export function calculatePeriodComparison(
 
     const changes = {
         orders: calcChange(current.totalOrders, previous.totalOrders),
-        deliveryRate: current.deliveryRate - previous.deliveryRate, // Absolute difference for rates
+        // Absolute difference for rates; no trend unless both periods have one.
+        deliveryRate: current.deliveryRate !== null && previous.deliveryRate !== null ? current.deliveryRate - previous.deliveryRate : null,
         revenue: calcChange(current.totalRevenue, previous.totalRevenue),
-        avgProcessingTime: calcChange(current.avgProcessingTime, previous.avgProcessingTime),
+        avgProcessingTime: current.avgProcessingTime !== null && previous.avgProcessingTime !== null
+            ? calcChange(current.avgProcessingTime, previous.avgProcessingTime)
+            : null,
     };
 
     return { current, previous, changes };
