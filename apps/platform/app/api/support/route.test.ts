@@ -89,7 +89,7 @@ describe("GET /api/support", () => {
         const res = await GET(request("GET"));
         expect(await res.json()).toEqual({
             success: true,
-            data: { case: null, messages: [], unread: 0, seen: null, askWhy: false, owner: null, callBack: null, contactPhone: null, notice: null },
+            data: { case: null, messages: [], unread: 0, seen: null, askWhy: false, owner: null, callBack: null, contactPhone: null, notice: null, whatsapp: null },
         });
         expect(eqCalls()).toEqual([
             ["tenant_id", TENANT],
@@ -98,6 +98,7 @@ describe("GET /api/support", () => {
             ["tenant_id", TENANT],
             ["kind", "call_back"],
             ["id", TENANT],
+            ["key", "topup_payment"],
         ]);
     });
 
@@ -131,6 +132,32 @@ describe("GET /api/support", () => {
         const after = state.calls.slice(from);
         expect(after.find((c) => c.method === "is")?.args).toEqual(["ended_at", null]);
         expect(after.find((c) => c.method === "gt")?.args[0]).toBe("ends_at");
+    });
+
+    it("links to our support WhatsApp from the console setting, naming the shop", async () => {
+        state.queue.push(
+            { data: [], error: null },
+            { data: null, error: null },
+            { data: null, error: null },
+            { data: { contact_phone: null, business_name: "متجر نور", display_id: 100123 }, error: null },
+            { data: null, error: null },
+            { data: { value: { qi_card: "", support_whatsapp: "9647746128551" } }, error: null },
+        );
+        const link: string = (await (await GET(request("GET"))).json()).data.whatsapp;
+        expect(link.startsWith("https://wa.me/9647746128551?text=")).toBe(true);
+        expect(decodeURIComponent(link.split("?text=")[1] ?? "")).toContain("100123");
+    });
+
+    it.each([null, { value: { support_whatsapp: "" } }, { value: "not an object" }])("shows no WhatsApp button without a number (%j)", async (setting) => {
+        state.queue.push(
+            { data: [], error: null },
+            { data: null, error: null },
+            { data: null, error: null },
+            { data: null, error: null },
+            { data: null, error: null },
+            { data: setting, error: null },
+        );
+        expect((await (await GET(request("GET"))).json()).data.whatsapp).toBeNull();
     });
 
     it("offers no number when the shop's contact phone is not an Iraqi mobile", async () => {
