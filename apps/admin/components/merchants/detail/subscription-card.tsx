@@ -150,7 +150,7 @@ export function SubscriptionCard({ merchantId, tenant, subscription, billingLock
                   />
                 </button>
               )}
-              {renewalWords(autoRenew, tenant.is_demo, tenant.status)}
+              {renewalWords(autoRenew, tenant.is_demo, tenant.status, billingLock?.locked ? billingLock.reason : null)}
             </span>
             {asking !== null && canSwitch && (
               <span className="mt-3 block max-w-sm font-normal">

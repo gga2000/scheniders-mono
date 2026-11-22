@@ -18,6 +18,10 @@ import { describe, expect, it } from "vitest";
  * orders, Lead numbers, the industries, the bell, the watchlist and the map's
  * counts all threw away what they showed on one failed re-read. A read's
  * error now stands in for its data only when there is none.
+ *
+ * Round 24 (UX new 7): a list or a page that never loaded said "No numbers
+ * are shown" in its LoadError. LoadError now takes `shows`, as StaleLine takes
+ * `kept`, and the two agree for each read.
  */
 
 const ROOT = join(__dirname, "..", "..");
@@ -57,6 +61,29 @@ function staleLines(source: string): number {
   return [...source.matchAll(/<StaleLine\b/g)].length;
 }
 
+/**
+ * What each read says it shows, by the words it names the read with: a
+ * StaleLine's `kept` and a LoadError's `shows`, each "numbers" when not given.
+ */
+function showsByWhat(source: string, tag: "StaleLine" | "LoadError"): Map<string, string> {
+  const prop = tag === "StaleLine" ? "kept" : "shows";
+  const said = new Map<string, string>();
+  for (const [element] of source.matchAll(new RegExp(`<${tag}\\b[\\s\\S]*?\\/>`, "g"))) {
+    const what = element.match(/\bwhat="([^"]+)"/)?.[1];
+    if (what) said.set(what, element.match(new RegExp(`\\b${prop}="([^"]+)"`))?.[1] ?? "numbers");
+  }
+  return said;
+}
+
+/** Reads whose first-load error and stale line say they show different things. */
+function mismatched(source: string): string[] {
+  const stale = showsByWhat(source, "StaleLine");
+  return [...showsByWhat(source, "LoadError")].flatMap(([what, shows]) => {
+    const kept = stale.get(what);
+    return kept !== undefined && kept !== shows ? [`${what}: LoadError shows="${shows}", StaleLine kept="${kept}"`] : [];
+  });
+}
+
 /** The same line built by hand, beside the one component that builds it. */
 function handBuilt(source: string): number {
   return [...source.matchAll(/\bshownFrom=\{/g)].length;
@@ -80,6 +107,12 @@ describe("a page that keeps its last read when a read fails", () => {
     expect(dropsOnFailure("<LoadError error={isError ? error : null} />")).toBe(0);
     expect(dropsOnFailure("<LoadError error={read.isError ? read.error : null} />")).toBe(0);
     expect(dropsOnFailure("if (save.isError) errorRef.current?.scrollIntoView();")).toBe(0);
+    const pair = (load: string, stale: string) =>
+      mismatched(`<LoadError compact what="the leads"${load} onRetry={() => void refetch()} />\n<StaleLine read={r} what="the leads"${stale} />`);
+    expect(pair(' shows="list"', ' kept="list"')).toEqual([]);
+    expect(pair("", "")).toEqual([]);
+    expect(pair("", ' kept="list"')).toEqual(['the leads: LoadError shows="numbers", StaleLine kept="list"']);
+    expect(pair(' shows="page"', "")).toEqual(['the leads: LoadError shows="page", StaleLine kept="numbers"']);
   });
 
   it("never throws away what it showed because a later read failed", () => {
@@ -102,6 +135,13 @@ describe("a page that keeps its last read when a read fails", () => {
         return said < kept ? [`${file.slice(ROOT.length + 1)}: keeps ${kept} read(s), says ${said}`] : [];
       });
     expect(silent).toEqual([]);
+  });
+
+  it("names a list or a page the same way when it never loaded as when its refresh failed", () => {
+    const differ = sources(join(ROOT, "app"))
+      .concat(sources(join(ROOT, "components")))
+      .flatMap((file) => mismatched(readFileSync(file, "utf8")).map((m) => `${file.slice(ROOT.length + 1)}: ${m}`));
+    expect(differ).toEqual([]);
   });
 
   it("says it with the one stale line, never one built by hand", () => {

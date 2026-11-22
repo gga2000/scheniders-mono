@@ -83,7 +83,7 @@ export function LeadMobileDetail() {
           <ArrowLeft className="w-4 h-4" />
           Back to Leads
         </Link>
-        <LoadError compact what="this lead" error={error} onRetry={() => void refetch()} retrying={isFetching} />
+        <LoadError compact what="this lead" shows="page" error={error} onRetry={() => void refetch()} retrying={isFetching} />
       </div>
     );
   }

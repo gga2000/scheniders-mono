@@ -180,17 +180,25 @@ describe("what a shop on hold comes back as", () => {
 
 describe("the renewal line", () => {
   it("says a shop that is not running is not charged while it stays so", () => {
-    expect(renewalWords(true, false, "active")).toBe("On: charges the wallet each month");
-    expect(renewalWords(true, false, "trial")).toBe("On: charges the wallet each month");
-    expect(renewalWords(true, false, "limited")).toBe("On: not charged while paused, then charges the wallet each month");
-    expect(renewalWords(true, false, "suspended")).toBe("On: not charged while on hold, then charges the wallet each month");
-    expect(renewalWords(true, false, "cancelled")).toBe("On: not charged while cancelled");
+    expect(renewalWords(true, false, "active", null)).toBe("On: charges the wallet each month");
+    expect(renewalWords(true, false, "trial", null)).toBe("On: charges the wallet each month");
+    expect(renewalWords(true, false, "limited", null)).toBe("On: not charged while paused, then charges the wallet each month");
+    expect(renewalWords(true, false, "suspended", null)).toBe("On: not charged while on hold, then charges the wallet each month");
+    expect(renewalWords(true, false, "cancelled", null)).toBe("On: not charged while cancelled");
   });
 
   it("says the demo store is never charged, and renewal off locks the shop at the month's end", () => {
-    expect(renewalWords(true, true, "active")).toBe("On: renews each month, never charged (demo store)");
-    expect(renewalWords(false, true, "active")).toBe("Off, but the demo store renews each month at no charge");
-    expect(renewalWords(false, false, "suspended")).toBe("Off: when the month ends it is not charged, and the shop locks");
+    expect(renewalWords(true, true, "active", null)).toBe("On: renews each month, never charged (demo store)");
+    expect(renewalWords(false, true, "active", null)).toBe("Off, but the demo store renews each month at no charge");
+    expect(renewalWords(false, false, "suspended", null)).toBe("Off: when the month ends it is not charged, and the shop locks");
+    // A shop renewal off already locked is told what happened (round 24 UX new 8).
+    expect(renewalWords(false, false, "active", "unpaid")).toBe("Off: the month ended unpaid, so the shop is locked");
+    expect(renewalWords(false, false, "limited", "unpaid")).toBe("Off: the month ended unpaid, so the shop is locked");
+    expect(renewalWords(false, false, "trial", "trial_ended")).toBe("Off: the trial ended unpaid, so the shop is locked");
+    expect(renewalWords(false, false, "active", null)).toBe("Off: when the month ends it is not charged, and the shop locks");
+    // Renewal on and the demo store keep their words, locked or not.
+    expect(renewalWords(true, false, "active", "unpaid")).toBe("On: charges the wallet each month");
+    expect(renewalWords(false, true, "active", "unpaid")).toBe("Off, but the demo store renews each month at no charge");
   });
 });
 

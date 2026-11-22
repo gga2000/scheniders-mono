@@ -97,7 +97,7 @@ export default function MerchantDetailPage() {
   // "Not found" is one answer among several: a failed read or a login that may
   // not open the shop must not tell staff the shop does not exist.
   if (isError && !data && loadFailureKind(error) !== "missing") {
-    return <LoadError what="this shop" error={error} onRetry={() => refetch()} retrying={isFetching} />;
+    return <LoadError what="this shop" shows="page" error={error} onRetry={() => refetch()} retrying={isFetching} />;
   }
 
   if (!data) {

@@ -65,7 +65,7 @@ export default function TeamMemberDetailPage() {
           <ArrowLeft className="w-4 h-4" />
           Back to Team
         </Link>
-        <LoadError what="this team member" error={error} onRetry={() => refetch()} retrying={isFetching} />
+        <LoadError what="this team member" shows="page" error={error} onRetry={() => refetch()} retrying={isFetching} />
       </div>
     );
   }
@@ -145,7 +145,7 @@ export default function TeamMemberDetailPage() {
         <section className="pastel-card">
           <LoadError
             compact
-            what="these steps"
+            what="these steps" shows="list"
             error={actionsQuery.error}
             onRetry={() => actionsQuery.refetch()}
             retrying={actionsQuery.isFetching}

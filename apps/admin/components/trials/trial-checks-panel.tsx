@@ -225,7 +225,7 @@ export function TrialChecksPanel() {
   if (isError && !data) {
     return (
       <section className="pastel-card">
-        <LoadError compact what="the one-trial checks" error={error} onRetry={() => refetch()} retrying={isFetching} />
+        <LoadError compact what="the one-trial checks" shows="list" error={error} onRetry={() => refetch()} retrying={isFetching} />
       </section>
     );
   }
