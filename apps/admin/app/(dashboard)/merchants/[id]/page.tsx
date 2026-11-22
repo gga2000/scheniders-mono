@@ -226,6 +226,7 @@ export default function MerchantDetailPage() {
           subscription?.auto_renew === false && !tenant.is_demo,
         )}
         trialEndsAt={tenant.trial_ends_at}
+        renewalOff={subscription?.auto_renew === false}
         onGiveOrders={() => {
           setActiveTab("Overview");
           // The tab switch has rendered by the next frame, so the lock card is there.

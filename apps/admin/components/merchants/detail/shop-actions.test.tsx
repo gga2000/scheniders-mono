@@ -38,6 +38,7 @@ function page(client = new QueryClient()) {
         freeDaysFrom: null,
         comeback: "trial",
         trialEndsAt: null,
+        renewalOff: false,
         onGiveOrders: () => {},
         onAddNote: () => {},
       }),

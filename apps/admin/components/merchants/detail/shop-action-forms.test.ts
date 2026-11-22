@@ -119,8 +119,8 @@ describe("Change plan", () => {
 // Round 19 (UX new 4): the free period had four names, its sentence showed
 // only after a reason, and a locked trial was not told its store opens.
 describe("Start free time, no charge", () => {
-  const draw = (locked: boolean) =>
-    render(createElement(ConvertTrialForm, { shopId: "t1", shopName: "Shop", requestIds: createRequestIds(), locked, onDone: () => {} }));
+  const draw = (locked: boolean, renewalOff = false) =>
+    render(createElement(ConvertTrialForm, { shopId: "t1", shopName: "Shop", requestIds: createRequestIds(), locked, renewalOff, onDone: () => {} }));
 
   it("says what happens before a reason is typed, in one name: free time", () => {
     const html = draw(false);
@@ -129,11 +129,19 @@ describe("Start free time, no charge", () => {
     expect(html).toContain("Nothing is charged today; the first charge is on that day.");
     expect(html).not.toMatch(/paid time|paid period/i);
     expect(html).not.toContain("opens again");
+    expect(html).not.toContain("renewal");
     expect(confirmButton(html)).toMatch(DISABLED);
   });
 
   it("tells a locked trial that its store opens again now", () => {
     expect(draw(true)).toContain("The store opens again now.");
+  });
+
+  // Audit round 21: free time turned a renewal staff had stopped back on, without a word.
+  it("says before the press that it turns a stopped monthly renewal back on", () => {
+    expect(draw(false, true)).toContain(
+      "Monthly renewal is off now: this turns it back on, so the shop is charged every month after the free time.",
+    );
   });
 });
 

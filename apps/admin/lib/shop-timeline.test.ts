@@ -147,6 +147,10 @@ describe("changeTitle", () => {
     expect(changeTitle("convert_trial", { days: 30, plan: "growth" })).toBe("Started 30 days of free time on the Team plan, no charge");
     expect(changeTitle("convert_trial", { days: 365, plan: "internal" })).toBe("Started 365 days of free time on Internal (no billing), no charge");
     expect(changeTitle("convert_trial", {})).toBe("Started free time, no charge");
+    // Audit round 21: a renewal staff had turned off came back on with no trace.
+    expect(changeTitle("convert_trial", { days: 30, plan: "growth", auto_renew_turned_on: true })).toBe(
+      "Started 30 days of free time on the Team plan, no charge, monthly renewal turned back on",
+    );
     expect(changeTitle("pause_tenant", { duration_days: null })).toBe("Paused, no end date");
     expect(changeTitle("unpause_tenant", { status: "active" })).toBe("Pause lifted");
     expect(changeTitle("unpause_tenant", { status: "active", ended: true })).toBe("Pause ended on its end date");
