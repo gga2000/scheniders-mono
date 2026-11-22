@@ -24,6 +24,8 @@ export interface ShopStatusLine {
   next: string | null;
 }
 
+const HOUR_MS = 60 * 60 * 1000;
+
 type Detail = Pick<MerchantDetail, "tenant" | "wallet" | "subscription" | "billingLock" | "stoppedBy" | "paidPlan"> &
   Partial<Pick<MerchantDetail, "canForceUnlock">>;
 
@@ -175,8 +177,23 @@ export function shopStatusLine(detail: Detail, now: Date = new Date()): ShopStat
     };
   }
 
+  // Free days this month move the period's end past the paid month's own end
+  // (admin_extend_subscription moves only current_period_end): say the two
+  // apart, so "until when did I pay?" gets the paid month's end, as on the
+  // Paying page (round 21, data new 4).
+  // Free days are whole days; the renewal sets both ends the same way (start + 30 days).
+  const paidUntil =
+    paidPlan.month_end !== null && Date.parse(end) - Date.parse(paidPlan.month_end) >= HOUR_MS ? paidPlan.month_end : null;
+  const runs = paidUntil
+    ? `Paid until ${formatDay(paidUntil, now)}, then free days to ${formatDay(end, now)}.`
+    : `This month runs from ${formatDay(subscription.current_period_start, now)} to ${formatDay(end, now)}.`;
   if (renewalOff) {
-    return { tone: "paying", label: "Paying", sentence: "Paying. Renewal is off.", next: notRenewed(`The month ends on ${formatDay(end, now)}`) };
+    return {
+      tone: "paying",
+      label: "Paying",
+      sentence: paidUntil ? `Paying. Renewal is off. ${runs}` : "Paying. Renewal is off.",
+      next: notRenewed(`${paidUntil ? "This period" : "The month"} ends on ${formatDay(end, now)}`),
+    };
   }
   if (subscription.status === "past_due") {
     return {
@@ -199,7 +216,7 @@ export function shopStatusLine(detail: Detail, now: Date = new Date()): ShopStat
   return {
     tone: "paying",
     label: "Paying",
-    sentence: `Paying. This month runs from ${formatDay(subscription.current_period_start, now)} to ${formatDay(end, now)}.`,
+    sentence: `Paying. ${runs}`,
     next: price > 0 ? `Next charge ${formatIQD(price)} on ${formatDay(end, now)}.${shortByThen(balance, price)}` : null,
   };
 }

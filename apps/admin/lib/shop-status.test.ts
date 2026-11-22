@@ -34,8 +34,9 @@ function shop(over: {
     // What billing_lock_snapshot reads for an unlocked starter shop with no add-on.
     billingLock: over.lock ?? { locked: false, reason: null, since: null, orders_left: null, allowance: 50, plan: "starter", price_iqd: 9_000, renewal_off: false },
     stoppedBy: over.stoppedBy ?? null,
-    // Charged on 19 Sep and 19 Oct: the month that runs now was paid for.
-    paidPlan: over.paidPlan ?? { first_paid_at: "2026-09-19T09:00:00Z", month_end: "2026-11-18T09:00:00Z" },
+    // Charged on 19 Sep and 19 Oct: the month that runs now was paid for. The
+    // renewal sets the period's end and the paid month's end the same way.
+    paidPlan: over.paidPlan ?? { first_paid_at: "2026-09-19T09:00:00Z", month_end: "2026-11-19T09:00:00Z" },
   };
 }
 
@@ -239,9 +240,16 @@ describe("shopStatusLine", () => {
     });
   });
 
-  it("keeps Paying while a charged month covers now, even when free days run past it", () => {
+  // Round 21 (data new 4): with free days this month the line read "This month runs from … to" the
+  // free days' end, while the Paying page names the paid month's own end.
+  it("keeps Paying while a charged month covers now, and says the paid month and the free days apart", () => {
     const line = shopStatusLine(shop({ subscription: { current_period_end: "2026-11-28T09:00:00Z" } }), now);
     expect(line.label).toBe("Paying");
+    expect(line.sentence).toBe("Paying. Paid until Thu 19 Nov, then free days to Sat 28 Nov.");
+    expect(line.next).toBe("Next charge 9,000 IQD on Sat 28 Nov.");
+    const off = shopStatusLine(shop({ subscription: { current_period_end: "2026-11-28T09:00:00Z", auto_renew: false } }), now);
+    expect(off.sentence).toBe("Paying. Renewal is off. Paid until Thu 19 Nov, then free days to Sat 28 Nov.");
+    expect(off.next).toBe("This period ends on Sat 28 Nov and is not charged: renewal is off, so the shop locks with the next daily renewal.");
   });
 
   it("keeps Paying for a charged month that has ended and waits for the renewal run, and Behind for a month behind", () => {
