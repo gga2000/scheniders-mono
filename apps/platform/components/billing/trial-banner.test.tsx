@@ -72,6 +72,30 @@ describe("TrialBanner", () => {
         expect(screen.getByText(/^billing\.trialDaysLeft:\{"count":\d\}$/)).toBeTruthy();
     });
 
+    describe("by the Baghdad calendar day", () => {
+        // 13:00 in Baghdad (UTC+3).
+        beforeEach(() => { vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date("2026-11-22T10:00:00Z")); });
+        afterEach(() => { vi.useRealTimers(); });
+
+        it("says today when the trial ends later today, not tomorrow", () => {
+            state.tenant = { status: "trial", plan: "starter", trial_ends_at: "2026-11-22T18:00:00Z" };
+            render(<TrialBanner />);
+            expect(screen.getByText("billing.trialEndsToday")).toBeTruthy();
+        });
+
+        it("says tomorrow when it ends just after Baghdad midnight", () => {
+            state.tenant = { status: "trial", plan: "starter", trial_ends_at: "2026-11-22T22:00:00Z" };
+            render(<TrialBanner />);
+            expect(screen.getByText("billing.trialEndsTomorrow")).toBeTruthy();
+        });
+
+        it("counts two days for the day after tomorrow", () => {
+            state.tenant = { status: "trial", plan: "starter", trial_ends_at: "2026-11-24T09:00:00Z" };
+            render(<TrialBanner />);
+            expect(screen.getByText('billing.trialDaysLeft:{"count":2}')).toBeTruthy();
+        });
+    });
+
     it("says the trial ended, how many store orders are left, and how to pay", () => {
         state.tenant = { status: "trial", plan: "starter", trial_ends_at: inDays(-1) };
         state.lock = locked();
