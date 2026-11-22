@@ -254,8 +254,9 @@ function PaymentRow({ row, canDecide, canAddMore }: { row: TopupQueueItem; canDe
  * «Payments to check» (Fermi B3): shops pay us by Qi or Zain Cash transfer
  * and upload the receipt. Staff check the money arrived, then add what came
  * in to the shop's wallet (a payment that covers the plan opens a locked shop
- * at once, a paused one once its pause lifts), or refuse and say why; the shop reads the reason and can send
- * again.
+ * at once, a paused one once its pause lifts, unless its renewal is off: then
+ * no money opens it, and its row says so), or refuse and say why; the shop
+ * reads the reason and can send again.
  */
 export default function PaymentsPage() {
   const { role } = useAdminAuth();
@@ -280,7 +281,8 @@ export default function PaymentsPage() {
         <h1 className="text-[22px] font-semibold text-foreground">Payments to check</h1>
         <p className="text-[13px] text-foreground/70 max-w-2xl">
           Shops paid us by transfer and sent the receipt. Check the money arrived, then add what came in. A payment that
-          covers the plan opens a locked shop at once, or a paused one once its pause lifts. Refuse with a reason and the shop can send again.
+          covers the plan opens a locked shop at once, or a paused one once its pause lifts, unless its renewal is off (its
+          row says so). Refuse with a reason and the shop can send again.
         </p>
       </div>
 

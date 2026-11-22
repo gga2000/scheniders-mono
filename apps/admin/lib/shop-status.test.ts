@@ -172,7 +172,7 @@ describe("shopStatusLine", () => {
       tone: "ended",
       label: "Not renewed",
       sentence: "This month ended on Mon 16 Nov. Renewal is off, so it is not charged.",
-      next: "The shop locks with the next daily renewal, until it pays on its lock screen or staff turn renewal on.",
+      next: "The shop locks with the next daily renewal, until the shop pays 9,000 IQD on its lock screen, or staff turn renewal on and the wallet pays it.",
     });
   });
 
@@ -181,11 +181,16 @@ describe("shopStatusLine", () => {
     const line = shopStatusLine(shop({ wallet: 2_000, lock, subscription: { status: "past_due", auto_renew: false } }), now);
     expect(line.sentence).toBe("Month not paid. Locked since Mon 16 Nov.");
     expect(line.next).toBe(
-      "Renewal is off, so money alone does not open it: it opens when the shop pays 9,000 IQD on its lock screen, or when staff turn renewal on and the wallet pays it. Wallet 2,000 IQD, short by 7,000 IQD.",
+      "Renewal is off, so money alone does not open it: it opens when the shop pays 9,000 IQD on its lock screen, or staff turn renewal on and the wallet pays it. Wallet 2,000 IQD, short by 7,000 IQD.",
+    );
+    // Round 21 (structure new 6): a free unlock and free days open it too, for that time only.
+    const superAdmin = shopStatusLine({ ...shop({ wallet: 2_000, lock, subscription: { status: "past_due", auto_renew: false } }), canForceUnlock: true }, now);
+    expect(superAdmin.next).toBe(
+      "Renewal is off, so money alone does not open it: it opens when the shop pays 9,000 IQD on its lock screen, or staff turn renewal on and the wallet pays it. A free unlock or free days also open it, with no charge, for that time only. Wallet 2,000 IQD, short by 7,000 IQD.",
     );
     const paused = shopStatusLine(shop({ wallet: 9_000, lock, tenant: { status: "limited" } }), now);
     expect(paused.next).toBe(
-      "Paused, and renewal is off. Once the pause lifts, it opens when the shop pays 9,000 IQD on its lock screen, or when staff turn renewal on and the wallet pays it.",
+      "Paused, and renewal is off. Once the pause lifts, it opens when the shop pays 9,000 IQD on its lock screen, or staff turn renewal on and the wallet pays it.",
     );
   });
 
@@ -294,7 +299,7 @@ describe("shopStatusLine", () => {
       tone: "ended",
       label: "Not renewed",
       sentence: "Free time ended on Mon 16 Nov. Renewal is off, so it is not charged.",
-      next: "The shop locks with the next daily renewal, until it pays on its lock screen or staff turn renewal on.",
+      next: "The shop locks with the next daily renewal, until the shop pays 9,000 IQD on its lock screen, or staff turn renewal on and the wallet pays it.",
     });
   });
 

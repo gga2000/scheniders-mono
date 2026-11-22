@@ -143,7 +143,7 @@ describe("what Reactivate says", () => {
       "The shop is active again now. Renewal is off, so when its month ends it is not charged and the shop locks.",
     );
     expect(reactivateWords("active_unpaid_renewal_off", null, now)).toBe(
-      "The shop is active again now, but its last month is not paid and renewal is off, so it stays locked until it pays on its lock screen or staff turn renewal on.",
+      "The shop is active again now, but its last month is not paid and renewal is off, so it stays locked until the shop pays the month on its lock screen, or staff turn renewal on and the wallet pays it.",
     );
   });
 });
