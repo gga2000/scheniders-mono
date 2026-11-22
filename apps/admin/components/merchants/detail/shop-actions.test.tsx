@@ -281,4 +281,22 @@ describe("the shop page's panels", () => {
     answer(refused());
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith("No money was added to Kut Perfumes. Made-up refusal."));
   });
+
+  // Round 21 (structure new 2): a lost answer after the page was gone read
+  // "No money was added to Kut Perfumes. No answer came back, so this may have
+  // been done.", which says two opposite things.
+  it("say a lost answer in a toast, naming the shop, never as not done", async () => {
+    let answer: (res: Response) => void = () => {};
+    send.mockReturnValue(new Promise<Response>((resolve) => (answer = resolve)));
+    const client = new QueryClient();
+    client.setQueryData(["admin", "merchant", SHOP], { tenant: { business_name: "Kut Perfumes" } });
+    const view = page(client);
+    addFiveThousand();
+    await screen.findByRole("button", { name: "Adding..." });
+
+    view.unmount();
+    answer(new Response("Gateway Timeout", { status: 504 }));
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith(`Kut Perfumes: ${ANSWER_LOST}`));
+    expect(vi.mocked(toast.error).mock.calls.flat().join(" ")).not.toMatch(/No money was added/);
+  });
 });

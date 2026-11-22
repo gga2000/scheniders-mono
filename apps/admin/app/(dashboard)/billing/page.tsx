@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { z } from "zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import {
@@ -20,11 +21,15 @@ import { quickTopUpPlan } from "@/lib/quick-top-up";
 import { formatCount, formatIQD, formatWhen } from "@/lib/format";
 import { useAdminAuth, useCan } from "@/hooks/use-admin-auth";
 import { adminFetch } from "@/lib/admin-fetch";
+import { postJson } from "@/components/merchants/detail/action-ui";
 import { planLabel } from "@/types/admin";
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
+
+/** The top-up route's answer: a repeat of a done request moved no money. */
+const topupAnswerSchema = z.object({ newBalance: z.number(), duplicate: z.boolean().default(false) });
 
 interface WalletRow {
   tenant_id: string;
@@ -112,18 +117,10 @@ export default function BillingPage() {
       amount: number;
       description: string;
       request_id: string;
-    }) => {
-      const res = await adminFetch("/api/billing/topup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "Top-up failed");
-      }
-      return res.json();
-    },
+    }) =>
+      // A lost answer says so and never shows a parser's words; a top-up the
+      // server had done already comes back as a repeat (round 21).
+      topupAnswerSchema.parse(await postJson("/api/billing/topup", payload)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "billing"] });
       requestIds.done();
@@ -307,9 +304,10 @@ export default function BillingPage() {
           )}
           {topupMutation.isSuccess && (
             <p className="text-xs text-[var(--ink-green)] mt-2">
-              Added {formatIQD(topupMutation.variables?.amount ?? 0)}
-              {toppedUpShop ? ` to ${toppedUpShop.business_name}` : ""}. Wallet now{" "}
-              {formatIQD(topupMutation.data?.newBalance ?? 0)}.
+              {topupMutation.data.duplicate
+                ? `${formatIQD(topupMutation.variables.amount)} was already added${toppedUpShop ? ` to ${toppedUpShop.business_name}` : ""}, so it was not added again.`
+                : `Added ${formatIQD(topupMutation.variables.amount)}${toppedUpShop ? ` to ${toppedUpShop.business_name}` : ""}.`}{" "}
+              Wallet now {formatIQD(topupMutation.data.newBalance)}.
             </p>
           )}
         </div>

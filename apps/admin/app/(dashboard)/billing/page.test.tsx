@@ -92,3 +92,39 @@ describe("Quick Top-Up after a press", () => {
     expect(send.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(1);
   });
 });
+
+/*
+ * Round 21 (structure new 2, UX new 9): a gateway's 504 with a text body made
+ * Quick Top-Up show the JSON parser's words, and a retry the server had done
+ * already read "Added 50,000 IQD", so a second cash receipt got written down.
+ */
+describe("Quick Top-Up when the answer is lost or repeated", () => {
+  const ANSWER_LOST = "No answer came back, so this may have been done. Check the shop before trying again.";
+
+  it("says the answer was lost, not a parser's words, on a 504 with a text body", async () => {
+    serve(() => Promise.resolve(new Response("An error occurred with your deployment", { status: 504 })));
+    await fill("t-kut", "50000");
+    fireEvent.click(screen.getByRole("button", { name: "Add 50,000 IQD" }));
+    expect(await screen.findByText(ANSWER_LOST)).toBeTruthy();
+    expect(screen.queryByText(/JSON/)).toBeNull();
+  });
+
+  it("says the answer was lost when the connection drops", async () => {
+    serve(() => Promise.reject(new TypeError("Failed to fetch")));
+    await fill("t-kut", "50000");
+    fireEvent.click(screen.getByRole("button", { name: "Add 50,000 IQD" }));
+    expect(await screen.findByText(ANSWER_LOST)).toBeTruthy();
+  });
+
+  it("says a repeat was not added again", async () => {
+    serve(() => Promise.resolve(json({ success: true, newBalance: 93800, duplicate: true })));
+    await fill("t-kut", "50000");
+    fireEvent.click(screen.getByRole("button", { name: "Add 50,000 IQD" }));
+    expect(
+      await screen.findByText(
+        /50,000 IQD was already added to Kut Perfumes, so it was not added again\. Wallet now 93,800 IQD\./,
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByText(/^Added 50,000 IQD/)).toBeNull();
+  });
+});
