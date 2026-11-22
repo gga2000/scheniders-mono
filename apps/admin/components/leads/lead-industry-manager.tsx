@@ -406,7 +406,7 @@ export function LeadIndustryManager({ isOpen, onClose }: LeadIndustryManagerProp
               <div className="px-6 py-4">
                 <StaleLine read={industriesRead} what="the industries" kept="list" className="mb-2" />
                 {isError && !read ? (
-                  <LoadError compact what="the industries" error={error} onRetry={() => refetch()} retrying={isFetching} />
+                  <LoadError compact what="the industries" shows="list" error={error} onRetry={() => refetch()} retrying={isFetching} />
                 ) : isLoading ? (
                   <div className="py-12 text-center">
                     <p className="text-sm text-[var(--muted)]">Loading industries...</p>

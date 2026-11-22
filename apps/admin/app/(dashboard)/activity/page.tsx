@@ -108,7 +108,7 @@ export default function ActivityLogPage() {
   const { data, isLoading, isError, error, refetch, isFetching } = pageRead;
 
   if (isError && !data) {
-    return <LoadError what="the activity log" error={error} onRetry={() => refetch()} retrying={isFetching} />;
+    return <LoadError what="the activity log" shows="list" error={error} onRetry={() => refetch()} retrying={isFetching} />;
   }
 
   const logs = data?.logs ?? [];
