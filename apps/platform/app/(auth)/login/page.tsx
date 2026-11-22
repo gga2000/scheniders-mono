@@ -4,7 +4,7 @@ import { safeRedirectPath } from "@scheniders/shared/safe-redirect-path";
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Mail, Lock, AlertCircle, ArrowBigUpDash, CheckCircle2, LogIn } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, AlertCircle, ArrowBigUpDash, CheckCircle2, Fingerprint, LogIn } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import Link from "next/link";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
@@ -13,6 +13,7 @@ import { AuthCardHeading, AuthCardShell } from "@/components/auth/auth-card-shel
 import { AuthHero } from "@/components/auth/auth-hero";
 import { GoogleMark } from "@/components/auth/google-mark";
 import { emailProblem, loginErrorKey } from "@/lib/login-errors";
+import { devicePasskeyAvailable, registerPasskey, signInWithPasskey } from "@/lib/passkey-client";
 import { TRIAL_DAYS } from "@/lib/trial";
 
 /** Smooth two-tone ring spinner — replaces the default Loader2 for a more premium feel. */
@@ -59,14 +60,14 @@ function readReturnTo(): string {
     return safeRedirectPath(new URLSearchParams(window.location.search).get("returnTo"));
 }
 
-type LoginMethod = "email" | "google";
+type LoginMethod = "email" | "google" | "passkey";
 const LAST_METHOD_KEY = "fermi:last-login-method";
 
 /** The way this browser last signed in, to point a returning owner at the same door. */
 function readLastMethod(): LoginMethod | null {
     try {
         const value = window.localStorage.getItem(LAST_METHOD_KEY);
-        return value === "email" || value === "google" ? value : null;
+        return value === "email" || value === "google" || value === "passkey" ? value : null;
     } catch {
         // Storage is blocked (private mode, strict settings): the hint is simply not shown.
         return null;
@@ -78,6 +79,26 @@ function rememberMethod(method: LoginMethod) {
         window.localStorage.setItem(LAST_METHOD_KEY, method);
     } catch {
         // Storage is blocked: signing in must not fail over a cosmetic hint.
+    }
+}
+
+const PASSKEY_OFFERED_KEY = "fermi:passkey-offered";
+
+/** Whether this browser has already been asked to turn fingerprint sign-in on. Asked once, never nagged. */
+function passkeyOfferSeen(): boolean {
+    try {
+        return window.localStorage.getItem(PASSKEY_OFFERED_KEY) !== null;
+    } catch {
+        // Storage is blocked, so the answer could not be remembered: do not ask on every sign-in.
+        return true;
+    }
+}
+
+function markPasskeyOfferSeen() {
+    try {
+        window.localStorage.setItem(PASSKEY_OFFERED_KEY, "1");
+    } catch {
+        // Storage is blocked: passkeyOfferSeen() already answers true there.
     }
 }
 
@@ -122,13 +143,18 @@ function LoginForm() {
     const [emailError, setEmailError] = useState<string | null>(null);
     const [passwordError, setPasswordError] = useState<string | null>(null);
     const [lastMethod, setLastMethod] = useState<LoginMethod | null>(null);
+    const [passkeyReady, setPasskeyReady] = useState(false);
+    const [offeringPasskey, setOfferingPasskey] = useState(false);
+    // Set while a password sign-in may end on the passkey offer, so the
+    // "already signed in" redirect below does not skip it.
+    const holdRedirect = useRef(false);
     const emailRef = useRef<HTMLInputElement>(null);
     const passwordRef = useRef<HTMLInputElement>(null);
     const captcha = useAuthCaptcha();
 
     // Redirect if already logged in
     useEffect(() => {
-        if (user && !authLoading) {
+        if (user && !authLoading && !holdRedirect.current) {
             router.push(readReturnTo());
         }
     }, [user, authLoading, router]);
@@ -139,6 +165,7 @@ function LoginForm() {
             setNotice(t("login.resetDone"));
         }
         setLastMethod(readLastMethod());
+        void devicePasskeyAvailable().then(setPasskeyReady);
     }, [t]);
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -160,11 +187,14 @@ function LoginForm() {
         }
 
         setIsLoading(true);
+        const offerPasskey = passkeyReady && !passkeyOfferSeen();
+        holdRedirect.current = offerPasskey;
         try {
             // The check usually finishes before the owner has typed; if not, wait for it here
             // instead of leaving the button greyed out with no explanation.
             const captchaToken = captcha.enabled ? (captcha.token ?? (await captcha.fresh())) : undefined;
             if (captcha.enabled && !captchaToken) {
+                holdRedirect.current = false;
                 setError(t("login.error.captcha"));
                 setIsLoading(false);
                 return;
@@ -173,6 +203,7 @@ function LoginForm() {
             captcha.reset();
 
             if (authError) {
+                holdRedirect.current = false;
                 const key = loginErrorKey(authError);
                 setError(t(key));
                 setIsLoading(false);
@@ -181,9 +212,16 @@ function LoginForm() {
             }
 
             rememberMethod("email");
+            if (offerPasskey) {
+                markPasskeyOfferSeen();
+                setIsLoading(false);
+                setOfferingPasskey(true);
+                return;
+            }
             setSignedIn(true);
             router.push(readReturnTo());
         } catch {
+            holdRedirect.current = false;
             // signIn threw before Supabase could answer (network down, client crash): same advice either way.
             captcha.reset();
             setError(t("login.error.unexpected"));
@@ -204,7 +242,64 @@ function LoginForm() {
         }
     };
 
+    const handlePasskey = async () => {
+        setError(null);
+        setIsLoading(true);
+        const outcome = await signInWithPasskey();
+        if (outcome.ok) {
+            rememberMethod("passkey");
+            setSignedIn(true);
+            // The session is in the cookies the server just set: load the app fresh so it is read from there.
+            window.location.assign(readReturnTo());
+            return;
+        }
+        setIsLoading(false);
+        if (outcome.reason === "too_many") setError(t("login.error.rateLimit"));
+        else if (outcome.reason !== "cancelled") setError(t("login.passkeyFailed"));
+    };
+
+    const finishOffer = async (turnOn: boolean) => {
+        if (turnOn) {
+            setIsLoading(true);
+            const outcome = await registerPasskey();
+            if (outcome.ok || outcome.reason === "exists") rememberMethod("passkey");
+        }
+        setSignedIn(true);
+        router.push(readReturnTo());
+    };
+
     const busy = isLoading || signedIn;
+
+    if (offeringPasskey) {
+        return (
+            <div className="px-6 sm:px-8 pt-8 pb-7 text-center">
+                <span className="mx-auto inline-flex h-16 w-16 items-center justify-center rounded-3xl bg-[#1E1E1E] text-[#EFFF00]">
+                    <Fingerprint className="h-8 w-8" aria-hidden />
+                </span>
+                <h1 dir={dir} className="mt-5 font-[family-name:var(--font-fermi-display),var(--font-geist-sans)] text-[24px] font-bold leading-snug text-[#1E1E1E]">
+                    {t("login.passkeyOffer.title")}
+                </h1>
+                <p dir={dir} className="mt-2 text-[14px] leading-relaxed text-[#8A847A]">{t("login.passkeyOffer.body")}</p>
+                <button
+                    type="button"
+                    onClick={() => finishOffer(true)}
+                    disabled={busy}
+                    className="mt-7 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#1E1E1E] text-[15px] font-semibold text-white hover:bg-black active:scale-[0.99] disabled:opacity-60 transition"
+                >
+                    {busy ? <ButtonSpinner /> : <Fingerprint className="h-[18px] w-[18px] text-[#EFFF00]" aria-hidden />}
+                    <span>{t("login.passkeyOffer.yes")}</span>
+                </button>
+                <button
+                    type="button"
+                    onClick={() => finishOffer(false)}
+                    disabled={busy}
+                    className="mt-2 h-11 w-full rounded-2xl text-[14px] font-medium text-[#8A847A] hover:text-[#1E1E1E] disabled:opacity-60 transition-colors"
+                >
+                    {t("login.passkeyOffer.later")}
+                </button>
+            </div>
+        );
+    }
 
     return (
         <div className="px-6 sm:px-8 pt-3 pb-7">
@@ -404,6 +499,19 @@ function LoginForm() {
                     <span className="text-xs text-[#9A9A9A]">{t("login.or")}</span>
                     <div className="h-px flex-1 bg-[#E8E4DC]" />
                 </div>
+
+                {passkeyReady && (
+                    <button
+                        type="button"
+                        onClick={handlePasskey}
+                        disabled={busy}
+                        className="w-full h-12 rounded-2xl font-semibold text-[15px] text-[#1E1E1E] bg-white border border-[#ECE8DD] hover:bg-[#FAF8F3] hover:border-[#D6D0C2] active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 transition-all duration-200"
+                    >
+                        <Fingerprint className="h-5 w-5" aria-hidden />
+                        <span>{t("login.passkey")}</span>
+                        {lastMethod === "passkey" && <LastUsedBadge />}
+                    </button>
+                )}
 
                 <button
                     type="button"
