@@ -24,7 +24,7 @@ export interface ShaderPalette {
     core: string;
 }
 
-export const FERMI_INK_PALETTE: ShaderPalette = { base: "#17170F", glow: "#EFFF00", core: "#FCFFE0" };
+export const FERMI_INK_PALETTE: ShaderPalette = { base: "#1E1E1E", glow: "#EFFF00", core: "#FCFFE0" };
 
 const VERTEX_SRC = `#version 300 es
 precision highp float;
@@ -231,7 +231,7 @@ export function AnimatedShaderHero({ badge, lines, subtitle, children, dir, clas
     return (
         <section
             className={cn(
-                "relative isolate overflow-hidden bg-[#17170F] bg-[radial-gradient(70%_55%_at_20%_100%,rgba(239,255,0,0.28),transparent)]",
+                "relative isolate overflow-hidden bg-[#1E1E1E] bg-[radial-gradient(70%_55%_at_20%_100%,rgba(239,255,0,0.28),transparent)]",
                 className,
             )}
         >
@@ -242,8 +242,8 @@ export function AnimatedShaderHero({ badge, lines, subtitle, children, dir, clas
                 className={cn(
                     "pointer-events-none absolute inset-0",
                     dir === "rtl"
-                        ? "bg-[linear-gradient(to_left,rgba(23,23,15,0.92)_0%,rgba(23,23,15,0.7)_45%,rgba(23,23,15,0.15)_100%)]"
-                        : "bg-[linear-gradient(to_right,rgba(23,23,15,0.92)_0%,rgba(23,23,15,0.7)_45%,rgba(23,23,15,0.15)_100%)]",
+                        ? "bg-[linear-gradient(to_left,rgba(30,30,30,0.92)_0%,rgba(30,30,30,0.7)_45%,rgba(30,30,30,0.15)_100%)]"
+                        : "bg-[linear-gradient(to_right,rgba(30,30,30,0.92)_0%,rgba(30,30,30,0.7)_45%,rgba(30,30,30,0.15)_100%)]",
                 )}
             />
             <div dir={dir} className="relative z-10 flex h-full flex-col px-6 py-6 sm:px-12 sm:py-10 lg:px-16 lg:py-14">
@@ -257,7 +257,7 @@ export function AnimatedShaderHero({ badge, lines, subtitle, children, dir, clas
                                 style={{ animationDelay: `${120 + i * 110}ms` }}
                             >
                                 {i === lines.length - 1 ? (
-                                    <span className="inline-block rounded-[0.18em] bg-[#EFFF00] px-[0.22em] text-[#17170F]">{line}</span>
+                                    <span className="inline-block rounded-[0.18em] bg-[#EFFF00] px-[0.22em] text-[#1E1E1E]">{line}</span>
                                 ) : (
                                     line
                                 )}

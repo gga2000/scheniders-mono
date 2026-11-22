@@ -54,10 +54,6 @@ function AuthCardFrame({
         >
             <div className="absolute inset-0 pointer-events-none" aria-hidden>
                 <div
-                    className="absolute -top-40 left-1/2 -translate-x-1/2 w-[900px] h-[520px] rounded-full opacity-60 blur-3xl"
-                    style={{ background: "radial-gradient(closest-side, rgba(239,255,0,0.35), transparent)" }}
-                />
-                <div
                     className="absolute inset-0 opacity-[0.35]"
                     style={{
                         backgroundImage: "radial-gradient(#D6D0C2 1px, transparent 1px)",

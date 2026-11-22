@@ -10,8 +10,9 @@ export default function AuthLayout({
 }: {
     children: React.ReactNode;
 }) {
+    // The app's light cream (--background, light theme): the auth screens are light-only.
     return (
-        <div className="min-h-screen bg-gradient-to-br from-[#F5F0E8] via-[#FDF5D4] to-[#E8F8E0]">
+        <div className="min-h-screen bg-[#F5F0E8]">
             {children}
         </div>
     );
