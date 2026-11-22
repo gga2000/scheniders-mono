@@ -118,11 +118,19 @@ export function useInfiniteMerchants(limit = 50) {
     return [...starred, ...unstarred];
   }, [query.data?.pages, starredMerchants]);
 
+  // Each page's shop ids as the server sent them: a starred shop moving up
+  // the list does not change them.
+  const pageIds = useMemo(
+    () => query.data?.pages.map((p) => p.merchants.map((m) => m.id)) ?? [],
+    [query.data?.pages],
+  );
+
   const total = query.data?.pages[0]?.total ?? 0;
 
   return {
     ...query,
     merchants,
+    pageIds,
     total,
   };
 }

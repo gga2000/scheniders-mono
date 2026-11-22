@@ -34,10 +34,11 @@ const PAUSED_TRIAL = {
   balance_iqd: 0,
   days_remaining: 3,
   is_expired: false,
+  trial_day: 4,
   paused: true,
 };
 
-function render(as: AdminRole, followUps?: TrialFollowUpRow[]): string {
+function render(as: AdminRole, followUps?: TrialFollowUpRow[], failedRereads: readonly unknown[][] = []): string {
   role = as;
   const client = new QueryClient();
   client.setQueryData(["admin", "trials"], {
@@ -45,6 +46,14 @@ function render(as: AdminRole, followUps?: TrialFollowUpRow[]): string {
     summary: { total: 1, expiringSoon: 1, expired: 0, healthy: 0 },
   });
   if (followUps) client.setQueryData(TRIAL_FOLLOW_UP_KEY, followUps);
+  // A re-read that failed after a read at 20:00 in Baghdad.
+  for (const queryKey of failedRereads) {
+    client.getQueryCache().find({ queryKey })?.setState({
+      status: "error",
+      error: new TypeError("Failed to fetch"),
+      dataUpdatedAt: Date.parse("2026-11-22T17:00:00Z"),
+    });
+  }
   return renderToStaticMarkup(createElement(QueryClientProvider, { client }, createElement(TrialsPage)));
 }
 
@@ -88,6 +97,14 @@ describe("a paused trial on Trials", () => {
 
 // Fermi B12 item 1, concept A (Ali's pick, 22 Nov): chips above the list and
 // one follow-up line under each shop; the row itself stays as it was.
+describe("the trial bar on Trials", () => {
+  it("scales to the trial's own 7 days and is amber in its last 3, not red", () => {
+    const html = render("super_admin");
+    expect(html).toMatch(/bg-amber-500 [^"]*" style="width:43%"/);
+    expect(html).not.toContain("bg-red-500");
+  });
+});
+
 describe("the follow-up line on Trials", () => {
   it("adds the chips and a line of facts under the unchanged row, with WhatsApp and Mark contacted", () => {
     const html = render("support_staff", [FOLLOW_UP]);
@@ -113,5 +130,14 @@ describe("the follow-up line on Trials", () => {
     expect(html).not.toContain("WhatsApp owner");
     expect(html).toContain("Najaf Gifts");
     expect(html).toContain("Paused: ask a super admin to lift it");
+  });
+
+  it("keeps the list and its facts after a failed re-read, and says how old each is (round 22, R3-10)", () => {
+    expect(render("support_staff", [FOLLOW_UP])).not.toContain("Could not refresh");
+    const html = render("support_staff", [FOLLOW_UP], [["admin", "trials"], [...TRIAL_FOLLOW_UP_KEY]]);
+    expect(html).toMatch(/Could not refresh the trials\. These numbers are from (Sun 22 Nov, )?20:00\./);
+    expect(html).toMatch(/Could not refresh the follow-up facts\. These numbers are from (Sun 22 Nov, )?20:00\./);
+    expect(html).toContain("Najaf Gifts");
+    expect(html).not.toContain("Could not load the follow-up facts");
   });
 });

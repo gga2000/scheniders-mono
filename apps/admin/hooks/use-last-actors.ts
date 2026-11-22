@@ -13,17 +13,33 @@ export interface LastActor {
 }
 
 /**
- * Shops asked for in one request: the Merchants list's page size. A page that
- * loads asks for its own shops only, and the shops already shown keep theirs;
- * the route takes at most 200, so a long list never loses every badge (R3-6).
+ * Shops asked for in one request at most: the Merchants list's page size. Each
+ * page of shops the server sent asks for its own badges, so a page that loads
+ * asks for its shops only, and starring a shop, which moves it up the list,
+ * asks for nothing. The route takes at most 200 (R3-6, round 23 new 3).
  */
 export const LAST_ACTORS_CHUNK = 50;
 
-/** The last staff step on each shop, keyed by shop id. A shop with none is absent. */
-export function useLastActors(tenantIds: string[]): Record<string, LastActor> {
+export interface LastActors {
+  /** The last staff step on each shop, keyed by shop id. A shop with none is absent. */
+  actors: Record<string, LastActor>;
+  /**
+   * Some shops' badges could not be read, so those shops show none. That is
+   * not "no staff step", so the page says so with Try again.
+   */
+  failed: boolean;
+  error: unknown;
+  retrying: boolean;
+  retry: () => void;
+}
+
+/** `pages`: the shop ids of each page the server sent, in its own order. */
+export function useLastActors(pages: readonly (readonly string[])[]): LastActors {
   const chunks: string[][] = [];
-  for (let i = 0; i < tenantIds.length; i += LAST_ACTORS_CHUNK) {
-    chunks.push(tenantIds.slice(i, i + LAST_ACTORS_CHUNK));
+  for (const page of pages) {
+    for (let i = 0; i < page.length; i += LAST_ACTORS_CHUNK) {
+      chunks.push(page.slice(i, i + LAST_ACTORS_CHUNK));
+    }
   }
   return useQueries({
     queries: chunks.map((ids) => ({
@@ -39,6 +55,18 @@ export function useLastActors(tenantIds: string[]): Record<string, LastActor> {
       },
       staleTime: 60_000,
     })),
-    combine: (results) => Object.assign({}, ...results.map((r) => r.data ?? {})) as Record<string, LastActor>,
+    combine: (results) => {
+      // A chunk that keeps an earlier answer still shows its badges.
+      const lost = results.filter((r) => r.isError && r.data === undefined);
+      return {
+        actors: Object.assign({}, ...results.map((r) => r.data ?? {})) as Record<string, LastActor>,
+        failed: lost.length > 0,
+        error: lost[0]?.error,
+        retrying: lost.some((r) => r.isFetching),
+        retry: () => {
+          for (const r of lost) void r.refetch();
+        },
+      };
+    },
   });
 }

@@ -29,6 +29,7 @@ import { MerchantCardGridSkeleton } from "@/components/merchants/merchant-card-s
 import { KeyboardShortcutsOverlay } from "@/components/merchants/keyboard-shortcuts-overlay";
 import { ErrorBoundary } from "@/components/shared/error-boundary";
 import { LoadError } from "@/components/shared/load-error";
+import { LoadFailedLine } from "@/components/shared/load-failed-line";
 import { downloadSelectedShops } from "@/lib/download-export";
 import {
   EASE_CROSSFADE,
@@ -75,10 +76,10 @@ export default function MerchantsPage() {
     isFetchingNextPage,
     isFetchNextPageError,
     fetchNextPage,
+    pageIds,
   } = useInfiniteMerchants(50);
 
-  const visibleTenantIds = merchants.map((m) => m.id);
-  const lastActorsMap = useLastActors(visibleTenantIds);
+  const lastActors = useLastActors(pageIds);
 
   const {
     viewMode,
@@ -318,6 +319,15 @@ export default function MerchantsPage() {
         />
       </div>
 
+      {lastActors.failed && viewMode === "cards" && merchants.length > 0 && (
+        <LoadFailedLine
+          what="who last acted on some shops"
+          error={lastActors.error}
+          onRetry={lastActors.retry}
+          retrying={lastActors.retrying}
+        />
+      )}
+
       {/* ── Content ─────────────────────────────────────────────────── */}
       <ErrorBoundary name="Merchant List">
       <AnimatePresence mode="wait">
@@ -367,7 +377,7 @@ export default function MerchantsPage() {
                   isSelected={selectedMerchants.has(merchant.id)}
                   isStarred={starredMerchants.includes(merchant.id)}
                   index={idx}
-                  lastActor={lastActorsMap[merchant.id] ?? null}
+                  lastActor={lastActors.actors[merchant.id] ?? null}
                   onToggleSelect={toggleMerchantSelection}
                   onSelectWithShift={handleSelectWithShift}
                   onOpenDetail={handleOpenDetail}

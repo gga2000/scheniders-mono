@@ -5,6 +5,7 @@ import { z } from "zod";
 import { Loader2 } from "lucide-react";
 import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
 import { LoadError } from "@/components/shared/load-error";
+import { LoadFailedLine } from "@/components/shared/load-failed-line";
 import { adminFetch } from "@/lib/admin-fetch";
 import { formatCount, formatDateKey, formatIQD } from "@/lib/format";
 import { okOrLoadFailure } from "@/lib/load-failure";
@@ -27,7 +28,30 @@ function firstOrderRate(week: WeekSummary): string {
   return week.first_order_72h_rate === null ? "None due yet" : `${week.first_order_72h_rate}%`;
 }
 
-const COLUMNS = ["Week", "Trials", "Order in 72h", "Paying: helped / alone", "Paying at end", "Stopped", "Trial msgs IQD"];
+/**
+ * One name per number, for the strip and the table alike, so this week's
+ * strip and last week's row read the same way (console audit round 22).
+ */
+const LABEL = {
+  trials: "Trials started",
+  firstOrder: "First order in 72 hours",
+  becamePaying: "Became paying",
+  paying: "Paying shops",
+  newShops: "New shops",
+  stopped: "Stopped paying",
+  whatsapp: "Trial WhatsApp cost",
+} as const;
+
+const COLUMNS = [
+  "Week",
+  LABEL.trials,
+  LABEL.firstOrder,
+  `${LABEL.becamePaying}: helped / alone`,
+  LABEL.paying,
+  LABEL.newShops,
+  LABEL.stopped,
+  LABEL.whatsapp,
+];
 
 /**
  * «Weekly numbers» (Fermi B12 item 5, for Mohammed; Ali's pick A, 22 Nov: a
@@ -36,7 +60,7 @@ const COLUMNS = ["Week", "Trials", "Order in 72h", "Paying: helped / alone", "Pa
  * week sits on top of the table and fills the numbers above it.
  */
 export default function WeeklyNumbersPage() {
-  const { data, error, isLoading, isError, isFetching, refetch } = useQuery({
+  const { data, error, isLoading, isError, isFetching, refetch, dataUpdatedAt } = useQuery({
     queryKey: ["admin", "weekly-dashboard"],
     queryFn: async () => {
       const res = okOrLoadFailure(await adminFetch("/api/weekly-dashboard"), "the weekly numbers");
@@ -62,6 +86,16 @@ export default function WeeklyNumbersPage() {
           Weeks run Saturday to Friday, Baghdad time. This week is still running. Paying means what it means on Paying shops; the
           demo store, shops we built for a lead and our own store are never counted.
         </p>
+        {isError && (
+          <LoadFailedLine
+            what="the weekly numbers"
+            shownFrom={dataUpdatedAt}
+            error={error}
+            onRetry={() => refetch()}
+            retrying={isFetching}
+            className="mt-2"
+          />
+        )}
       </div>
 
       {isLoading || !data ? (
@@ -73,21 +107,21 @@ export default function WeeklyNumbersPage() {
       ) : (
         <>
           <NumberStrip columns={4} label="This week's numbers">
-            <NumberCell label="Trials started" value={formatCount(now.trials_started)} />
+            <NumberCell label={LABEL.trials} value={formatCount(now.trials_started)} />
             <NumberCell
-              label="First order in 72 hours"
+              label={LABEL.firstOrder}
               value={firstOrderRate(now)}
               note={now.first_order_due > 0 ? `${formatCount(now.first_order_72h)} of ${formatCount(now.first_order_due)} shops` : undefined}
             />
             <NumberCell
-              label="Became paying"
+              label={LABEL.becamePaying}
               value={formatCount(now.became_paying)}
               note={`${formatCount(now.became_paying_assisted)} helped · ${formatCount(now.became_paying_self_serve)} alone`}
             />
-            <NumberCell label="Paying now" value={formatCount(now.paying_at_end)} />
-            <NumberCell label="New shops" value={formatCount(now.new_shops)} />
-            <NumberCell label="Stopped paying" value={formatCount(now.churned)} alert={now.churned > 0} />
-            <NumberCell label="Trial WhatsApp cost" value={formatIQD(now.trial_whatsapp_cost_iqd)} />
+            <NumberCell label={LABEL.paying} value={formatCount(now.paying_at_end)} note={now.running ? "Now" : undefined} />
+            <NumberCell label={LABEL.newShops} value={formatCount(now.new_shops)} />
+            <NumberCell label={LABEL.stopped} value={formatCount(now.churned)} alert={now.churned > 0} />
+            <NumberCell label={LABEL.whatsapp} value={formatIQD(now.trial_whatsapp_cost_iqd)} />
             <NumberCell label="Week" value={weekSpan(now)} note={now.running ? "Still running" : undefined} />
           </NumberStrip>
 
@@ -114,16 +148,17 @@ export default function WeeklyNumbersPage() {
                       </td>
                       <td className="p-3 text-right tabular-nums">{formatCount(w.trials_started)}</td>
                       <td className="p-3 text-right tabular-nums" title={`${w.first_order_72h} of ${w.first_order_due} new shops due`}>
-                        {w.first_order_72h_rate === null ? "none due" : `${w.first_order_72h_rate}%`}
+                        {firstOrderRate(w)}
                       </td>
                       <td className="p-3 text-right tabular-nums">
                         {formatCount(w.became_paying_assisted)} / {formatCount(w.became_paying_self_serve)}
                       </td>
                       <td className="p-3 text-right tabular-nums">{formatCount(w.paying_at_end)}</td>
+                      <td className="p-3 text-right tabular-nums">{formatCount(w.new_shops)}</td>
                       <td className={`p-3 text-right tabular-nums ${w.churned > 0 ? "font-semibold text-[var(--ink-red)]" : ""}`}>
                         {formatCount(w.churned)}
                       </td>
-                      <td className="p-3 text-right tabular-nums">{formatCount(w.trial_whatsapp_cost_iqd)}</td>
+                      <td className="whitespace-nowrap p-3 text-right tabular-nums">{formatIQD(w.trial_whatsapp_cost_iqd)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -131,8 +166,9 @@ export default function WeeklyNumbersPage() {
             </div>
           </div>
           <p className="text-xs text-foreground/70">
-            &quot;Helped&quot; = came from a lead, or our team called them before they paid. Week = the Saturday it starts.{" "}
-            {formatCount(weeks.length)} weeks shown.
+            &quot;Helped&quot; = came from a lead, or our team called them before they paid. Paying shops = paying when the week ended
+            (now, for the running week). Week = the Saturday it starts. {formatCount(weeks.length)}{" "}
+            {weeks.length === 1 ? "week" : "weeks"} shown.
           </p>
         </>
       )}

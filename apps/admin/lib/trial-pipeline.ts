@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TRIAL_ENDING_DAYS } from "./baghdad-day";
 import { formatCount } from "./format";
 
 /**
@@ -174,4 +175,30 @@ export function trialFacts(row: TrialFollowUpRow, ago: (at: string) => string): 
       value: f.last_call ? `${f.last_call.by}, ${ago(f.last_call.at)}${OUTCOME_WORDS[f.last_call.outcome]}` : "none",
     },
   ];
+}
+
+/**
+ * The bar under a shop on Trials: how much of its own trial is left, and a
+ * colour that only changes when there is news (console audit round 22, new
+ * 9: the bar was drawn for 30-day trials, so every 7-day trial was amber from
+ * its first day and never more than a quarter full).
+ *   running: more than TRIAL_ENDING_DAYS left;
+ *   ending: TRIAL_ENDING_DAYS or less, the window the "Ending in 3 days or
+ *     less" number counts;
+ *   last: ends today or tomorrow, the "Ends today or tomorrow" group;
+ *   ended: the trial is over.
+ * The trial's length is its own (trial_day + days_remaining), so free days
+ * given by staff lengthen it and a 7-day trial starts full.
+ */
+export type TrialBarTone = "running" | "ending" | "last" | "ended";
+
+export function trialBar(t: Pick<TrialGroupFacts, "trial_day" | "days_remaining" | "is_expired">): {
+  tone: TrialBarTone;
+  percent: number;
+} {
+  if (t.is_expired) return { tone: "ended", percent: 100 };
+  const length = Math.max(1, t.trial_day + t.days_remaining);
+  const percent = Math.min(100, Math.max(5, Math.round((t.days_remaining / length) * 100)));
+  const tone = t.days_remaining <= 1 ? "last" : t.days_remaining <= TRIAL_ENDING_DAYS ? "ending" : "running";
+  return { tone, percent };
 }

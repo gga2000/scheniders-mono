@@ -14,6 +14,7 @@ import { keptRequestIds, requestKey, shopKey } from "@/lib/request-ids";
 import { failureOf, sendJson } from "@/components/merchants/detail/action-ui";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
 import { LoadError } from "@/components/shared/load-error";
+import { LoadFailedLine } from "@/components/shared/load-failed-line";
 import { okOrLoadFailure } from "@/lib/load-failure";
 import { useCan } from "@/hooks/use-admin-auth";
 import { TrialChecksPanel } from "@/components/trials/trial-checks-panel";
@@ -24,7 +25,9 @@ import {
   TRIAL_FOLLOW_UP_KEY,
   inTrialFilter,
   trialFilterCounts,
+  trialBar,
   trialFollowUpResponseSchema,
+  type TrialBarTone,
   type TrialFilter,
   type TrialFollowUpRow,
 } from "@/lib/trial-pipeline";
@@ -50,6 +53,8 @@ interface Trial {
   balance_iqd: number;
   days_remaining: number;
   is_expired: boolean;
+  /** The shop's day on the Baghdad calendar, Day 0 on signup (lib/trial-shops). */
+  trial_day: number;
   /** Paused while on trial: its days still run, and free days wait until the pause is lifted. */
   paused: boolean;
 }
@@ -87,24 +92,13 @@ function trialsLine({ total, expired }: TrialsSummary): string {
   return expired > 0 ? `${onTrial}, ${expired} ended and not paid yet` : onTrial;
 }
 
-function getBarColor(days: number, ended: boolean): string {
-  if (ended) return "bg-gray-400";
-  if (days <= TRIAL_ENDING_DAYS) return "bg-red-500";
-  if (days <= 7) return "bg-amber-500";
-  return "bg-green-500";
-}
-
-function getBarBg(days: number, ended: boolean): string {
-  if (ended) return "bg-gray-200";
-  if (days <= TRIAL_ENDING_DAYS) return "bg-red-500/15";
-  if (days <= 7) return "bg-amber-500/15";
-  return "bg-green-500/15";
-}
-
-function getBarPercent(days: number): number {
-  // Assume 30-day max for visual scale
-  return Math.min(100, Math.max(5, (days / 30) * 100));
-}
+/** The bar's fill, its track and the words under it, by how the trial stands (lib/trial-pipeline trialBar). */
+const BAR_TONE: Record<TrialBarTone, { fill: string; track: string; ink: string }> = {
+  running: { fill: "bg-green-500", track: "bg-green-500/15", ink: "text-[var(--ink-green)]" },
+  ending: { fill: "bg-amber-500", track: "bg-amber-500/15", ink: "text-[var(--ink-amber)]" },
+  last: { fill: "bg-red-500", track: "bg-red-500/15", ink: "text-[var(--ink-red)]" },
+  ended: { fill: "bg-gray-400", track: "bg-gray-200", ink: "text-foreground/70" },
+};
 
 // ---------------------------------------------------------------------------
 // Extend Button Component
@@ -195,7 +189,7 @@ function ExtendTrialButton({ tenantId }: { tenantId: string }) {
 // ---------------------------------------------------------------------------
 
 export default function TrialsPage() {
-  const { data, isLoading, isError, error, refetch, isFetching } = useQuery<TrialsResponse>({
+  const { data, isLoading, isError, error, refetch, isFetching, dataUpdatedAt } = useQuery<TrialsResponse>({
     queryKey: ["admin", "trials"],
     queryFn: async () => {
       const res = okOrLoadFailure(await adminFetch("/api/trials"), "the trials");
@@ -248,6 +242,16 @@ export default function TrialsPage() {
         <p className="text-[13px] text-foreground/70">
           {isLoading ? "Loading..." : trialsLine(summary)}
         </p>
+        {isError && (
+          <LoadFailedLine
+            what="the trials"
+            shownFrom={dataUpdatedAt}
+            error={error}
+            onRetry={() => refetch()}
+            retrying={isFetching}
+            className="mt-2"
+          />
+        )}
       </div>
 
       {/* Stores that matched an earlier store (Fermi B5) */}
@@ -279,6 +283,15 @@ export default function TrialsPage() {
       {followUp.isError && !followUp.data && (
         <LoadError compact what="the follow-up facts" error={followUp.error} onRetry={() => followUp.refetch()} retrying={followUp.isFetching} />
       )}
+      {followUp.isError && followUp.data && (
+        <LoadFailedLine
+          what="the follow-up facts"
+          shownFrom={followUp.dataUpdatedAt}
+          error={followUp.error}
+          onRetry={() => followUp.refetch()}
+          retrying={followUp.isFetching}
+        />
+      )}
 
       {/* Trial List */}
       {isLoading ? (
@@ -297,6 +310,8 @@ export default function TrialsPage() {
         <div className="pastel-card divide-y divide-[var(--card-border)]">
           {shownTrials.map((trial) => {
             const row = followUps.get(trial.id);
+            const bar = trialBar(trial);
+            const tone = BAR_TONE[bar.tone];
             return (
               <div key={trial.id}>
                 <div className="p-4 md:p-5 flex flex-col md:flex-row md:items-center gap-4">
@@ -322,28 +337,14 @@ export default function TrialsPage() {
                   <div className="md:flex-1 min-w-0">
                     <div className="flex items-center gap-3">
                       <div className="flex-1 min-w-0">
-                        <div className={`h-2.5 rounded-full ${getBarBg(trial.days_remaining, trial.is_expired)} overflow-hidden`}>
+                        <div className={`h-2.5 rounded-full ${tone.track} overflow-hidden`}>
                           <div
-                            className={`h-full rounded-full ${getBarColor(trial.days_remaining, trial.is_expired)} transition-all duration-500`}
-                            style={{
-                              width: trial.is_expired
-                                ? "100%"
-                                : `${getBarPercent(trial.days_remaining)}%`,
-                            }}
+                            className={`h-full rounded-full ${tone.fill} transition-all duration-500`}
+                            style={{ width: `${bar.percent}%` }}
                           />
                         </div>
                         <div className="flex items-center justify-between mt-1.5">
-                          <p
-                            className={`text-xs font-semibold ${
-                              trial.is_expired
-                                ? "text-foreground/70"
-                                : trial.days_remaining <= TRIAL_ENDING_DAYS
-                                  ? "text-[var(--ink-red)]"
-                                  : trial.days_remaining <= 7
-                                    ? "text-[var(--ink-amber)]"
-                                    : "text-[var(--ink-green)]"
-                            }`}
-                          >
+                          <p className={`text-xs font-semibold ${tone.ink}`}>
                             {trialDayLabel(trial)}
                           </p>
                           <p className="text-xs text-foreground/70">

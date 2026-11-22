@@ -27,9 +27,17 @@ const row = (week_start: string, extra: Partial<WeekRow> = {}): WeekRow => ({
   ...extra,
 });
 
-function render(rows: WeekRow[]): string {
+function render(rows: WeekRow[], refreshFailed = false): string {
   const client = new QueryClient();
   client.setQueryData(["admin", "weekly-dashboard"], { weeks: rows.map(weekSummary) });
+  if (refreshFailed) {
+    // The 5-minute re-read failed after a read at 20:00 in Baghdad.
+    client.getQueryCache().find({ queryKey: ["admin", "weekly-dashboard"] })?.setState({
+      status: "error",
+      error: new TypeError("Failed to fetch"),
+      dataUpdatedAt: Date.parse("2026-11-22T17:00:00Z"),
+    });
+  }
   return renderToStaticMarkup(createElement(QueryClientProvider, { client }, createElement(WeeklyNumbersPage)));
 }
 
@@ -56,7 +64,7 @@ describe("Weekly numbers", () => {
     expect(html).toContain(">43%<");
     expect(html).toContain("3 of 7 shops");
     expect(html).toContain("2 helped · 1 alone");
-    expect(html).toContain("Paying now");
+    expect(html).toContain("Paying shops");
     expect(html).toContain(">9<");
     expect(html).toContain("14 to 20 Nov");
     expect(html).toContain("Still running");
@@ -73,10 +81,39 @@ describe("Weekly numbers", () => {
     expect(html).toContain("2 weeks shown.");
   });
 
-  it("says when no new shop's first 72 hours are over yet, never 0%", () => {
+  it("says when no new shop's first 72 hours are over yet, never 0%, in the same words above and below", () => {
     const html = render([row("2026-11-21", { running: true, first_order_due: 0, first_order_72h: 0 })]);
-    expect(html).toContain("None due yet");
-    expect(html).toContain("none due");
+    const table = html.slice(html.indexOf('data-testid="weekly-numbers"'));
+    expect(html.slice(0, html.indexOf('data-testid="weekly-numbers"'))).toContain("None due yet");
+    expect(table).toContain("None due yet");
+    expect(html).not.toContain("none due");
     expect(html).not.toContain(">0%<");
+  });
+
+  it("names each number the same in the strip and the table, New shops included", () => {
+    const html = render(weeks);
+    const at = html.indexOf('data-testid="weekly-numbers"');
+    const strip = html.slice(0, at);
+    const head = html.slice(at, html.indexOf("</thead>"));
+    for (const name of ["Trials started", "First order in 72 hours", "Became paying", "Paying shops", "New shops", "Stopped paying", "Trial WhatsApp cost"]) {
+      expect(strip).toContain(name);
+      expect(head).toContain(name);
+    }
+    const body = html.slice(html.indexOf("<tbody>"));
+    expect(body).toContain(">17<");
+    expect(body).toContain(">1,600 IQD<");
+  });
+
+  it("says 1 week, not 1 weeks", () => {
+    const html = render([row("2026-11-21", { running: true })]);
+    expect(html).toContain("1 week shown.");
+  });
+
+  it("keeps the weeks after a failed re-read and says how old they are (round 22, R3-10)", () => {
+    const weeks = [row("2026-11-21", { running: true })];
+    expect(render(weeks)).not.toContain("Could not refresh");
+    const html = render(weeks, true);
+    expect(html).toMatch(/Could not refresh the weekly numbers\. These numbers are from (Sun 22 Nov, )?20:00\./);
+    expect(html).toContain("1 week shown.");
   });
 });

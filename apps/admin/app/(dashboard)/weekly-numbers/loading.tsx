@@ -8,7 +8,7 @@ export default function WeeklyNumbersLoading() {
         <div className="h-4 w-96 max-w-full rounded bg-foreground/5 animate-pulse" />
       </div>
       <NumberStrip columns={4} label="This week's numbers">
-        {["Trials started", "First order in 72 hours", "Became paying", "Paying now", "New shops", "Stopped paying", "Trial WhatsApp cost", "Week"].map(
+        {["Trials started", "First order in 72 hours", "Became paying", "Paying shops", "New shops", "Stopped paying", "Trial WhatsApp cost", "Week"].map(
           (label) => (
             <NumberCell key={label} label={label} value="..." />
           ),
