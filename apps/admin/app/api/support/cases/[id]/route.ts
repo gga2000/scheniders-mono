@@ -122,16 +122,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   try {
     const supabase = createAdminClient();
 
-    const { data: caseRow, error: caseError } = await supabase
-      .from("support_cases")
-      .select(SUPPORT_CASE_COLUMNS)
-      .eq("id", id)
-      .maybeSingle();
-    if (caseError) throw caseError;
-    if (!caseRow) return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
-    const supportCase = caseRow as unknown as SupportCaseRow;
-
-    const [messages, notes, shop] = await Promise.all([
+    // The messages and notes need only the conversation's id, so they are read
+    // with the conversation itself: one round trip less to open a conversation.
+    const [caseRead, messages, notes] = await Promise.all([
+      supabase.from("support_cases").select(SUPPORT_CASE_COLUMNS).eq("id", id).maybeSingle(),
       supabase
         .from("support_messages")
         .select("id, case_id, sender_kind, sender_name, body, context, created_at")
@@ -144,13 +138,16 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         .eq("case_id", id)
         .order("created_at", { ascending: true })
         .limit(200),
-      loadShopCard(supabase, supportCase.tenant_id, id, auth.user.id),
     ]);
+    if (caseRead.error) throw caseRead.error;
+    if (!caseRead.data) return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
     if (messages.error) throw messages.error;
     if (notes.error) throw notes.error;
+    const supportCase = caseRead.data as unknown as SupportCaseRow;
 
     const rows = (messages.data ?? []) as Omit<SupportMessageRow, "screenshot_url" | "voice_url">[];
-    const [shotLinks, voiceLinks] = await Promise.all([
+    const [shop, shotLinks, voiceLinks] = await Promise.all([
+      loadShopCard(supabase, supportCase.tenant_id, id, auth.user.id),
       signPaths(supabase, SUPPORT_SHOT_BUCKET, filePaths(rows, supportCase.tenant_id, "screenshot")),
       signPaths(supabase, SUPPORT_VOICE_BUCKET, filePaths(rows, supportCase.tenant_id, "voice")),
     ]);
