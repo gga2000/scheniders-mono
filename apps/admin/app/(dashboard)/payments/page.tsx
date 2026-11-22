@@ -12,6 +12,7 @@ import { formatIQD } from "@/lib/format";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { hasPermission } from "@/lib/admin-permissions";
 import { LoadError } from "@/components/shared/load-error";
+import { LoadFailedLine } from "@/components/shared/load-failed-line";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
 import { isStaffReason } from "@/lib/billing-lock-tools";
 import { okOrLoadFailure } from "@/lib/load-failure";
@@ -260,7 +261,7 @@ export default function PaymentsPage() {
   const { role } = useAdminAuth();
   const canDecide = role ? hasPermission(role, "check_payments") : false;
   const canAddMore = role ? hasPermission(role, "top_up_wallet") : false;
-  const { data, error, isLoading, isError, isFetching, refetch } = useQuery({
+  const { data, dataUpdatedAt, error, isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: TOPUP_QUEUE_KEY,
     queryFn: async () => {
       const res = okOrLoadFailure(await adminFetch("/api/wallet-topup-requests"), "the payments");
@@ -282,6 +283,17 @@ export default function PaymentsPage() {
           covers the plan opens a locked shop at once, or a paused one once its pause lifts, unless its renewal is off (its
           row says so). Refuse with a reason and the shop can send again.
         </p>
+        {isError && (
+          <LoadFailedLine
+            what="the payments"
+            shownFrom={dataUpdatedAt}
+            kept="list"
+            error={error}
+            onRetry={() => refetch()}
+            retrying={isFetching}
+            className="mt-2"
+          />
+        )}
       </div>
 
       {isLoading ? (

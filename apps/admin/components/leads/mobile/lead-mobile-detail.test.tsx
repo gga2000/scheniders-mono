@@ -45,7 +45,16 @@ const lead = {
 } as unknown as Lead;
 
 function show(state: Record<string, unknown>) {
-  read.current = { isLoading: false, isError: false, error: null, refetch: vi.fn(), isFetching: false, ...state };
+  // Read at 20:00 in Baghdad (round 23: a failed read again says how old the page is).
+  read.current = {
+    isLoading: false,
+    isError: false,
+    error: null,
+    refetch: vi.fn(),
+    isFetching: false,
+    dataUpdatedAt: Date.parse("2026-11-22T17:00:00Z"),
+    ...state,
+  };
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(createElement(QueryClientProvider, { client }, createElement(LeadMobileDetail)));
 }
@@ -61,7 +70,9 @@ describe("the phone's lead page", () => {
     });
 
     expect(screen.getByText("Kawkab")).toBeTruthy();
-    expect(screen.getByRole("alert").textContent).toBe("This lead was deleted. Changes here can no longer be saved.");
+    expect(screen.getByRole("alert").textContent).toMatch(
+      /^This lead was deleted\. Changes here can no longer be saved\. This page is from (Sun 22 Nov, )?20:00\.$/,
+    );
     expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
   });
 
@@ -72,7 +83,7 @@ describe("the phone's lead page", () => {
       error: Object.assign(new Error("Failed to load lead"), { status: 500 }),
     });
 
-    expect(screen.getByRole("alert").textContent).toContain("Could not load this lead again.");
+    expect(screen.getByRole("alert").textContent).toMatch(/^Could not refresh this lead\. This page is from (Sun 22 Nov, )?20:00\./);
     expect(screen.getByRole("button", { name: "Try again" })).toBeTruthy();
   });
 });

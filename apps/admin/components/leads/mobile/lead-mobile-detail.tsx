@@ -52,7 +52,7 @@ type Tab = (typeof tabs)[number];
 
 export function LeadMobileDetail() {
   const { id } = useParams<{ id: string }>();
-  const { data, isLoading, isError, error, refetch, isFetching } = useLeadDetail(id);
+  const { data, dataUpdatedAt, isLoading, isError, error, refetch, isFetching } = useLeadDetail(id);
   const [tab, setTab] = useState<Tab>("Overview");
   const [noteOpen, setNoteOpen] = useState(false);
   const [stageOpen, setStageOpen] = useState(false);
@@ -133,7 +133,9 @@ export function LeadMobileDetail() {
       </Link>
       {isError && (
         <LoadFailedLine
-          what="this lead again"
+          what="this lead"
+          shownFrom={dataUpdatedAt}
+          kept="page"
           error={error}
           gone={LEAD_GONE}
           onRetry={() => void refetch()}

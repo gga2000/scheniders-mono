@@ -6,6 +6,7 @@ import { useAdminStore } from "@/store/use-admin-store";
 import { DEFAULT_MERCHANT_SORT } from "@/lib/merchant-sort";
 import { useMemo } from "react";
 import { adminFetch } from "@/lib/admin-fetch";
+import { okOrLoadFailure } from "@/lib/load-failure";
 
 interface MerchantsPage {
   merchants: AdminTenant[];
@@ -94,8 +95,7 @@ export function useInfiniteMerchants(limit = 50) {
       if (dateRange.from) params.set("date_from", dateRange.from);
       if (dateRange.to) params.set("date_to", dateRange.to);
 
-      const res = await adminFetch(`/api/merchants?${params.toString()}`);
-      if (!res.ok) throw new Error("Failed to fetch merchants");
+      const res = okOrLoadFailure(await adminFetch(`/api/merchants?${params.toString()}`), "the merchants");
       return res.json();
     },
     initialPageParam: 1,

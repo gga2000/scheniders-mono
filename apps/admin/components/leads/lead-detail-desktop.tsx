@@ -59,7 +59,7 @@ type Tab = (typeof tabs)[number];
 
 export function LeadDetailDesktop() {
   const { id } = useParams<{ id: string }>();
-  const { data, isLoading, isError, error, refetch, isFetching } = useLeadDetail(id);
+  const { data, dataUpdatedAt, isLoading, isError, error, refetch, isFetching } = useLeadDetail(id);
   const [activeTab, setActiveTab] = useState<Tab>("Overview");
   // "Add Note" in the ⋮ menu: opens Activity with its note box focused.
   const [noteRequest, setNoteRequest] = useState(0);
@@ -149,7 +149,9 @@ export function LeadDetailDesktop() {
       </Link>
       {isError && (
         <LoadFailedLine
-          what="this lead again"
+          what="this lead"
+          shownFrom={dataUpdatedAt}
+          kept="page"
           error={error}
           gone={LEAD_GONE}
           onRetry={() => void refetch()}

@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -15,6 +16,7 @@ vi.mock("@/lib/admin-fetch", () => ({ adminFetch: send }));
 vi.mock("@/hooks/use-admin-auth", () => ({ useAdminAuth: () => ({ role: "super_admin" }) }));
 
 const { default: PaymentsPage } = await import("./page");
+const { TOPUP_QUEUE_KEY } = await import("@/lib/topup-queue");
 const { ANSWER_LOST } = await import("@/components/merchants/detail/action-ui");
 
 const REQUEST = {
@@ -93,5 +95,36 @@ describe("Approve when no answer comes back", () => {
     await approveWith(() => Promise.resolve(new Response(JSON.stringify({ outcome: "approved" }), { status: 409 })));
     await waitFor(() => expect(send.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(1));
     expect(screen.queryByText(ANSWER_LOST)).toBeNull();
+  });
+});
+
+/*
+ * Round 23 (UX new 2): the list re-reads every minute, and a failed re-read
+ * kept the last receipts with nothing to say they may be old: a receipt
+ * another staff member already decided stayed on screen as if waiting.
+ */
+describe("Payments to check after a failed re-read", () => {
+  const drawn = (refreshFailed: boolean) => {
+    const client = new QueryClient();
+    client.setQueryData(TOPUP_QUEUE_KEY, [REQUEST]);
+    if (refreshFailed) {
+      // Read at 20:00 in Baghdad, then the next minute's read failed.
+      client.getQueryCache().find({ queryKey: TOPUP_QUEUE_KEY })?.setState({
+        status: "error",
+        error: new TypeError("Failed to fetch"),
+        dataUpdatedAt: Date.parse("2026-11-22T17:00:00Z"),
+      });
+    }
+    return renderToStaticMarkup(createElement(QueryClientProvider, { client }, createElement(PaymentsPage)));
+  };
+
+  it("keeps the receipts and says how old the list is", () => {
+    const html = drawn(true);
+    expect(html).toMatch(/Could not refresh the payments\. This list is from (Sun 22 Nov, )?20:00\./);
+    expect(html).toContain("Kut Perfumes");
+  });
+
+  it("says nothing extra after a good read", () => {
+    expect(drawn(false)).not.toContain("Could not refresh");
   });
 });
