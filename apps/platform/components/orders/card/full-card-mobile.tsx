@@ -111,7 +111,7 @@ export function FullCardMobile({ m }: { m: OrderCardModel }) {
                                 )}
                                 {isReturn && orderReasonInfo && orderReasonInfo.deliveryDeduction > 0 && (
                                     <div className="flex items-center gap-1 mt-1 text-[11px] font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-100">
-                                        {t("orders.card.pickupFee", { amount: formatIQD(orderReasonInfo.deliveryDeduction) })}
+                                        {t("orders.card.deliveryDeduction", { amount: formatIQD(orderReasonInfo.deliveryDeduction) })}
                                     </div>
                                 )}
                             </div>
