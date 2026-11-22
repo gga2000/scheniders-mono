@@ -1,9 +1,13 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
+
+/** The panel's width in pixels (w-[280px] below), and the margin it keeps from the page edge. */
+const PANEL_WIDTH = 280;
+const PAGE_GUTTER = 16;
 
 interface InfoTipProps {
     /** The explanation, shown on hover or tap. */
@@ -27,6 +31,14 @@ export function InfoTip({ text, textDir, align = "start", className, testId }: I
     const open = pinned || hover;
     const box = useRef<HTMLSpanElement>(null);
     const panelId = useId();
+    // Near the right edge of the page a panel that grows right would be cut off: it grows left there instead.
+    const [side, setSide] = useState(align);
+    useLayoutEffect(() => {
+        if (!open || !box.current) return;
+        const { left, right } = box.current.getBoundingClientRect();
+        const room = document.documentElement.clientWidth - PAGE_GUTTER;
+        setSide(align === "start" ? (left + PANEL_WIDTH > room && right - PANEL_WIDTH >= PAGE_GUTTER ? "end" : "start") : right - PANEL_WIDTH < PAGE_GUTTER ? "start" : "end");
+    }, [open, align]);
 
     // A tap pins it open; a tap anywhere else closes it.
     useEffect(() => {
@@ -62,12 +74,29 @@ export function InfoTip({ text, textDir, align = "start", className, testId }: I
                 hidden={!open}
                 className={cn(
                     "absolute top-full z-30 mt-1.5 block w-[280px] rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] p-3 text-left text-[12.5px] font-normal leading-relaxed text-foreground shadow-lg",
-                    align === "start" ? "left-0" : "right-0",
+                    side === "start" ? "left-0" : "right-0",
                 )}
                 dir={textDir}
             >
                 {text}
             </span>
         </span>
+    );
+}
+
+/**
+ * A sentence with its info icon after it, the last word and the icon kept on one line,
+ * so the icon never wraps onto a line by itself.
+ */
+export function TextWithTip({ text, children }: { text: string; children: ReactNode }) {
+    const cut = text.lastIndexOf(" ");
+    return (
+        <>
+            {text.slice(0, cut + 1)}
+            <span className="whitespace-nowrap">
+                {text.slice(cut + 1)}
+                {children}
+            </span>
+        </>
     );
 }

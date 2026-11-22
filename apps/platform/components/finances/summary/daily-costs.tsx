@@ -8,7 +8,7 @@ import { formatChange, isShownChange } from "./change-chip";
 import { LOSS_COLOR, PROFIT_COLOR } from "./colors";
 import type { FinanceTab } from "./finance-tabs";
 import { formatWhole, useMoneyText } from "./money";
-import { InfoTip } from "./info-tip";
+import { InfoTip, TextWithTip } from "./info-tip";
 import { CARD_FIGURE, CARD_LINK, SummaryCard } from "./summary-card";
 
 interface DailyCostsProps {
@@ -161,27 +161,29 @@ export function DailyCosts({ summary, statement, previous, bulkBefore, onOpenTab
                         <span className="ml-1.5 text-[0.5em] font-medium tracking-normal opacity-60" dir={dir}>{t("fin.ads.unit")}</span>
                     </span>
                     <p className="mt-2.5 text-left text-[13.5px] leading-relaxed text-muted" dir={dir}>
-                        {t("fin.ads.spent", { spent: money(spent) })}
-                        {/* The line to judge the figure by, from this period's own goods, delivery and refunds. */}
+                        {/* The line to judge the figure by, from this period's own goods, delivery and refunds: first,
+                            so «هذا الرقم» sits next to the figure it means. */}
                         {evenAds !== null && (
                             <>
-                                {" "}
-                                {t("fin.ads.even", { n: formatWhole(evenAds), count: evenAds })}
-                                <InfoTip text={t("fin.ads.evenTip")} textDir={dir} className="ms-1" testId="ad-even-info" />
+                                <TextWithTip text={t("fin.ads.even", { n: formatWhole(evenAds), count: evenAds })}>
+                                    <InfoTip text={t("fin.ads.evenTip")} textDir={dir} className="ms-1" testId="ad-even-info" />
+                                </TextWithTip>{" "}
                             </>
                         )}
+                        {t("fin.ads.spent", { spent: money(spent) })}
                     </p>
                     {/* That line assumes every sale came from the ads; when sales did not rise as the ads began, say so beside it. */}
                     {noLift !== null && (
                         <p className="mt-2.5 border-s-2 border-amber-400 ps-3 text-left text-[13px] leading-relaxed text-foreground" dir={dir} data-testid="ads-no-lift">
-                            {isShownChange(-noLift) ? t("fin.ads.noLift", { pct: formatChange(noLift) }) : t("fin.ads.noLiftSame")}
                             {/* What to try, and (when bulk-marked days in either period move sales between dates) why the comparison is rough. */}
-                            <InfoTip
-                                text={t(bulk || bulkBefore ? "fin.ads.noLiftTipBulk" : "fin.ads.noLiftTip")}
-                                textDir={dir}
-                                className="ms-1"
-                                testId="ads-no-lift-info"
-                            />
+                            <TextWithTip text={isShownChange(-noLift) ? t("fin.ads.noLift", { pct: formatChange(noLift) }) : t("fin.ads.noLiftSame")}>
+                                <InfoTip
+                                    text={t(bulk || bulkBefore ? "fin.ads.noLiftTipBulk" : "fin.ads.noLiftTip")}
+                                    textDir={dir}
+                                    className="ms-1"
+                                    testId="ads-no-lift-info"
+                                />
+                            </TextWithTip>
                         </p>
                     )}
                 </div>

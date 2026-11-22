@@ -372,7 +372,7 @@ export function MoneyRoute({ summary, delivery }: MoneyRouteProps) {
                             </Link>
                         )}
                         {returning.count > 0 && (
-                            <p className="mt-0.5 flex items-center justify-end gap-1 text-left text-[13px] leading-relaxed text-muted" dir={dir} data-testid="money-returning">
+                            <p className={cn("mt-0.5 flex items-center gap-1 text-left text-[13px] leading-relaxed text-muted", dir === "rtl" ? "justify-end" : "justify-start")} dir={dir} data-testid="money-returning">
                                 {t("fin.money.returning", { n: formatWhole(returning.count), count: returning.count })}
                                 <InfoTip text={t("fin.money.returning.tip")} textDir={dir} testId="money-returning-info" />
                             </p>

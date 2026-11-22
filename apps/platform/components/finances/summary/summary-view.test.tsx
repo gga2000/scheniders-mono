@@ -164,7 +164,7 @@ describe("SummaryView", () => {
         if (add) fireEvent.click(add);
         expect(onOpenTab).toHaveBeenCalledWith("expenses");
         // the empty lines are named, under one heading that says what that means for the profit above
-        expect(byTestId("statement-too-high")?.textContent).toContain("قد يكون أكبر من الحقيقي:");
+        expect(byTestId("statement-too-high")?.textContent).toContain("قد يكون الربح أكبر من الحقيقي:");
         expect(byTestId("statement-quiet")?.textContent).toContain("لا شيء مسجّل في «الرواتب»");
     });
 
@@ -396,7 +396,7 @@ describe("SummaryView", () => {
         expect(parts).toContain("ثمن طلبات هذه الفترة في الكشوفاعرض الدفعات100,000");
         expect(byTestId("money-from-now-link")?.getAttribute("href")).toBe("#courier-payments");
         expect(parts).toContain("طلبات دُفع ثمنها لك سابقاً، وسجّلتها «مُسلَّمة» متأخراً في هذه الفترة200,000");
-        expect(parts).toContain("دُفعا مسبقاً (طلبان)20,000");
+        expect(parts).toContain("دفعهما الزبون مسبقاً (طلبان)20,000");
         expect(parts).toContain("من كشوف لاحقة10,000");
         cleanup();
         // a refund of 20,000 on the same statements: the cash for these orders is 80,000, and the line says so
@@ -547,6 +547,8 @@ describe("SummaryView", () => {
         expect(byTestId("ad-return")?.textContent).toContain("صرفت 60,000\u00a0د.ع.");
         // the line to judge it by: 400,000 of sales leave 180,000 after goods, delivery and refunds
         expect(byTestId("ad-return")?.textContent).toContain("يربح الإعلان ما دام هذا الرقم فوق 2,222.");
+        // the break-even line comes first, so «هذا الرقم» sits next to the figure it means
+        expect(byTestId("ad-return")?.textContent?.indexOf("يربح الإعلان ما دام")).toBeLessThan(byTestId("ad-return")?.textContent?.indexOf("صرفت") ?? -1);
         // what that line means sits behind its info icon
         expect(byTestId("ad-return")?.textContent).toContain("يربح الإعلان إذا جلبت كل 1,000 دينار منه مبيعات أكثر من هذا، إن كانت كل مبيعاتك منه.");
         // no period before: nothing to say about whether the ads raised sales
@@ -739,10 +741,10 @@ describe("SummaryView", () => {
         expect(ads?.textContent).toBe("شبه صفر في الفترة السابقة");
         expect(byTestId("statement-fall-cause")?.textContent).toBe("أغلب الانخفاض من «الإعلانات»: 60,000\u00a0د.ع الآن مقابل شبه صفر في الفترة السابقة.");
         // the ads card says the new ads did not raise sales, beside the line that assumes they made every sale
-        expect(byTestId("ads-no-lift")?.textContent).toBe("لم ترتفع مبيعاتك مع الإعلانات.كانت إعلاناتك شبه صفر في الفترة السابقة. جرّب إيقاف أضعف حملة أسبوعاً وراقب الطلبات الجديدة.");
+        expect(byTestId("ads-no-lift")?.textContent).toBe("لم ترتفع مبيعاتك مع الإعلانات، فلا تحكم بالرقم أعلاه وحده.كانت إعلاناتك شبه صفر في الفترة السابقة. جرّب إيقاف أضعف حملة أسبوعاً وراقب الطلبات الجديدة.");
         cleanup();
         renderView(query(s), query(summary({ ...before, sales: { ...before.sales, revenue: 430_000 } })));
-        expect(byTestId("ads-no-lift")?.textContent).toBe("لم ترتفع مبيعاتك مع الإعلانات (أقل بـ7%).كانت إعلاناتك شبه صفر في الفترة السابقة. جرّب إيقاف أضعف حملة أسبوعاً وراقب الطلبات الجديدة.");
+        expect(byTestId("ads-no-lift")?.textContent).toBe("لم ترتفع مبيعاتك مع الإعلانات (أقل بـ7%)، فلا تحكم بالرقم أعلاه وحده.كانت إعلاناتك شبه صفر في الفترة السابقة. جرّب إيقاف أضعف حملة أسبوعاً وراقب الطلبات الجديدة.");
         cleanup();
         // the same ads both times: no words, no cause
         // the period before was mostly one day of marking orders delivered at once: the comparison is rough, so
@@ -751,7 +753,7 @@ describe("SummaryView", () => {
         const bulkBefore = [1, 1, 1, 1, 1, 15].map((orders, i) => ({ ...bulkDay, day: `2026-10-0${i + 1}`, orders }));
         renderView(query(s), query(summary({ ...before, sales: { ...before.sales, revenue: 430_000 }, daily: bulkBefore })));
         expect(byTestId("ads-no-lift")?.textContent).toBe(
-            "لم ترتفع مبيعاتك مع الإعلانات (أقل بـ7%).كانت إعلاناتك شبه صفر في الفترة السابقة. جرّب إيقاف أضعف حملة أسبوعاً وراقب الطلبات الجديدة. والمقارنة تقريبية لأن كثيراً من الطلبات صارت «مُسلَّم» دفعةً واحدة.",
+            "لم ترتفع مبيعاتك مع الإعلانات (أقل بـ7%)، فلا تحكم بالرقم أعلاه وحده.كانت إعلاناتك شبه صفر في الفترة السابقة. جرّب إيقاف أضعف حملة أسبوعاً وراقب الطلبات الجديدة. والمقارنة تقريبية لأن كثيراً من الطلبات صارت «مُسلَّم» دفعةً واحدة.",
         );
         cleanup();
         renderView(query(s), query(summary()));
