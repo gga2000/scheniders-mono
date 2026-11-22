@@ -436,7 +436,7 @@ export function TopBar({ onMenuClick, isMobile }: TopBarProps) {
             {/* Header Content */}
             <div className="relative flex items-center justify-between gap-3 md:gap-6 w-full px-4 md:px-6 py-3 md:py-4">
                 {/* Left: merchant code badge */}
-                <div className="flex items-center w-auto md:flex-1 md:min-w-[200px]">
+                <div className="flex items-center w-auto md:flex-1 md:min-w-fit">
                     <MerchantCodeBadge />
                     {/* Desktop only, right of the store number (Ali, 22 Nov). */}
                     <div className="ml-2 hidden shrink-0 md:block">

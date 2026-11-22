@@ -61,12 +61,17 @@ export function ChangeRequestButton() {
     return (
         <Popover open={open} onOpenChange={onOpenChange}>
             <PopoverTrigger asChild>
+                {/* Below 1360px wide the words would squeeze the search bar, so the bulb stands alone (named for screen readers and on hover). */}
                 <button
                     type="button"
-                    className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full border border-[var(--card-border)] bg-[var(--card-bg)] px-3.5 text-sm font-semibold text-foreground transition-all hover:border-[var(--foreground-muted)] active:scale-95"
+                    aria-label={t("changeRequest.button")}
+                    title={t("changeRequest.button")}
+                    className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full border border-[var(--card-border)] bg-[var(--card-bg)] px-3 text-sm font-semibold text-foreground transition-all hover:border-[var(--foreground-muted)] active:scale-95 min-[1360px]:px-3.5"
                 >
                     <Lightbulb className="h-4 w-4 text-amber-500" />
-                    <span dir="auto" className="whitespace-nowrap">{t("changeRequest.button")}</span>
+                    <span dir="auto" aria-hidden className="hidden whitespace-nowrap min-[1360px]:inline">
+                        {t("changeRequest.button")}
+                    </span>
                 </button>
             </PopoverTrigger>
             <PopoverContent
