@@ -9,6 +9,7 @@ import { okOrLoadFailure } from "@/lib/load-failure";
 import { toIntlIraqi } from "@/components/leads/lead-phone";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
 import { LoadError } from "@/components/shared/load-error";
+import { LoadFailedLine } from "@/components/shared/load-failed-line";
 import {
   DECISION_LABEL,
   TRIAL_CHECKS_KEY,
@@ -209,7 +210,7 @@ function CheckRow({ check }: { check: TrialCheck }) {
  * mark it checked, each with a reason in the log. The merchant never sees why.
  */
 export function TrialChecksPanel() {
-  const { data, isLoading, isError, error, refetch, isFetching } = useQuery<TrialChecksResponse>({
+  const { data, isLoading, isError, error, refetch, isFetching, dataUpdatedAt } = useQuery<TrialChecksResponse>({
     queryKey: TRIAL_CHECKS_KEY,
     queryFn: async () => {
       const res = okOrLoadFailure(await adminFetch("/api/trial-checks"), "the trial checks");
@@ -227,7 +228,9 @@ export function TrialChecksPanel() {
       </section>
     );
   }
-  if (isLoading || !data || data.checks.length === 0) return null;
+  // Kept from an earlier read, even an empty one: staff are told it may be
+  // out of date, since a store may have been flagged since.
+  if (isLoading || !data || (data.checks.length === 0 && !isError)) return null;
 
   const { summary } = data;
   return (
@@ -242,6 +245,17 @@ export function TrialChecksPanel() {
             ? "Nothing new. Every flagged store has a decision."
             : `${summary.needs_look} to look at: ${summary.no_trial} no trial, ${summary.review} to review`}
         </p>
+        {isError && (
+          <LoadFailedLine
+            what="the one-trial checks"
+            shownFrom={dataUpdatedAt}
+            kept="list"
+            error={error}
+            onRetry={() => refetch()}
+            retrying={isFetching}
+            className="mt-2"
+          />
+        )}
       </div>
       <div className="divide-y divide-[var(--card-border)]">
         {data.checks.map((check) => (
