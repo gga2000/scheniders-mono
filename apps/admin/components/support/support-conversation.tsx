@@ -79,18 +79,39 @@ function ContextChips({ message }: { message: SupportMessageRow }) {
 }
 
 /**
- * The page refetches every few seconds and each answer signs a fresh link.
- * Keep the first one so a note that is playing does not restart; take the
- * newest only when the kept one stops working (it lasts 15 minutes).
+ * The page refetches every 5 seconds and each answer signs a fresh link to the
+ * same file. Keep the first one, so the browser does not download a picture
+ * again on every refetch and a voice note that is playing does not restart;
+ * take the newest only when the kept one stops working (it lasts 15 minutes).
  */
-function VoiceNote({ url }: { url: string }) {
+function useKeptLink(url: string): [string, () => void] {
   const [src, setSrc] = useState(url);
+  return [src, () => setSrc(url)];
+}
+
+function ScreenPicture({ url }: { url: string }) {
+  const [src, takeNewest] = useKeptLink(url);
+  return (
+    <a href={url} target="_blank" rel="noreferrer" className="mb-2 block" title="Open the picture full size">
+      {/* eslint-disable-next-line @next/next/no-img-element -- signed storage URL, not a static asset */}
+      <img
+        src={src}
+        onError={takeNewest}
+        alt="Picture of the merchant's screen"
+        className="max-h-64 w-full rounded-lg border border-[var(--card-border)] object-cover object-top"
+      />
+    </a>
+  );
+}
+
+function VoiceNote({ url }: { url: string }) {
+  const [src, takeNewest] = useKeptLink(url);
   return (
     <audio
       controls
       preload="none"
       src={src}
-      onError={() => setSrc(url)}
+      onError={takeNewest}
       aria-label="Voice note from the merchant"
       className="mb-2 h-9 w-64 max-w-full"
     />
@@ -120,22 +141,7 @@ function MessageLine({ message }: { message: SupportMessageRow }) {
           fromStaff ? "bg-foreground text-background" : "border border-[var(--card-border)] bg-[var(--card-bg)] text-foreground",
         )}
       >
-        {message.screenshot_url && (
-          <a
-            href={message.screenshot_url}
-            target="_blank"
-            rel="noreferrer"
-            className="mb-2 block"
-            title="Open the picture full size"
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element -- signed storage URL, not a static asset */}
-            <img
-              src={message.screenshot_url}
-              alt="Picture of the merchant's screen"
-              className="max-h-64 w-full rounded-lg border border-[var(--card-border)] object-cover object-top"
-            />
-          </a>
-        )}
+        {message.screenshot_url && <ScreenPicture url={message.screenshot_url} />}
         {message.context.screenshot && !message.screenshot_url && (
           <p className="mb-1 text-xs text-foreground/70">The picture of the screen is no longer stored.</p>
         )}
