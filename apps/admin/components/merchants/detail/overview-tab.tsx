@@ -12,6 +12,8 @@ interface OverviewTabProps {
   subscription: MerchantDetail["subscription"];
   billingLock: MerchantDetail["billingLock"];
   canForceUnlock: boolean;
+  /** What the wallet holds now: the Renewal switch says it before a locked shop is charged. */
+  walletIqd: number;
 }
 
 const LOCALE_LABEL = { currency: "Currency", language: "Language", timezone: "Time zone" } as const;
@@ -24,6 +26,7 @@ export function OverviewTab({
   subscription,
   billingLock,
   canForceUnlock,
+  walletIqd,
 }: OverviewTabProps) {
   const settings = tenant.settings ?? {};
   const locale = (["currency", "language", "timezone"] as const)
@@ -53,7 +56,13 @@ export function OverviewTab({
         />
       )}
 
-      <SubscriptionCard merchantId={merchantId} tenant={tenant} subscription={subscription} />
+      <SubscriptionCard
+        merchantId={merchantId}
+        tenant={tenant}
+        subscription={subscription}
+        billingLock={billingLock}
+        walletIqd={walletIqd}
+      />
 
       <section className="pastel-card p-5" aria-label="Shop details">
         <h2 className="mb-4 text-[15px] font-semibold text-foreground">Shop details</h2>

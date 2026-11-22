@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useIsMutating, useMutation } from "@tanstack/react-query";
 import { Lock, ShoppingBag, Unlock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -15,7 +15,7 @@ import { keptRequestIds } from "@/lib/request-ids";
 import { formatDay } from "@/lib/format";
 import { LOCK_REASON_WORDS, lockOpensWords } from "@/lib/billing-lock-label";
 import { shopActionKey } from "@/lib/shop-actions";
-import { postJson, useRereadShop, useWriteFailed } from "./action-ui";
+import { PanelFields, postJson, useRereadShop, useWriteFailed } from "./action-ui";
 
 interface BillingLockCardProps {
   merchantId: string;
@@ -79,9 +79,12 @@ export function BillingLockCard({ merchantId, lock, canForceUnlock, shopPaused }
     },
     onError: failed,
   });
+  // Any write on this shop, this card's or another panel's: the tools wait
+  // for it, so two writes never run at once (round 21, UX new 3).
+  const writing = useIsMutating({ mutationKey: shopActionKey(merchantId) }) > 0;
 
   const run = (action: Action) => {
-    if (mutation.isPending || !reasonOk) return;
+    if (writing || !reasonOk) return;
     mutation.mutate(action);
   };
 
@@ -90,7 +93,7 @@ export function BillingLockCard({ merchantId, lock, canForceUnlock, shopPaused }
     Number.isInteger(customOrdersN) && customOrdersN >= 1 && customOrdersN <= MAX_LOCK_ORDERS_GRANT;
   const ordersLeft = lock.orders_left ?? 0;
   const paused = ordersLeft <= 0;
-  const disabled = mutation.isPending || !reasonOk;
+  const disabled = writing || !reasonOk;
   const canGiveOrders = lock.reason !== "unpaid" || canForceUnlock;
 
   const chip = (selected: boolean) =>
@@ -140,7 +143,7 @@ export function BillingLockCard({ merchantId, lock, canForceUnlock, shopPaused }
       </p>
 
       {canGiveOrders ? (
-        <>
+        <PanelFields busy={writing}>
           <StaffReasonInput
             value={reason}
             onChange={setReason}
@@ -222,7 +225,7 @@ export function BillingLockCard({ merchantId, lock, canForceUnlock, shopPaused }
               </div>
             )}
           </div>
-        </>
+        </PanelFields>
       ) : (
         <p className="text-[13px] font-medium text-[var(--ink-red)]" data-testid="billing-lock-super-admin-only">
           A store locked for an unpaid month gets more orders or a free unlock from a super admin.

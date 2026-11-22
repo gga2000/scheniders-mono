@@ -1,11 +1,23 @@
+// @vitest-environment jsdom
 // The staff card for a locked store (Fermi A1), rendered to markup: what the
 // lock is, the storefront orders left, and the tools staff may use.
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { describe, expect, it } from "vitest";
-import { BillingLockCard } from "./billing-lock-card";
+import { QueryClient, QueryClientProvider, useMutation } from "@tanstack/react-query";
+import { cleanup, fireEvent, render as draw, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { BillingLockSnapshot } from "@/lib/billing-lock-tools";
+import { shopActionKey } from "@/lib/shop-actions";
+
+const send = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/admin-fetch", () => ({ adminFetch: send }));
+const { BillingLockCard } = await import("./billing-lock-card");
+
+afterEach(() => {
+  cleanup();
+  send.mockReset();
+  localStorage.clear();
+});
 
 const LOCK: BillingLockSnapshot = {
   locked: true,
@@ -86,5 +98,57 @@ describe("BillingLockCard", () => {
     );
     expect(tools).toHaveLength(5);
     for (const button of tools) expect(button).toMatch(/disabled=""/);
+  });
+});
+
+/*
+ * Round 21 (UX new 3): the card's tools did not wait for the page's writes. A
+ * click on + 10 during a held Add money sent a second write, and during the
+ * card's own unlock the 7 or 30 choice still changed, so the button named 7
+ * days while 30 were written.
+ */
+describe("BillingLockCard while a write on the shop runs", () => {
+  const REASON = "Owner paid in cash at the office";
+
+  /** A write on this shop from another panel, held open until the test ends. */
+  function OtherWrite() {
+    const write = useMutation({ mutationKey: shopActionKey("t1"), mutationFn: () => new Promise<never>(() => {}) });
+    return createElement("button", { type: "button", onClick: () => write.mutate() }, "Other write");
+  }
+
+  const drawCard = () => {
+    draw(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(BillingLockCard, { merchantId: "t1", lock: LOCK, canForceUnlock: true, shopPaused: false }),
+        createElement(OtherWrite),
+      ),
+    );
+    fireEvent.change(screen.getByPlaceholderText("Why? (needed for both tools, saved in the log)"), { target: { value: REASON } });
+  };
+  const off = (name: string) => screen.getByRole("button", { name }).matches(":disabled");
+
+  it("holds every tool while another panel's write runs, and sends nothing", async () => {
+    drawCard();
+    expect(off("+ 10")).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: "Other write" }));
+    await waitFor(() => expect(off("+ 10")).toBe(true));
+    expect(off("7 days")).toBe(true);
+    expect(off("Unlock for 30 days")).toBe(true);
+    expect(screen.getByPlaceholderText("Why? (needed for both tools, saved in the log)").matches(":disabled")).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "+ 10" }));
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it("keeps the days it is writing: the 7 or 30 choice waits during its own unlock", async () => {
+    send.mockReturnValue(new Promise<never>(() => {}));
+    drawCard();
+    fireEvent.click(screen.getByRole("button", { name: "Unlock for 30 days" }));
+    // A disabled control takes no click in the browser, so the button keeps naming what is written.
+    await waitFor(() => expect(off("7 days")).toBe(true));
+    expect(off("30 days")).toBe(true);
+    expect(screen.getByRole("button", { name: "Unlock for 30 days" })).toBeTruthy();
+    expect(send).toHaveBeenCalledTimes(1);
   });
 });

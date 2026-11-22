@@ -298,6 +298,7 @@ export default function MerchantDetailPage() {
           subscription={subscription}
           billingLock={data.billingLock}
           canForceUnlock={data.canForceUnlock}
+          walletIqd={wallet?.balance_iqd ?? 0}
         />
       )}
       {activeTab === "Overview" && <RecentOrdersSection merchantId={tenant.id} limit={5} />}
