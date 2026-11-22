@@ -84,8 +84,14 @@ export function useLastActors(pages: readonly (readonly string[])[]): LastActors
       placeholderData: () => knownActors(client, ids),
     })),
     combine: (results) => {
-      // A chunk that keeps an earlier answer still shows its badges.
-      const lost = results.filter((r) => r.isError && r.data === undefined);
+      // A chunk that keeps an earlier answer still shows its badges. One that
+      // has none and failed stays lost while it is asked again: a re-fetch of
+      // a read that never answered drops its error, so the line went away on
+      // Try again and came back after the retries, never saying it was
+      // loading (round 24 UX new 5).
+      const lost = results.filter(
+        (r) => r.data === undefined && (r.isError || (r.errorUpdateCount > 0 && r.isFetching)),
+      );
       return {
         actors: Object.assign({}, ...results.map((r) => r.data ?? {})) as Record<string, LastActor>,
         failed: lost.length > 0,

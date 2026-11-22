@@ -150,6 +150,36 @@ describe("Merchants' last-done-by badges", () => {
   });
 });
 
+describe("Merchants' badge line while Try again works", () => {
+  it("keeps the line and says it is loading until the page of shops answers", async () => {
+    const ids = Array.from({ length: 3 }, (_, i) => shopId(i));
+    send.mockImplementation(async () => new Response("{}", { status: 503 }));
+    const client = noRetry();
+    const wrapper = ({ children }: { children: ReactNode }) => createElement(QueryClientProvider, { client }, children);
+    const { result } = renderHook(() => useLastActors([ids]), { wrapper });
+    await waitFor(() => expect(result.current.failed).toBe(true));
+    expect(result.current.retrying).toBe(false);
+
+    let answer: () => void = () => undefined;
+    serve();
+    const served = send.getMockImplementation();
+    send.mockImplementation(
+      (url: string, init: RequestInit) =>
+        new Promise((done) => {
+          answer = () => done(served?.(url, init));
+        }),
+    );
+    act(() => result.current.retry());
+    await waitFor(() => expect(result.current.retrying).toBe(true));
+    expect(result.current.failed).toBe(true);
+
+    await act(async () => answer());
+    await waitFor(() => expect(result.current.failed).toBe(false));
+    expect(result.current.retrying).toBe(false);
+    expect(Object.keys(result.current.actors)).toHaveLength(3);
+  });
+});
+
 describe("Merchants' badges when a shop is starred", () => {
   it("asks for nothing again when a shop on the second page is starred and moves to the top", async () => {
     const all = Array.from({ length: 100 }, (_, i) => shopId(i));

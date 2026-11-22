@@ -180,7 +180,7 @@ export function LeadsMobileView() {
 
       {/* List area */}
       {neverRead ? (
-        <LoadError compact what="the leads" error={error} onRetry={() => void refetch()} retrying={isFetching} />
+        <LoadError compact what="the leads" shows="list" error={error} onRetry={() => void refetch()} retrying={isFetching} />
       ) : isLoading ? (
         <div className="space-y-2.5">
           {Array.from({ length: 6 }).map((_, i) => (

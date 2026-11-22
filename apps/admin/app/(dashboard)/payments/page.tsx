@@ -272,7 +272,7 @@ export default function PaymentsPage() {
   const { data, error, isLoading, isError, isFetching, refetch } = pageRead;
 
   if (isError && !data) {
-    return <LoadError what="the payments" onRetry={() => refetch()} retrying={isFetching} error={error} />;
+    return <LoadError what="the payments" shows="list" onRetry={() => refetch()} retrying={isFetching} error={error} />;
   }
 
   return (

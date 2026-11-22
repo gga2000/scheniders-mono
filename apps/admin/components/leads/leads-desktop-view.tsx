@@ -263,7 +263,7 @@ export function LeadsDesktopView() {
 
         {/* Content */}
         {neverRead ? (
-          <LoadError compact what="the leads" error={error} onRetry={() => void refetch()} retrying={isFetching} />
+          <LoadError compact what="the leads" shows="list" error={error} onRetry={() => void refetch()} retrying={isFetching} />
         ) : isLoading || waitingForColumns ? (
           viewMode === "table" ? (
             <div className="divide-y divide-[var(--card-border)]">

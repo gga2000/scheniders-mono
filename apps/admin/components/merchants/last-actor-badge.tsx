@@ -91,7 +91,8 @@ export function LastActorBadge({ actor, size = "xs", showLabel = false }: LastAc
               <p className="text-xs font-bold text-foreground truncate leading-tight" title={actor.display_name}>
                 {actor.display_name}
               </p>
-              {actor.email && (
+              {/* A staff row with no name is named by its email (round 24 UX new 4): say it once. */}
+              {actor.email && actor.email !== actor.display_name && (
                 <p className="text-xs text-foreground/70 truncate leading-tight" title={actor.email}>
                   {actor.email}
                 </p>

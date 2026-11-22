@@ -23,6 +23,17 @@ describe("LoadError", () => {
     }
   });
 
+  it("says what is not shown in the words of what the part shows: numbers, a list or a page", () => {
+    // Round 24 UX new 7: a list or a lead page that did not load said it hid its numbers.
+    const shown = (shows?: "numbers" | "list" | "page") =>
+      renderToStaticMarkup(createElement(LoadError, { what: "the leads", onRetry: () => {}, shows }));
+    expect(shown()).toContain("No numbers are shown, because they could be wrong. Check your connection and try again.");
+    expect(shown("numbers")).toContain("No numbers are shown, because they could be wrong.");
+    expect(shown("list")).toContain("No list is shown until it can be read. Check your connection and try again.");
+    expect(shown("page")).toContain("Nothing is shown until it can be read. Check your connection and try again.");
+    for (const shows of ["list", "page"] as const) expect(shown(shows)).not.toContain("numbers");
+  });
+
   it("tells a login that may not open the page so, with no button to press", () => {
     const html = render(new LoadFailure(403, "the wallets"));
     expect(html).toContain("Your login cannot open the wallets");

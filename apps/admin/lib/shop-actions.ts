@@ -129,12 +129,25 @@ export function reactivateWords(comeback: Comeback, trialEndsAt: string | null, 
  * shop on trial or active: one paused, on hold or cancelled answers on_hold
  * and is not charged, so "charges the wallet each month" would say otherwise.
  * The demo store renews each month at no charge.
+ *
+ * `lockedFor` is why the shop is locked now (billing_lock_snapshot's reason),
+ * or null when it is not: a shop renewal off has already locked is told what
+ * happened, not what will (round 24 UX new 8).
  */
-export function renewalWords(autoRenew: boolean, demo: boolean, status: string): string {
+export function renewalWords(
+  autoRenew: boolean,
+  demo: boolean,
+  status: string,
+  lockedFor: "trial_ended" | "unpaid" | null,
+): string {
   // The demo store renews at no charge whatever the switch says (B13).
   if (demo) return autoRenew ? "On: renews each month, never charged (demo store)" : "Off, but the demo store renews each month at no charge";
   // Renewal off: the month's end is not charged, and the shop locks like an unpaid month (20261119073654).
-  if (!autoRenew) return "Off: when the month ends it is not charged, and the shop locks";
+  if (!autoRenew) {
+    if (lockedFor === "trial_ended") return "Off: the trial ended unpaid, so the shop is locked";
+    if (lockedFor === "unpaid") return "Off: the month ended unpaid, so the shop is locked";
+    return "Off: when the month ends it is not charged, and the shop locks";
+  }
   switch (status) {
     case "limited":
       return "On: not charged while paused, then charges the wallet each month";

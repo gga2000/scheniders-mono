@@ -31,7 +31,7 @@ export default function TeamPage() {
   }
 
   if (isError && !employees) {
-    return <LoadError what="the team" error={error} onRetry={() => refetch()} retrying={isFetching} />;
+    return <LoadError what="the team" shows="list" error={error} onRetry={() => refetch()} retrying={isFetching} />;
   }
 
   const team = employees ?? [];

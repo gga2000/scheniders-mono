@@ -348,7 +348,7 @@ export default function MerchantsPage() {
             <MerchantCardGridSkeleton count={8} />
           </motion.div>
         ) : isError && !data ? (
-          <LoadError what="the merchants" error={error} onRetry={() => refetch()} retrying={isFetching} />
+          <LoadError what="the merchants" shows="list" error={error} onRetry={() => refetch()} retrying={isFetching} />
         ) : merchants.length === 0 ? (
           <MerchantEmptyState
             hasFilters={hasActiveFilters}
@@ -466,7 +466,7 @@ export default function MerchantsPage() {
       {/* ── Infinite scroll sentinel ────────────────────────────────── */}
       <div ref={sentinelRef} className="h-4" />
       {isFetchNextPageError && viewMode !== "map" && (
-        <LoadError compact what="more merchants" onRetry={() => fetchNextPage()} retrying={isFetchingNextPage} />
+        <LoadError compact what="more merchants" shows="list" onRetry={() => fetchNextPage()} retrying={isFetchingNextPage} />
       )}
       {isFetchingNextPage && (
         <div className="flex items-center justify-center py-4">
