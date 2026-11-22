@@ -118,8 +118,9 @@ export function MoneyRoute({ summary, delivery }: MoneyRouteProps) {
               ? t("fin.money.unpaid.both", {
                     n: formatWhole(owedOrders),
                     count: owedOrders,
-                    prime: formatWhole(owedPrime),
-                    courier: formatWhole(courierOnly),
+                    // «و1» reads badly in a sentence: one order is written as a word.
+                    prime: owedPrime === 1 ? t("fin.money.unpaid.oneWord") : formatWhole(owedPrime),
+                    courier: courierOnly === 1 ? t("fin.money.unpaid.oneWord") : formatWhole(courierOnly),
                 })
               : owedPrime > 0
                 ? t("fin.money.unpaid.prime", { n: formatWhole(owedPrime), count: owedPrime })

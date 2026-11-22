@@ -43,5 +43,6 @@ export function Money({ value, minus = false, plus = false, className, unitClass
 /** `formatWhole` plus the unit, for sentences built with `t(key, { amount })`. */
 export function useMoneyText(): (value: number) => string {
     const { t } = useLanguage();
-    return (value: number) => `${formatWhole(value)} ${t("common.iqd")}`;
+    // A no-break space keeps «د.ع» on the line of its number when a sentence wraps.
+    return (value: number) => `${formatWhole(value)}\u00a0${t("common.iqd")}`;
 }

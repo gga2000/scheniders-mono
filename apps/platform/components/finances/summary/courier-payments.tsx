@@ -151,7 +151,7 @@ export function CourierPayments({ summary, onAddPayment }: CourierPaymentsProps)
                   {
                       key: "refunds-open",
                       label: counted("fin.money.cash.part.refundsOpen", statement.returns_open_orders),
-                      note: t("fin.money.cash.part.refundsOpenNote", { amount: money(-statement.returns_open) }),
+                      note: t("fin.money.cash.part.refundsOpenNote"),
                       amount: statement.returns_open,
                       orders: ordersOf("refund_open"),
                   },
@@ -240,11 +240,11 @@ export function CourierPayments({ summary, onAddPayment }: CourierPaymentsProps)
                                             className="inline-flex items-baseline gap-1.5 text-left decoration-foreground/30 underline-offset-4 hover:underline"
                                             data-fold={part.key}
                                         >
-                                            {part.label}
                                             <ChevronRight
                                                 className={cn("size-3 shrink-0 self-center text-muted transition-transform", open && "rotate-90")}
                                                 aria-hidden="true"
                                             />
+                                            {part.label}
                                         </button>
                                     ) : (
                                         part.label

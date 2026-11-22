@@ -69,6 +69,9 @@ export function ProfitStatement({ summary, statement, previous, onOpenTab }: Pro
     // Delivered orders the ordinary delivery company has not put on a statement yet: its fee on them is
     // only known from that statement, so the net profit below does not take it off yet.
     const feePending = Math.max(summary.cash.split.unpaid_orders - summary.cash.split.unpaid_prime, 0);
+    // The unpaid list names only orders that still owe money: link to it only when it holds one of
+    // these orders, since a free one is counted there but never shown.
+    const feePendingListed = summary.cash.unpaid_list.some((order) => !order.prime);
     const [open, setOpen] = useState<CostLineId | null>(null);
     const [lens, setLens] = useState<Lens>("total");
     const steps = useMemo(() => new Map(waterfall(statement).map((step) => [step.id, step])), [statement]);
@@ -322,14 +325,16 @@ export function ProfitStatement({ summary, statement, previous, onOpenTab }: Pro
                                 <span className="min-w-0 flex-1 text-left" dir={dir}>
                                     {t("fin.statement.feePending", { n: formatWhole(feePending), count: feePending })}
                                 </span>
-                                <a
-                                    href={`#${UNPAID_ORDERS_ID}`}
-                                    className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap font-semibold text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-current"
-                                    data-testid="statement-fee-pending-link"
-                                >
-                                    {t("fin.alert.refundsOpen.open")}
-                                    <ArrowUpRight className="size-3.5" aria-hidden="true" />
-                                </a>
+                                {feePendingListed && (
+                                    <a
+                                        href={`#${UNPAID_ORDERS_ID}`}
+                                        className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap font-semibold text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-current"
+                                        data-testid="statement-fee-pending-link"
+                                    >
+                                        {t("fin.alert.refundsOpen.open")}
+                                        <ArrowUpRight className="size-3.5" aria-hidden="true" />
+                                    </a>
+                                )}
                             </li>
                         )}
                     </ul>
