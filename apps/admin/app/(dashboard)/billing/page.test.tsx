@@ -132,15 +132,16 @@ describe("Quick Top-Up when the answer is lost or repeated", () => {
     expect(keptRequestIds("topup").idFor(requestKey(shopKey(KUT), 50000))).toBe(sent);
   });
 
-  it("says a repeat was not added again", async () => {
+  it("says a repeat was not added again, without the balance of that first time", async () => {
+    // The answer carries the balance right after the first credit; money may
+    // have moved since, so the sentence must not call it the wallet now.
     serve(() => Promise.resolve(json({ success: true, newBalance: 93800, duplicate: true })));
     await fill(KUT, "50000");
     fireEvent.click(screen.getByRole("button", { name: "Add 50,000 IQD" }));
     expect(
-      await screen.findByText(
-        /50,000 IQD was already added to Kut Perfumes, so it was not added again\. Wallet now 93,800 IQD\./,
-      ),
+      await screen.findByText("50,000 IQD was already added to Kut Perfumes, so it was not added again."),
     ).toBeTruthy();
     expect(screen.queryByText(/^Added 50,000 IQD/)).toBeNull();
+    expect(screen.queryByText(/Wallet now/)).toBeNull();
   });
 });
