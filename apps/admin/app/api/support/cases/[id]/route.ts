@@ -10,6 +10,7 @@ import {
   SupportRequestIdSchema,
   SUPPORT_CASE_COLUMNS,
   SUPPORT_CASE_NOTE_COLUMNS,
+  SUPPORT_SEND_UNSURE,
   SUPPORT_SHOT_BUCKET,
   SUPPORT_VOICE_BUCKET,
   filePaths,
@@ -314,6 +315,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Support case action error:", error);
+    // A reply or note may have been written before its answer was lost; its id makes a retry safe.
+    if (requestId) return NextResponse.json({ error: SUPPORT_SEND_UNSURE }, { status: 502 });
     return NextResponse.json({ error: "Failed to update the conversation" }, { status: 500 });
   }
 }

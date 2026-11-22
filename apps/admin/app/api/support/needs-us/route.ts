@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminPermission } from "@/lib/api-auth";
-import { logAdminActivity } from "@/lib/activity-logger";
+import { logAdminActionOnce } from "@/lib/activity-logger";
 import { adminDisplayName } from "@/lib/support-admin-name";
-import { NeedsUsSchema, StartConversationSchema, SupportRequestIdSchema, supportRefusal, wasRepeat } from "@/lib/support";
+import {
+  NeedsUsSchema,
+  StartConversationSchema,
+  SUPPORT_SEND_UNSURE,
+  SupportRequestIdSchema,
+  supportRefusal,
+  wasRepeat,
+} from "@/lib/support";
 
 const StartRequestSchema = StartConversationSchema.extend(SupportRequestIdSchema.shape);
 
@@ -57,18 +64,17 @@ export async function POST(request: NextRequest) {
     if (error) throw error;
 
     const result = data as { case_id: string; started: boolean };
-    // A repeat of the same send did nothing new, and was logged the first time.
-    if (wasRepeat(data)) return NextResponse.json({ caseId: result.case_id, started: result.started });
-    await logAdminActivity({
-      adminUserId: admin.user.id,
-      actorEmail: admin.user.email,
-      tenantId: parsed.data.tenantId,
-      action: "support_reached_out",
-      details: { case_id: result.case_id, started: result.started },
-    });
+    // One row per send: a repeat writes it only if the first send's row is missing.
+    await logAdminActionOnce(
+      admin,
+      "support_reached_out",
+      { requestId: parsed.data.request_id, repeat: wasRepeat(data) },
+      { tenantId: parsed.data.tenantId, details: { case_id: result.case_id, started: result.started } },
+    );
     return NextResponse.json({ caseId: result.case_id, started: result.started });
   } catch (error) {
     console.error("Support write-first error:", error);
-    return NextResponse.json({ error: "Failed to send the message" }, { status: 500 });
+    // The message may have been written before its answer was lost; its id makes a retry safe.
+    return NextResponse.json({ error: SUPPORT_SEND_UNSURE }, { status: 502 });
   }
 }

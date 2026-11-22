@@ -328,6 +328,33 @@ BEGIN
     PERFORM pg_temp.check('request id: anon cannot begin', NOT has_function_privilege('anon', 'public.support_request_begin(uuid,text,uuid)', 'EXECUTE'));
 END $$;
 
+-- Round 23 (6): the same id and step on another conversation gives back the
+-- first answer and writes nothing there. Meant: the console makes a new random
+-- id for each ask (the conversation, the words), so a retry is the only way an
+-- id comes back. Two sessions sending one id at once: the second waits on the
+-- first's primary key row in support_staff_requests, then gets its answer.
+-- This harness runs one session, so that wait is not tested here.
+DO $$
+DECLARE
+    rid uuid := gen_random_uuid();
+    k uuid := 'bc000000-0000-4000-8000-000000000001';
+    other uuid := (SELECT id FROM public.support_cases
+                   WHERE id <> 'bc000000-0000-4000-8000-000000000001' AND status <> 'solved'
+                   ORDER BY created_at LIMIT 1);
+    first_ jsonb;
+    again jsonb;
+    before_ int;
+BEGIN
+    PERFORM pg_temp.check('request id: a second open conversation to send to', other IS NOT NULL);
+    before_ := (SELECT count(*) FROM public.support_messages WHERE case_id = other);
+    first_ := public.support_staff_reply(k, '99999999-0000-4000-8000-000000000001', 'Noor', 'For Basra', rid);
+    again := public.support_staff_reply(other, '99999999-0000-4000-8000-000000000001', 'Noor', 'For Basra', rid);
+    PERFORM pg_temp.check('request id: another conversation gets the first answer ' || again::text,
+        again ->> 'case_id' = k::text AND again ->> 'message_id' = first_ ->> 'message_id' AND (again ->> 'repeat')::boolean);
+    PERFORM pg_temp.check('request id: another conversation gets no message',
+        (SELECT count(*) FROM public.support_messages WHERE case_id = other) = before_);
+END $$;
+
 DO $$
 BEGIN
     IF current_setting('tt.failures') <> '' THEN

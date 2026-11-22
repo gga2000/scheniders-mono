@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminPermission } from "@/lib/api-auth";
 import { adminDisplayName } from "@/lib/support-admin-name";
-import { SupportRequestIdSchema, SupportTasksSchema, TaskLogSchema, supportRefusal } from "@/lib/support";
+import { SUPPORT_SEND_UNSURE, SupportRequestIdSchema, SupportTasksSchema, TaskLogSchema, supportRefusal } from "@/lib/support";
 
 const TaskLogRequestSchema = TaskLogSchema.extend(SupportRequestIdSchema.shape);
 
@@ -62,6 +62,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Support task log error:", error);
-    return NextResponse.json({ error: "Failed to save the call" }, { status: 500 });
+    // The call may have been saved before its answer was lost; its id makes a retry safe.
+    return NextResponse.json({ error: SUPPORT_SEND_UNSURE }, { status: 502 });
   }
 }

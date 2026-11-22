@@ -4,7 +4,8 @@ import { CheckCircle2, Clock, Inbox, Lightbulb, ThumbsDown, ThumbsUp } from "luc
 import { SUPPORT_REPLY_MINUTES, supportWaitMinutes } from "@scheniders/shared/support-hours";
 import { cn } from "@/lib/utils";
 import { useLiveTick } from "@/hooks/use-live-tick";
-import { changeRequestDueAt, formatDue, formatWait, SUPPORT_REASON_LABELS, type SupportInboxRow } from "@/lib/support";
+import { formatDayTime } from "@/lib/format";
+import { changeRequestClock, changeRequestDueAt, formatWait, SUPPORT_REASON_LABELS, type SupportInboxRow } from "@/lib/support";
 
 interface SupportCaseListProps {
   cases: SupportInboxRow[];
@@ -27,21 +28,22 @@ function waitTone(since: string, now: number): string {
 
 /**
  * The change request tag. Until the conversation is solved it counts down the
- * 24-hour promise ("Due in 5 h", then red "Late by 2 h"), whoever wrote last.
+ * 24-hour promise ("Change · 23 h", then red "Change · 2 h late"), whoever
+ * wrote last. Short, so the shop's name beside it stays readable (round 23).
  */
 function ChangeRequestTag({ requestedAt, solved, now }: { requestedAt: string; solved: boolean; now: number }) {
-  const dueAt = changeRequestDueAt(requestedAt);
-  const late = !solved && Date.parse(dueAt) <= now;
+  const clock = changeRequestClock(requestedAt, now);
+  const late = !solved && clock.late;
   return (
     <span
-      title={`Change request: we promised it within 24 hours (by ${new Date(dueAt).toLocaleString("en-GB", { timeZone: "Asia/Baghdad", dateStyle: "medium", timeStyle: "short" })})`}
+      title={`Change request: we promised it by ${formatDayTime(changeRequestDueAt(requestedAt), new Date(now))}`}
       className={cn(
-        "inline-flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-xs font-semibold tabular-nums",
+        "inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-1.5 py-0.5 text-xs font-semibold tabular-nums",
         late ? "bg-red-500/15 text-[var(--ink-red)]" : "bg-amber-500/15 text-[var(--ink-amber)]",
       )}
     >
       <Lightbulb className="h-3 w-3" />
-      {solved ? "Change" : `Change · ${formatDue(dueAt, now)}`}
+      {solved ? "Change" : `Change · ${clock.label}`}
     </span>
   );
 }
@@ -82,7 +84,7 @@ export function SupportCaseList({ cases, selectedId, onSelect, isLoading, emptyL
           >
             <div className="flex items-center justify-between gap-2">
               <span className="flex min-w-0 items-center gap-1.5">
-                <span dir="auto" className="min-w-0 truncate text-sm font-semibold text-foreground">
+                <span dir="auto" className="min-w-[5rem] truncate text-sm font-semibold text-foreground">
                   {c.tenants?.business_name ?? "Unknown shop"}
                 </span>
                 {c.change_requested_at && (

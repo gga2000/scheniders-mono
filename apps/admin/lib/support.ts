@@ -89,6 +89,16 @@ export function writesOnce(action: CaseAction): boolean {
   return action.action === "reply" || action.action === "note";
 }
 
+/**
+ * What staff read when a send's answer was lost: the browser lost the
+ * connection, a gateway answered with no words, or the route lost the
+ * database's answer. It may have been done. Pressing again sends the same id,
+ * so the same words are written once at most; changed words are a new send
+ * (round 23).
+ */
+export const SUPPORT_SEND_UNSURE =
+  "No answer came back, so this may have been done. Pressing again with the same words does it once at most.";
+
 /** The database's answer to an id it had already done: the first answer again, marked as a repeat. */
 export function wasRepeat(data: unknown): boolean {
   return typeof data === "object" && data !== null && "repeat" in data && data.repeat === true;
@@ -145,6 +155,19 @@ export const CHANGE_REQUEST_HOURS = 24;
 /** When a change request asked at `requestedAt` is due. */
 export function changeRequestDueAt(requestedAt: string): string {
   return new Date(Date.parse(requestedAt) + CHANGE_REQUEST_HOURS * 3_600_000).toISOString();
+}
+
+/**
+ * The change request countdown, short enough to sit beside a shop's name in
+ * the inbox (round 23): whole hours ("23 h", "2 h late"), minutes only in the
+ * last hour ("40 min", "15 min late").
+ */
+export function changeRequestClock(requestedAt: string, now: number): { label: string; late: boolean } {
+  const minutes = (Date.parse(changeRequestDueAt(requestedAt)) - now) / 60_000;
+  const late = minutes <= 0;
+  const left = Math.abs(minutes);
+  const amount = left < 60 ? `${Math.max(1, Math.round(left))} min` : `${late ? Math.floor(left / 60) : Math.ceil(left / 60)} h`;
+  return { label: late ? `${amount} late` : amount, late };
 }
 
 /** What the merchant was looking at when they wrote (apps/platform lib/support/context). */

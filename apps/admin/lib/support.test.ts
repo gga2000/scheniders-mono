@@ -7,6 +7,7 @@ import {
   formatAgo,
   formatDue,
   changeRequestDueAt,
+  changeRequestClock,
   callBackNumber,
   sortTasks,
   taskLabel,
@@ -318,6 +319,20 @@ describe("changeRequestDueAt", () => {
     expect(due).toBe("2026-11-23T08:00:00.000Z");
     expect(formatDue(due, Date.parse("2026-11-23T03:00:00Z"))).toBe("Due in 5 h");
     expect(formatDue(due, Date.parse("2026-11-23T10:00:00Z"))).toBe("Late by 2 h");
+  });
+});
+
+describe("changeRequestClock", () => {
+  const asked = "2026-11-22T08:00:00Z";
+  it.each([
+    ["2026-11-22T08:01:00Z", "24 h", false],
+    ["2026-11-22T09:01:00Z", "23 h", false],
+    ["2026-11-23T03:00:00Z", "5 h", false],
+    ["2026-11-23T07:20:00Z", "40 min", false],
+    ["2026-11-23T08:15:00Z", "15 min late", true],
+    ["2026-11-23T10:10:00Z", "2 h late", true],
+  ])("at %s reads %s", (now, label, late) => {
+    expect(changeRequestClock(asked, Date.parse(now))).toEqual({ label, late });
   });
 });
 

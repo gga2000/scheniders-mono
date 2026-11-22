@@ -11,7 +11,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 const adminFetch = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/admin-fetch", () => ({ adminFetch }));
 
-import { SEND_ANSWER_LOST, useSupportCaseAction, useSupportLogShopCall } from "./use-support-cases";
+import { SUPPORT_SEND_UNSURE } from "@/lib/support";
+import { useSupportCaseAction, useSupportLogShopCall } from "./use-support-cases";
 
 function wrapper({ children }: { children: ReactNode }) {
   const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
@@ -39,7 +40,7 @@ describe("a reply is sent once however often Send is pressed", () => {
 
     for (let i = 0; i < 2; i += 1) {
       await act(async () => {
-        await expect(result.current.mutateAsync(reply)).rejects.toThrow(SEND_ANSWER_LOST);
+        await expect(result.current.mutateAsync(reply)).rejects.toThrow(SUPPORT_SEND_UNSURE);
       });
     }
     await act(async () => {
@@ -54,6 +55,25 @@ describe("a reply is sent once however often Send is pressed", () => {
     expect(ids[1]).toBe(ids[0]);
     expect(ids[2]).toBe(ids[0]);
     expect(ids[3]).not.toBe(ids[0]);
+  });
+
+  it("reads the route's own lost answer as the shared words and keeps the id (round 23)", async () => {
+    adminFetch
+      .mockResolvedValueOnce(new Response(JSON.stringify({ error: SUPPORT_SEND_UNSURE }), { status: 502 }))
+      .mockResolvedValueOnce(ok());
+    const { result } = renderHook(() => useSupportCaseAction("case-1"), { wrapper });
+    const reply = { action: "reply", body: "on it" } as const;
+
+    await act(async () => {
+      const failure = result.current.mutateAsync(reply);
+      await expect(failure).rejects.toThrow(SUPPORT_SEND_UNSURE);
+    });
+    await act(async () => {
+      await result.current.mutateAsync(reply);
+    });
+
+    const [first, second] = sent();
+    expect(second?.request_id).toBe(first?.request_id);
   });
 
   it("gives other words their own id, and sends no id with a solve", async () => {
@@ -85,7 +105,7 @@ describe("Mark contacted on Trials logs one call per press that went through", (
     const call = { tenantId: "33333333-3333-4333-8333-333333333333", outcome: "done" } as const;
 
     await act(async () => {
-      await expect(result.current.mutateAsync(call)).rejects.toThrow(SEND_ANSWER_LOST);
+      await expect(result.current.mutateAsync(call)).rejects.toThrow(SUPPORT_SEND_UNSURE);
     });
     await act(async () => {
       await result.current.mutateAsync(call);

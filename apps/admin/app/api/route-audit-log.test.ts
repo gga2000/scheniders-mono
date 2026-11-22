@@ -16,7 +16,7 @@ import { newestDefinition } from "@/lib/sql-migrations.test-data";
 
 const API_DIR = path.resolve(__dirname);
 const CHANGING = new Set(["POST", "PUT", "PATCH", "DELETE"]);
-const LOGS = /\b(logAdminAction|logAdminActivity|logAdminActivityBatch)\(/;
+const LOGS = /\b(logAdminAction|logAdminActionOnce|logAdminActivity|logAdminActivityBatch)\(/;
 
 /** Reads that are logged all the same: they carry shop data out of the console. */
 const LOGGED_READS = new Set(["export/route.ts GET"]);
