@@ -33,6 +33,37 @@ let refreshedCookies: Array<{ name: string; value: string; options: object }>;
 let errors: MockInstance<typeof console.error>;
 /** The order in which the two Supabase reads start and the auth server answers. */
 let steps: string[];
+/** The access token in the session cookie. */
+const COOKIE_TOKEN = "cookie-access-token";
+/** The tokens the staff row reads were sent with. */
+let staffReadTokens: string[];
+/**
+ * Held while the cookie client asks the auth server about the session: the
+ * real client lets one call at a time use the session, so anything else that
+ * needs it (getSession, and every database read through that client) waits
+ * for the answer. Live logs showed a staff row read through that client sent
+ * only once the auth server had answered.
+ */
+let sessionInUse: Promise<void> | null;
+
+// The staff row's own client, which sends the session's token.
+vi.mock("@supabase/supabase-js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@supabase/supabase-js")>()),
+  createClient: (_url: string, _key: string, { accessToken }: { accessToken: () => Promise<string> }) => ({
+    from: () => {
+      const query = {
+        select: () => query,
+        eq: () => query,
+        maybeSingle: async () => {
+          steps.push("staff row read");
+          staffReadTokens.push(await accessToken());
+          return adminRead;
+        },
+      };
+      return query;
+    },
+  }),
+}));
 
 vi.mock("@supabase/ssr", () => ({
   createServerClient: (
@@ -43,10 +74,17 @@ vi.mock("@supabase/ssr", () => ({
     auth: {
       getUser: async () => {
         steps.push("auth server asked");
+        let answered = () => {};
+        sessionInUse = new Promise((resolve) => (answered = resolve));
         if (refreshedCookies.length > 0) cookies.setAll(refreshedCookies);
         await Promise.resolve();
         steps.push("auth server answered");
+        answered();
         return getUser;
+      },
+      getSession: async () => {
+        await sessionInUse;
+        return { data: { session: { access_token: COOKIE_TOKEN } }, error: null };
       },
       getClaims: async (token?: string) => {
         if (token === undefined) return sessionClaims;
@@ -57,17 +95,6 @@ vi.mock("@supabase/ssr", () => ({
         cookies.setAll([{ name: "sb-session", value: "", options: { path: "/", maxAge: 0 } }]);
         return signOut(options);
       },
-    },
-    from: () => {
-      const query = {
-        select: () => query,
-        eq: () => query,
-        maybeSingle: async () => {
-          steps.push("staff row read");
-          return adminRead;
-        },
-      };
-      return query;
     },
   }),
 }));
@@ -100,6 +127,8 @@ beforeEach(() => {
   adminRead = { data: { user_id: STAFF.id, admin_role: "super_admin", is_active: true }, error: null };
   refreshedCookies = [];
   steps = [];
+  staffReadTokens = [];
+  sessionInUse = null;
   errors = vi.spyOn(console, "error").mockImplementation(() => {});
   errors.mockClear();
 });
@@ -147,11 +176,18 @@ describe("middleware access check", () => {
   });
 
   // Speed round 1: the staff row was read only after the auth server had
-  // answered, two round trips to Supabase on every page and API request.
+  // answered, two round trips to Supabase on every page and API request. A
+  // read through the cookie client still waited (the session is in use until
+  // the auth server answers), so the row has a client of its own.
   it("reads the staff row while the auth server answers, one round trip instead of two", async () => {
     expect((await call("/api/leads")).status).toBe(200);
     expect(steps.indexOf("staff row read")).toBeGreaterThanOrEqual(0);
     expect(steps.indexOf("staff row read")).toBeLessThan(steps.indexOf("auth server answered"));
+  });
+
+  it("reads the staff row with the session's own token", async () => {
+    expect((await call("/merchants")).status).toBe(200);
+    expect(staffReadTokens).toEqual([COOKIE_TOKEN]);
   });
 
   it("counts a staff row only for the user the auth server named", async () => {
