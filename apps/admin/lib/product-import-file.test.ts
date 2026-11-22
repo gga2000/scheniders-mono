@@ -373,7 +373,9 @@ describe("the reader's temporary files", () => {
     process.env.TMPDIR = dir;
   });
   afterEach(() => {
-    process.env.TMPDIR = before;
+    // Setting it to undefined would set the text "undefined".
+    if (before === undefined) delete process.env.TMPDIR;
+    else process.env.TMPDIR = before;
     rmSync(dir, { recursive: true, force: true });
   });
 
