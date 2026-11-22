@@ -16,9 +16,10 @@ import {
   Area,
 } from "recharts";
 import { LoadError } from "@/components/shared/load-error";
-import { formatCount, formatIQD } from "@/lib/format";
+import { formatCount, formatIQD, formatMonth } from "@/lib/format";
 import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
 import { adminFetch } from "@/lib/admin-fetch";
+import { planLabel } from "@/types/admin";
 
 interface RevenueData {
   mrrWaterfall: Array<{ month: string; revenue: number }>;
@@ -148,7 +149,7 @@ export default function RevenuePage() {
                   const maxVal = Math.max(...cohort.months.map((rev) => rev ?? 0), 1);
                   return (
                     <tr key={cohort.cohort} className="border-t border-[var(--card-border)]">
-                      <td className="p-2 font-medium text-foreground">{cohort.cohort}</td>
+                      <td className="p-2 font-medium text-foreground">{formatMonth(cohort.cohort)}</td>
                       <td className="p-2 text-center text-foreground/70">{cohort.tenantCount}</td>
                       {cohort.months.map((rev, i) => {
                         const intensity = (rev ?? 0) / maxVal;
@@ -184,8 +185,9 @@ export default function RevenuePage() {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data.ltvDistribution} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--card-border)" />
-                <XAxis type="number" tick={{ fontSize: 13, fill: "var(--foreground)" }} axisLine={false} tickLine={false} />
-                <YAxis type="category" dataKey="label" tick={{ fontSize: 13, fill: "var(--foreground)" }} axisLine={false} tickLine={false} width={70} />
+                {/* Shops are whole, and "200K-500K" was cut at 70 px (r4-8). */}
+                <XAxis type="number" tick={{ fontSize: 13, fill: "var(--foreground)" }} axisLine={false} tickLine={false} allowDecimals={false} />
+                <YAxis type="category" dataKey="label" tick={{ fontSize: 13, fill: "var(--foreground)" }} axisLine={false} tickLine={false} width={90} />
                 <Tooltip />
                 <Bar dataKey="count" fill="#c4b5fd" radius={[0, 6, 6, 0]} />
               </BarChart>
@@ -199,7 +201,7 @@ export default function RevenuePage() {
               {data.topLTV.slice(0, 5).map((m, i) => (
                 <div key={m.id} className="flex items-center gap-2 text-xs">
                   <span className="w-4 text-foreground/70 font-bold">{i + 1}</span>
-                  <span className="flex-1 text-foreground font-medium truncate">{m.name}</span>
+                  <span className="flex-1 text-foreground font-medium truncate" title={m.name}>{m.name}</span>
                   <span className="text-foreground/70 font-mono">{new Intl.NumberFormat("en-IQ").format(m.revenue)} IQD</span>
                 </div>
               ))}
@@ -239,6 +241,7 @@ export default function RevenuePage() {
                     key={p.plan}
                     type="monotone"
                     dataKey={p.plan}
+                    name={planLabel(p.plan)}
                     stackId="1"
                     fill={PLAN_COLORS[p.plan] || "#d1d5db"}
                     stroke={PLAN_COLORS[p.plan] || "#d1d5db"}
@@ -253,7 +256,7 @@ export default function RevenuePage() {
           {data.revenueByPlan.map((p) => (
             <div key={p.plan} className="flex items-center gap-1.5 text-xs text-foreground/70">
               <span className="w-3 h-3 rounded" style={{ backgroundColor: PLAN_COLORS[p.plan] || "#d1d5db" }} />
-              <span className="capitalize">{p.plan}</span>
+              <span>{planLabel(p.plan)}</span>
             </div>
           ))}
         </div>

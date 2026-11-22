@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 import type { AdminAction, AdminRole } from "@/types/admin";
 import { hasPermission } from "@/lib/admin-permissions";
+import { NOT_TRIAL } from "@/lib/billing-lock-tools";
 import { AdminAuthError } from "@/lib/admin-auth-error";
 
 /**
@@ -147,7 +148,7 @@ const SUPER_ADMIN_ONLY: Case[] = [
     name: "POST /api/merchants/[id]/pause (suspend_tenant)",
     call: async (t) => {
       const { POST } = await import("./merchants/[id]/pause/route");
-      return POST(req(`/api/merchants/${TENANT}/pause`, "POST", t, { duration_days: 7 }), idParams);
+      return POST(req(`/api/merchants/${TENANT}/pause`, "POST", t, { duration_days: 7, reason: "late payments" }), idParams);
     },
   },
   {
@@ -183,7 +184,7 @@ const SUPER_ADMIN_ONLY: Case[] = [
     call: async (t) => {
       const { POST } = await import("./merchants/[id]/extend-subscription/route");
       return POST(
-        req(`/api/merchants/${TENANT}/extend-subscription`, "POST", t, { days: 30, request_id: REQ }),
+        req(`/api/merchants/${TENANT}/extend-subscription`, "POST", t, { days: 30, reason: "Slow first month", request_id: REQ }),
         idParams,
       );
     },
@@ -203,7 +204,7 @@ const SUPER_ADMIN_ONLY: Case[] = [
     call: async (t) => {
       const { POST } = await import("./merchants/[id]/convert-trial/route");
       return POST(
-        req(`/api/merchants/${TENANT}/convert-trial`, "POST", t, { period_days: 30 }),
+        req(`/api/merchants/${TENANT}/convert-trial`, "POST", t, { period_days: 30, reason: "paid in cash", request_id: REQ }),
         idParams,
       );
     },
@@ -509,11 +510,13 @@ describe("trial extension goes through admin_extend_trial only", () => {
     dbCalls.filter((c) => ["from", "update", "insert", "upsert", "delete"].includes(c.method));
 
   it.each(ROUTES)(
-    "$name: support_staff gets 400 when the database refuses a shop that is not on trial",
+    "$name: support_staff gets 409 with the shared words when the shop left its trial",
     async ({ call }) => {
       dbResult = { data: { success: false, error: "not_trial" }, error: null };
       const res = await call("support");
-      expect(res.status).toBe(400);
+      // The page is out of date, not the request: the same answer as Start free time.
+      expect(res.status).toBe(409);
+      expect((await res.json()).error).toBe(NOT_TRIAL.error);
       expect(directTableCalls()).toEqual([]);
     },
   );
@@ -577,8 +580,8 @@ describe("trial extension goes through admin_extend_trial only", () => {
     expect(createAdminClient).not.toHaveBeenCalled();
   });
 
-  it.each([undefined, "", "   ", "ok", "x".repeat(501)])(
-    "needs a reason of 3 to 500 characters on both routes (%s)",
+  it.each([undefined, "", "   ", "ok", "...", "x".repeat(501)])(
+    "needs a reason of 3 letters to 500 characters on both routes (%s)",
     async (reason) => {
       const { POST: perMerchant } = await import("./merchants/[id]/extend-trial/route");
       const { POST: trials } = await import("./trials/extend/route");
@@ -688,7 +691,7 @@ describe("billing lock staff tools", () => {
     dbResult = { data: { success: false, error: "paused" }, error: null };
     const res = await forceUnlock("super", { days: 30, reason: "paid in cash", request_id: REQ });
     expect(res.status).toBe(409);
-    expect((await res.json()).error).toBe("This store is paused. Lift the pause first, then unlock it");
+    expect((await res.json()).error).toBe("This shop is paused. Lift the pause first");
   });
 
   it("a database error or an unreadable answer is a 500, not a success", async () => {
@@ -756,7 +759,7 @@ describe("one change per staff request", () => {
     {
       name: "extend-subscription",
       role: "super",
-      body: { days: 30 },
+      body: { days: 30, reason: "Slow first month" },
       ok: { success: true, tenant_id: TENANT, current_period_end: "2099-01-31T00:00:00+00:00", status: "active" },
       call: async (t: string, body: unknown) => {
         const { POST } = await import("./merchants/[id]/extend-subscription/route");
@@ -826,7 +829,7 @@ describe("pause attribution", () => {
     dbResult = { data: [{ id: TENANT, status: "limited", restrictions: {} }], error: null };
     const { POST } = await import("./merchants/[id]/pause/route");
     const res = await POST(
-      req(`/api/merchants/${TENANT}/pause`, "POST", "super", { duration_days: 7 }),
+      req(`/api/merchants/${TENANT}/pause`, "POST", "super", { duration_days: 7, reason: "late payments" }),
       idParams,
     );
 

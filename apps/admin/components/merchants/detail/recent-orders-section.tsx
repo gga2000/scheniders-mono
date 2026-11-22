@@ -1,10 +1,11 @@
 "use client";
 
 import { Loader2 } from "lucide-react";
-import { useMerchantRecentOrders } from "@/hooks/use-merchant-detail";
+import { useMerchantRecentOrders, type RecentOrder } from "@/hooks/use-merchant-detail";
 import { cn } from "@/lib/utils";
 import { formatIQD, formatWhen } from "@/lib/format";
 import { LoadFailedLine } from "@/components/shared/load-failed-line";
+import { REFUND_ORDER_WORDS, type RefundOrderStatus } from "@scheniders/shared/refund-words";
 
 interface RecentOrdersSectionProps {
   merchantId: string;
@@ -13,20 +14,58 @@ interface RecentOrdersSectionProps {
 
 type Tone = "neutral" | "moving" | "done" | "lost";
 
-/** Each order status in words, with one of four tones. */
-const STATUS: Record<string, { word: string; tone: Tone }> = {
+/** When the order came in, how many items, and the customer's phone, on one line. */
+function orderLine(o: RecentOrder): string {
+  const items = o.items_count ? ` · ${o.items_count} ${o.items_count === 1 ? "item" : "items"}` : "";
+  return `${formatWhen(o.created_at)}${items}${o.customer_phone ? ` · ${o.customer_phone}` : ""}`;
+}
+
+/**
+ * Each order status in words, with one of four tones. Every status a shop's
+ * orders can hold has a word (a test checks it against the shared list,
+ * STATUS_TO_STAGE): "suspended" and "refund_delivered" were printed raw
+ * (round 18). The words are the merchant's own order list's, so staff and the
+ * merchant name an order alike; "In transit" as on Home.
+ */
+export const ORDER_STATUS: Readonly<Record<string, { word: string; tone: Tone }>> = {
   new: { word: "New", tone: "neutral" },
   contacted: { word: "Contacted", tone: "neutral" },
   no_response: { word: "No answer", tone: "neutral" },
   pending_checkout: { word: "Checkout not finished", tone: "neutral" },
+  suspended: { word: "Suspended", tone: "neutral" },
   confirmed: { word: "Confirmed", tone: "moving" },
-  in_transit: { word: "On the way", tone: "moving" },
+  in_transit: { word: "In transit", tone: "moving" },
   return_pending: { word: "Coming back", tone: "moving" },
   delivered: { word: "Delivered", tone: "done" },
   completed: { word: "Completed", tone: "done" },
   cancelled: { word: "Cancelled", tone: "lost" },
   rejected: { word: "Rejected", tone: "lost" },
+  refund_delivered: { word: "Refund delivered", tone: "lost" },
 };
+
+/**
+ * A refund order (is_return) in the merchant's own refund words, so staff on
+ * the phone never read a refund on its way to the customer as a sale on its
+ * way out (round 19): "In transit" at -44,750 IQD was a courier collecting.
+ * The words are the merchant's own (@scheniders/shared/refund-words, which
+ * the merchant app's list reads); any other status reads as above.
+ */
+const REFUND_TONE: Readonly<Record<RefundOrderStatus, Tone>> = {
+  return_pending: "moving",
+  in_transit: "moving",
+  refund_delivered: "lost",
+  refund_failed: "lost",
+  rejected: "lost",
+};
+const isRefundStatus = (status: string): status is RefundOrderStatus => Object.hasOwn(REFUND_TONE, status);
+
+/** An order's status in words: a refund order's own words first. */
+export function orderStatus(order: Pick<RecentOrder, "status" | "is_return">): { word: string; tone: Tone } {
+  if (order.is_return && isRefundStatus(order.status)) {
+    return { word: REFUND_ORDER_WORDS.en[order.status], tone: REFUND_TONE[order.status] };
+  }
+  return ORDER_STATUS[order.status] ?? { word: order.status.replace(/_/g, " "), tone: "neutral" };
+}
 
 const TONE: Record<Tone, string> = {
   neutral: "bg-foreground/[0.06] text-foreground/70",
@@ -53,17 +92,15 @@ export function RecentOrdersSection({ merchantId, limit = 5 }: RecentOrdersSecti
       ) : (
         <ul className="divide-y divide-[var(--card-border)]">
           {orders.map((o) => {
-            const status = STATUS[o.status] ?? { word: o.status.replace(/_/g, " "), tone: "neutral" as const };
+            const status = orderStatus(o);
             return (
               <li key={o.id} className="flex items-center gap-4 py-2.5">
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[15px] font-medium text-foreground">
+                  <p className="truncate text-[15px] font-medium text-foreground" title={o.customer_name ?? "No name"}>
                     {o.customer_name ?? "No name"}
                   </p>
-                  <p className="truncate text-[13px] text-foreground/70">
-                    {formatWhen(o.created_at)}
-                    {o.items_count ? ` · ${o.items_count} ${o.items_count === 1 ? "item" : "items"}` : ""}
-                    {o.customer_phone ? ` · ${o.customer_phone}` : ""}
+                  <p className="truncate text-[13px] text-foreground/70" title={orderLine(o)}>
+                    {orderLine(o)}
                   </p>
                 </div>
                 <span className={cn("shrink-0 rounded-full px-2.5 py-0.5 text-[13px] font-medium", TONE[status.tone])}>

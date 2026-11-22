@@ -1,12 +1,22 @@
 "use client";
 
 import { useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useIsMutating } from "@tanstack/react-query";
 import { CalendarPlus, ChevronDown, ChevronLeft, Wallet } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@scheniders/ui";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { hasPermission } from "@/lib/admin-permissions";
-import { freeDaysKind, moreActions, type Comeback, type MoreAction, type ShopFacts, type ShopForm } from "@/lib/shop-actions";
+import { createRequestIds } from "@/lib/request-ids";
+import {
+  CONVERT_ACTION,
+  freeDaysKind,
+  moreActions,
+  shopActionKey,
+  type Comeback,
+  type MoreAction,
+  type ShopFacts,
+  type ShopForm,
+} from "@/lib/shop-actions";
 import type { AdminAction } from "@/types/admin";
 import { AddMoneyForm } from "./add-money-form";
 import { FreeDaysForm } from "./free-days-form";
@@ -14,6 +24,7 @@ import { PlanForm } from "./plan-form";
 import { PauseForm } from "./pause-form";
 import { HoldForm } from "./hold-form";
 import { ConvertTrialForm } from "./convert-trial-form";
+import { useRereadShop } from "./action-ui";
 
 const MORE_LABEL: Record<MoreAction, string> = {
   orders: "Give more store orders",
@@ -21,16 +32,19 @@ const MORE_LABEL: Record<MoreAction, string> = {
   pause: "Pause for some days",
   hold: "Put on hold",
   reactivate: "Reactivate",
-  convert: "Start paid time, no charge",
+  convert: CONVERT_ACTION,
   note: "Add a note",
 };
 
 const PANEL = "w-80 rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] p-4 shadow-xl";
-const SECONDARY =
-  "inline-flex items-center gap-1.5 rounded-lg border border-[var(--card-border)] px-3.5 py-2 text-[13px] font-semibold text-foreground transition-colors hover:bg-foreground/[0.05]";
+/** A button waits (grey, wait cursor) while a write on this shop runs. */
+const WAITS = "disabled:cursor-wait disabled:opacity-60";
+const SECONDARY = `inline-flex items-center gap-1.5 rounded-lg border border-[var(--card-border)] px-3.5 py-2 text-[13px] font-semibold text-foreground transition-colors hover:bg-foreground/[0.05] ${WAITS}`;
 
 interface ShopActionsProps {
   shopId: string;
+  /** Names the shop in a refusal said after its panel is gone. */
+  shopName: string;
   facts: ShopFacts;
   plan: string;
   balance: number;
@@ -51,9 +65,17 @@ interface ShopActionsProps {
  * it, the rest under More. Each opens a short form whose button says what
  * will happen, so the press is the confirm. A staff member sees only what
  * their login may do.
+ *
+ * While a panel's write runs, the panel stays open, and Back and the other
+ * panels' buttons wait, so its answer is always seen in the panel that asked
+ * (round 20: a sibling button closed a running panel, and its answer then
+ * closed the panel staff were typing in). The request ids live here, above the panels, so a
+ * form closed after its answer was lost and opened again sends the same ask
+ * with the same id, and the money or days are given once (round 19).
  */
 export function ShopActions({
   shopId,
+  shopName,
   facts,
   plan,
   balance,
@@ -65,9 +87,15 @@ export function ShopActions({
   startOpen = null,
 }: ShopActionsProps) {
   const { role } = useAdminAuth();
-  const queryClient = useQueryClient();
+  const rereadShop = useRereadShop(shopId);
   const [open, setOpen] = useState<ShopForm | "more" | null>(startOpen);
   const [view, setView] = useState<MoreAction | null>(null);
+  const [requestIds] = useState(() => ({
+    money: createRequestIds(),
+    days: createRequestIds(),
+    convert: createRequestIds(),
+  }));
+  const writing = useIsMutating({ mutationKey: shopActionKey(shopId) }) > 0;
 
   if (!role) return null;
   const can = (action: AdminAction) => hasPermission(role, action);
@@ -77,12 +105,12 @@ export function ShopActions({
   if (!canAddMoney && !daysKind && more.length === 0) return null;
 
   const toggle = (which: "money" | "days" | "more") => (next: boolean) => {
+    if (writing) return;
     setOpen(next ? which : null);
     if (!next) setView(null);
   };
   const done = () => {
-    queryClient.invalidateQueries({ queryKey: ["admin", "merchant", shopId] });
-    queryClient.invalidateQueries({ queryKey: ["admin", "merchants"] });
+    rereadShop();
     setOpen(null);
     setView(null);
   };
@@ -103,14 +131,15 @@ export function ShopActions({
           <PopoverTrigger asChild>
             <button
               type="button"
-              className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 px-3.5 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-emerald-800"
+              disabled={writing}
+              className={`inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 px-3.5 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-emerald-800 ${WAITS}`}
             >
               <Wallet className="h-4 w-4" aria-hidden />
               Add money
             </button>
           </PopoverTrigger>
           <PopoverContent align="start" className={PANEL}>
-            <AddMoneyForm shopId={shopId} balance={balance} onDone={done} />
+            <AddMoneyForm shopId={shopId} shopName={shopName} balance={balance} requestIds={requestIds.money} onDone={done} />
           </PopoverContent>
         </Popover>
       )}
@@ -118,13 +147,21 @@ export function ShopActions({
       {daysKind && (
         <Popover open={open === "days"} onOpenChange={toggle("days")}>
           <PopoverTrigger asChild>
-            <button type="button" className={SECONDARY}>
+            <button type="button" disabled={writing} className={SECONDARY}>
               <CalendarPlus className="h-4 w-4" aria-hidden />
               Give free days
             </button>
           </PopoverTrigger>
           <PopoverContent align="start" className={PANEL}>
-            <FreeDaysForm shopId={shopId} kind={daysKind} endsAt={freeDaysFrom} locked={facts.locked} onDone={done} />
+            <FreeDaysForm
+              shopId={shopId}
+              shopName={shopName}
+              kind={daysKind}
+              endsAt={freeDaysFrom}
+              locked={facts.locked}
+              requestIds={requestIds.days}
+              onDone={done}
+            />
           </PopoverContent>
         </Popover>
       )}
@@ -132,7 +169,7 @@ export function ShopActions({
       {more.length > 0 && (
         <Popover open={open === "more"} onOpenChange={toggle("more")}>
           <PopoverTrigger asChild>
-            <button type="button" className={SECONDARY}>
+            <button type="button" disabled={writing} className={SECONDARY}>
               More
               <ChevronDown className="h-4 w-4" aria-hidden />
             </button>
@@ -143,26 +180,43 @@ export function ShopActions({
                 <button
                   type="button"
                   onClick={() => setView(null)}
-                  className="mb-2 inline-flex items-center gap-1 text-[13px] font-medium text-foreground/70 hover:text-foreground"
+                  disabled={writing}
+                  className="mb-2 inline-flex items-center gap-1 text-[13px] font-medium text-foreground/70 hover:text-foreground disabled:cursor-wait disabled:opacity-60"
                 >
                   <ChevronLeft className="h-4 w-4" aria-hidden />
                   Back
                 </button>
-                {view === "plan" && <PlanForm shopId={shopId} plan={plan} onDone={done} />}
-                {view === "pause" && <PauseForm shopId={shopId} onDone={done} />}
+                {view === "plan" && <PlanForm shopId={shopId} shopName={shopName} plan={plan} onDone={done} />}
+                {view === "pause" && <PauseForm shopId={shopId} shopName={shopName} onDone={done} />}
                 {view === "hold" && (
-                  <HoldForm shopId={shopId} mode="hold" comeback={comeback} trialEndsAt={trialEndsAt} onDone={done} />
+                  <HoldForm
+                    shopId={shopId}
+                    shopName={shopName}
+                    mode="hold"
+                    comeback={comeback}
+                    trialEndsAt={trialEndsAt}
+                    onDone={done}
+                  />
                 )}
                 {view === "reactivate" && (
                   <HoldForm
                     shopId={shopId}
+                    shopName={shopName}
                     mode="reactivate"
                     comeback={comeback}
                     trialEndsAt={trialEndsAt}
                     onDone={done}
                   />
                 )}
-                {view === "convert" && <ConvertTrialForm shopId={shopId} onDone={done} />}
+                {view === "convert" && (
+                  <ConvertTrialForm
+                    shopId={shopId}
+                    shopName={shopName}
+                    requestIds={requestIds.convert}
+                    locked={facts.locked}
+                    onDone={done}
+                  />
+                )}
               </>
             ) : (
               <ul className="-m-1.5">

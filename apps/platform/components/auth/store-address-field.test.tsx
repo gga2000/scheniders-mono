@@ -10,9 +10,9 @@ afterEach(() => {
 
 const t = (key: string, vars?: Record<string, string | number>) => (vars ? `${key} ${JSON.stringify(vars)}` : key);
 
-function Harness({ initialName = "" }: { initialName?: string }) {
+function Harness({ initialName = "", handedAddress }: { initialName?: string; handedAddress?: string | null }) {
     const [name, setName] = useState(initialName);
-    const address = useStoreAddress(name);
+    const address = useStoreAddress(name, handedAddress);
     return (
         <div>
             <input aria-label="name" value={name} onChange={(e) => setName(e.target.value)} />
@@ -73,5 +73,20 @@ describe("the store address at signup (B11)", () => {
         expect(screen.getByTestId("sendable").textContent).toBe("false");
         await new Promise((r) => setTimeout(r, 450));
         expect(fetchMock.mock.calls.map(([url]) => String(url))).not.toContain("/api/auth/slug-available?slug=no");
+    });
+
+    it("keeps the address handed over from usefermi.com, even when the name changes", async () => {
+        serve({});
+        render(<Harness initialName="ليالي" handedAddress="layali" />);
+        expect(input().value).toBe("layali");
+        fireEvent.change(screen.getByLabelText("name"), { target: { value: "ليالي بغداد" } });
+        expect(input().value).toBe("layali");
+        await waitFor(() => expect(screen.getByTestId("sendable").textContent).toBe("true"));
+    });
+
+    it("ignores an empty handed-over address and follows the name", () => {
+        serve({});
+        render(<Harness initialName="shop one" handedAddress="  " />);
+        expect(input().value).not.toBe("");
     });
 });

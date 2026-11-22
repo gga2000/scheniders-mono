@@ -1,5 +1,5 @@
 import type { createAdminClient } from "./admin-supabase";
-import { REQUEST_REUSED } from "./billing-lock-tools";
+import { NOT_TRIAL, REQUEST_REUSED } from "./billing-lock-tools";
 
 /**
  * Longest single trial extension. Enforced again inside `admin_extend_trial`.
@@ -18,7 +18,7 @@ export type TrialExtensionActor = { id: string; email?: string | null };
 
 const REFUSALS: Record<string, { status: 400 | 404 | 409; error: string }> = {
   not_found: { status: 404, error: "Merchant not found" },
-  not_trial: { status: 400, error: "Tenant is not on a trial plan" },
+  not_trial: NOT_TRIAL,
   request_reused: REQUEST_REUSED,
 };
 
@@ -33,7 +33,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * `tenants.trial_ends_at` (what staff and the merchant see) and the trialing
  * subscription's `current_period_end` (what billing reads) to the same
  * instant, and writes the activity row with the acting admin and the staff
- * member's reason (3 to 500 characters, required since the billing lock:
+ * member's reason (at least 3 letters, at most 500 characters, required since the billing lock:
  * extending an ended trial also lifts the lock). Shared by
  * POST /api/trials/extend and POST /api/merchants/[id]/extend-trial so the
  * two cannot drift.

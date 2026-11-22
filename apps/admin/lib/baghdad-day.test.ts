@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { addDays, baghdadWallTime, dayNumber, dayOf, lastDaysStart, readDayRange, trialClock } from "./baghdad-day";
+import { addDays, baghdadWallTime, dayNumber, dayOf, lastDaysStart, monthOf, readDayRange, trialClock } from "./baghdad-day";
 
 /*
  * Shop #100095's trial ended at 06:21 Baghdad on 17 Nov. On the evening of
@@ -17,6 +17,15 @@ describe("dayOf", () => {
     expect(dayOf("2026-11-15T21:30:00Z")).toBe("2026-11-16"); // 00:30 Baghdad
     expect(dayOf("2026-11-16T20:30:00Z")).toBe("2026-11-16"); // 23:30 Baghdad
     expect(dayOf(at("2026-11-17T00:00:00"))).toBe("2026-11-17");
+  });
+});
+
+describe("monthOf", () => {
+  it("files an instant under its Baghdad month, across a year", () => {
+    expect(monthOf("2026-10-31T20:59:59Z")).toBe("2026-10"); // 23:59 in Baghdad
+    expect(monthOf("2026-10-31T21:00:00Z")).toBe("2026-11"); // 00:00 on the 1st in Baghdad
+    expect(monthOf(new Date("2026-12-31T21:30:00Z"))).toBe("2027-01");
+    expect(monthOf(Date.parse("2026-11-19T12:00:00Z"))).toBe("2026-11");
   });
 });
 

@@ -111,7 +111,7 @@ export function TeamLeaderboard({ employees }: TeamLeaderboardProps) {
                   </div>
 
                   {/* Name */}
-                  <p className="text-xs font-bold text-foreground text-center truncate max-w-[100px]">
+                  <p className="text-xs font-bold text-foreground text-center truncate max-w-[100px]" title={emp.display_name ?? emp.email.split("@")[0]}>
                     {emp.display_name ?? emp.email.split("@")[0]}
                   </p>
 
@@ -251,10 +251,10 @@ export function TeamLeaderboard({ employees }: TeamLeaderboardProps) {
                             </div>
                           )}
                           <div className="min-w-0">
-                            <p className="text-sm font-semibold text-foreground truncate">
+                            <p className="text-sm font-semibold text-foreground truncate" title={emp.display_name ?? emp.email.split("@")[0]}>
                               {emp.display_name ?? emp.email.split("@")[0]}
                             </p>
-                            <p className="text-xs text-foreground/70 truncate">
+                            <p className="text-xs text-foreground/70 truncate" title={emp.email}>
                               {emp.email}
                             </p>
                           </div>

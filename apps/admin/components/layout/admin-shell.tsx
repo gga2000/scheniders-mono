@@ -15,7 +15,6 @@ import { useIsMobile } from "@/hooks/use-is-mobile";
 import { cn } from "@/lib/utils";
 import { readMenuCollapsed, writeMenuCollapsed } from "@/lib/menu-choice";
 import { CommandPalette, useCommandPalette } from "@/components/shared/command-palette";
-import { PageTransition } from "@/components/shared/page-transition";
 import { WatchlistSync } from "@/components/merchants/watchlist-sync";
 
 // ---------------------------------------------------------------------------
@@ -46,7 +45,8 @@ function setSidebarCollapsed(collapsed: boolean) {
   for (const listener of sidebarListeners) listener();
 }
 
-export function AdminShell({ children }: { children: React.ReactNode }) {
+/** `pageName` names the tab where the address names no page (app/not-found.tsx). */
+export function AdminShell({ children, pageName }: { children: React.ReactNode; pageName?: string }) {
   const router = useRouter();
   const { user, profile, role, signOut } = useAdminAuth();
   const commandPalette = useCommandPalette();
@@ -132,11 +132,12 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           onMenuClick={() => handleSetMobileMenuOpen(true)}
           isMobile={isMobile}
           onOpenCommandPalette={commandPalette.open}
+          pageName={pageName}
         />
 
         <div className="max-w-[1800px] mx-auto">
           <AccessCheckNotice />
-          <PageTransition>{children}</PageTransition>
+          {children}
         </div>
       </main>
 

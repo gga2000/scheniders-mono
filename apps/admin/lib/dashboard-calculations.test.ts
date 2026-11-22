@@ -16,7 +16,6 @@ import {
   calculateTimeToFirstOrder,
   calculateTopMerchants,
   calculateTopUpPatterns,
-  getDateKey,
   MIN_ENDED_FOR_RATE,
   type DashboardTenant,
   type ShopStepRow,
@@ -41,13 +40,6 @@ const tenant = (id: string, over: Partial<DashboardTenant> = {}): DashboardTenan
 });
 
 const tenants = [tenant(SHOP_A), tenant(SHOP_B, { status: "trial" }), tenant(SHOP_C, { status: "trial" })];
-
-describe("getDateKey", () => {
-    it("files 00:00-02:59 Baghdad time under that Baghdad day, not the UTC day before", () => {
-        expect(getDateKey(new Date("2026-11-10T22:30:00Z"))).toBe("2026-11-11");
-        expect(getDateKey(new Date("2026-11-10T20:59:00Z"))).toBe("2026-11-10");
-    });
-});
 
 describe("order pipeline", () => {
   const pipeline = calculatePlatformPipeline(dashboardStats().statuses90);
@@ -256,7 +248,8 @@ describe("smaller widgets", () => {
     const stats = dashboardStats();
     const geo = calculateGeoStats(stats.governorates90, stats.uncodedPlaces90);
     const breakdown = calculateRevenueBreakdown(incomeStats().byPlan90, geo, stats.sources90);
-    expect(breakdown.byPlan[0]).toMatchObject({ label: "Growth", value: 31_960 });
+    // The plan in the merchant's words, as on every other screen (round 19).
+    expect(breakdown.byPlan[0]).toMatchObject({ label: "Team", value: 31_960 });
     expect(breakdown.bySource[0].label).toBe("Whatsapp");
   });
 

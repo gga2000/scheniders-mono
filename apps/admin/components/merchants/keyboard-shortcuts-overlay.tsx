@@ -131,7 +131,7 @@ export function KeyboardShortcutsOverlay({
                 <button
                   onClick={onClose}
                   aria-label="Close"
-                  className="rounded-lg p-1.5 text-foreground/50 transition-colors hover:bg-foreground/10 hover:text-foreground"
+                  className="rounded-lg p-1.5 text-foreground/70 transition-colors hover:bg-foreground/10 hover:text-foreground"
                 >
                   <svg
                     width="16"
@@ -152,12 +152,12 @@ export function KeyboardShortcutsOverlay({
               <div className="grid grid-cols-2 gap-6">
                 {SHORTCUT_CATEGORIES.map((category) => (
                   <div key={category.title}>
-                    <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-foreground/50">
+                    <h3 className="mb-3 text-xs font-semibold text-foreground/70">
                       {category.title}
                     </h3>
 
                     {category.shortcuts.length === 0 ? (
-                      <p className="text-sm text-foreground/40 italic">
+                      <p className="text-sm text-foreground/70 italic">
                         No shortcuts yet
                       </p>
                     ) : (
@@ -171,7 +171,7 @@ export function KeyboardShortcutsOverlay({
                               {shortcut.keys.map((key, i) => (
                                 <span key={key} className="flex items-center gap-1">
                                   {i > 0 && (
-                                    <span className="text-xs text-foreground/30">
+                                    <span className="text-xs text-foreground/70">
                                       /
                                     </span>
                                   )}
@@ -192,7 +192,7 @@ export function KeyboardShortcutsOverlay({
 
               {/* Footer */}
               <div className="mt-6 border-t border-[var(--card-border)] pt-4 text-center">
-                <p className="text-xs text-foreground/40">
+                <p className="text-xs text-foreground/70">
                   Press <KeyBadge>?</KeyBadge> to toggle this overlay
                 </p>
               </div>

@@ -29,6 +29,7 @@ const LOGGED_IN_SQL: Record<string, string> = {
   "merchants/[id]/lock-orders/route.ts POST": "admin_add_lock_orders",
   "merchants/[id]/force-unlock/route.ts POST": "admin_force_unlock",
   "merchants/[id]/extend-subscription/route.ts POST": "admin_extend_subscription",
+  "merchants/[id]/convert-trial/route.ts POST": "admin_convert_trial",
   "merchants/[id]/route.ts PATCH": "admin_update_shop",
   "leads/[id]/route.ts PATCH": "admin_save_lead",
   "leads/bulk/route.ts POST": "admin_change_leads",
@@ -40,6 +41,10 @@ const LOGGED_IN_SQL: Record<string, string> = {
   "industries/route.ts POST": "admin_add_industry",
   "support/view/route.ts POST": "support_view_start",
   "support/view/route.ts DELETE": "support_view_end",
+  "support/tasks/route.ts POST": "support_task_log",
+  "support/calls/route.ts POST": "support_log_shop_call",
+  "merchants/[id]/product-import/route.ts POST": "admin_import_products",
+  "merchants/[id]/product-import/images/route.ts POST": "admin_attach_product_images",
 };
 
 /** Handlers that write no staff log row, each with why. */
@@ -56,6 +61,7 @@ const NO_STAFF_LOG: Record<string, string> = {
   "leads/[id]/follow-ups/route.ts POST": "a sales reminder on a lead",
   "leads/[id]/follow-ups/[fid]/route.ts PATCH": "a sales reminder on a lead",
   "leads/analyze-profile/route.ts POST": "reads a public profile and saves nothing",
+  "merchants/[id]/product-import/read/route.ts POST": "reads the file the team chose and saves nothing; POST only carries the file",
 };
 
 const routeFiles = readdirSync(API_DIR, { recursive: true, encoding: "utf8" })

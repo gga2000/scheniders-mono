@@ -22,6 +22,11 @@ interface SubscriptionCardProps {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+/** Whole days from the period's start to its end. */
+function periodDays(subscription: { current_period_start: string; current_period_end: string }): number {
+  return Math.round((Date.parse(subscription.current_period_end) - Date.parse(subscription.current_period_start)) / DAY_MS);
+}
+
 /**
  * The shop's time: the trial and when it ends, this month and when it
  * renews, and the renewal switch. The status line at the top says what that
@@ -81,7 +86,8 @@ export function SubscriptionCard({ merchantId, tenant, subscription }: Subscript
           </Fact>
         )}
         {subscription && !onTrial && (
-          <Fact label="This month">
+          // Free time can run a year (convert trial): "This month" then misread it.
+          <Fact label={periodDays(subscription) > 31 ? "This period" : "This month"}>
             {formatDay(subscription.current_period_start, now)} to {formatDay(subscription.current_period_end, now)}
             <When end={subscription.current_period_end} now={now} soon={soon(subscription.current_period_end)} />
           </Fact>
@@ -121,7 +127,8 @@ export function SubscriptionCard({ merchantId, tenant, subscription }: Subscript
                   className="mb-2"
                 />
                 <span className="mb-2 block text-[13px] leading-snug text-foreground/75">
-                  This month runs to its end, then the shop is not charged again and its paid time ends.
+                  This month runs to its end. Then it is not charged, and the shop locks until it pays on its lock screen or
+                  staff turn renewal back on.
                 </span>
                 <span className="flex gap-2">
                   <ConfirmButton

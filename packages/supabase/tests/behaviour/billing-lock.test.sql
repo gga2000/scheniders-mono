@@ -12,7 +12,15 @@
 --   the month is paid only from money in the wallet (no overdraft), and a
 --   credit that covers it unlocks the shop at once;
 --   an order's billing phase is set at insert and never changes;
---   the house tier is never locked.
+--   the house tier is never locked;
+--   a month renewed less than a day after it ended carries on from that end
+--   (in whole seconds, as the charge's reference writes it), whether the
+--   daily renewal run or a payment after a short lock renews it; a month
+--   paid later than that starts when it is paid (round 18 billing rule);
+--   a month that ends with renewal off is not charged and locks the shop like
+--   an unpaid month; no credit or job charges it, the shop paying from its
+--   lock screen turns renewal back on and pays (one log row), and the demo
+--   store renews at no charge whatever the switch says (round 20).
 
 \set ON_ERROR_STOP 1
 
@@ -360,6 +368,14 @@ SELECT set_config('test.role', '', false);
 SELECT pg_temp.check(pg_temp.raises($$SELECT public.admin_extend_trial('20000000-0000-4000-8000-000000000010', 7, '  ')$$) LIKE '%reason%', 'extend needs a reason');
 SELECT pg_temp.check(pg_temp.raises($$SELECT public.admin_add_lock_orders('20000000-0000-4000-8000-000000000010', 5, NULL)$$) LIKE '%reason%', 'lock orders need a reason');
 SELECT pg_temp.check(pg_temp.raises($$SELECT public.admin_force_unlock('20000000-0000-4000-8000-000000000011', 30, 'ok')$$) LIKE '%reason%', 'unlock needs a reason');
+-- A reason is 3 letters in any script (admin audit round 18): dots, digits
+-- and spaces are not letters; Arabic letters are; trimmed, at most 500.
+SELECT pg_temp.check(pg_temp.raises($$SELECT public.admin_force_unlock('20000000-0000-4000-8000-000000000011', 30, '...')$$) LIKE '%at least 3 letters%', '"..." is no reason');
+SELECT pg_temp.check(pg_temp.raises($$SELECT public.admin_billing_reason('a.b 1 2 3')$$) LIKE '%at least 3 letters%', 'two letters and digits are no reason');
+SELECT pg_temp.check(pg_temp.raises($$SELECT public.admin_billing_reason('١٢٣ ،؟')$$) LIKE '%at least 3 letters%', 'Arabic digits and marks are no reason');
+SELECT pg_temp.check(public.admin_billing_reason('  نقد  ') = 'نقد', 'three Arabic letters are a reason, trimmed');
+SELECT pg_temp.check(public.admin_billing_reason('Qi 12, cash') = 'Qi 12, cash', 'letters with digits and marks are kept as written');
+SELECT pg_temp.check(pg_temp.raises(format('SELECT public.admin_billing_reason(%L)', repeat('a', 501))) LIKE '%at most 500%', '501 characters are too long');
 SELECT pg_temp.check(pg_temp.raises($$SELECT public.admin_add_lock_orders('20000000-0000-4000-8000-000000000010', 0, 'customer asked')$$) LIKE '%between 1 and 1000%', '0 lock orders refused');
 SELECT pg_temp.check(pg_temp.raises($$SELECT public.admin_force_unlock('20000000-0000-4000-8000-000000000011', 91, 'paid in cash')$$) LIKE '%between 1 and 90%', '91 free days refused');
 SELECT pg_temp.check((SELECT count(*) FROM public.admin_activity_logs) = 0, 'a refused call writes no log');
@@ -469,7 +485,7 @@ SELECT pg_temp.shop_order('20000000-0000-4000-8000-000000000014', 'V1');
 SELECT pg_temp.check(
   (SELECT s->>'locked' = 'true' AND s->>'reason' = 'trial_ended' AND (s->>'orders_left')::int = 2
           AND (s->>'allowance')::int = 3 AND (s->>'price_iqd')::numeric = 9000 AND s->>'since' IS NOT NULL
-          AND NOT s ? 'balance_iqd'
+          AND NOT s ? 'balance_iqd' AND s->>'renewal_off' = 'false'
      FROM public.billing_lock_snapshot('20000000-0000-4000-8000-000000000014') s),
   'the snapshot shows a locked shop, its orders left and its price, never the balance');
 SELECT pg_temp.check(
@@ -890,3 +906,211 @@ SELECT pg_temp.check(
   (SELECT count(*) FROM public.lift_pause_and_settle('20000000-0000-4000-8000-0000000000b3')) = 0
   AND pg_temp.debits('20000000-0000-4000-8000-0000000000b3') = 1,
   'a second press answers no row and charges nothing');
+
+-- 12. The renewal date. The renewal job runs once a day (03:00 UTC), so a
+--     month is renewed up to a day after it ends. c1 ended 18 hours ago and
+--     c3 failed its renewal 10 hours ago (a short lock); c2 ended 2 days ago.
+INSERT INTO public.tenants (id, plan, status) VALUES
+  ('20000000-0000-4000-8000-0000000000c1', 'starter', 'active'),
+  ('20000000-0000-4000-8000-0000000000c2', 'starter', 'active'),
+  ('20000000-0000-4000-8000-0000000000c3', 'starter', 'active');
+INSERT INTO public.wallet (tenant_id, balance_iqd) VALUES
+  ('20000000-0000-4000-8000-0000000000c1', 9000),
+  ('20000000-0000-4000-8000-0000000000c2', 9000),
+  ('20000000-0000-4000-8000-0000000000c3', 9000);
+INSERT INTO public.subscriptions (tenant_id, plan, status, current_period_start, current_period_end, created_at) VALUES
+  ('20000000-0000-4000-8000-0000000000c1', 'starter', 'active',   now() - interval '30 days 18 hours', now() - interval '18 hours', now() - interval '60 days'),
+  ('20000000-0000-4000-8000-0000000000c2', 'starter', 'active',   now() - interval '32 days',          now() - interval '2 days',   now() - interval '60 days'),
+  ('20000000-0000-4000-8000-0000000000c3', 'starter', 'past_due', now() - interval '30 days 10 hours', now() - interval '10 hours', now() - interval '60 days');
+CREATE TEMP TABLE ended AS
+  SELECT tenant_id, id, current_period_end AS ended FROM public.subscriptions
+   WHERE tenant_id IN ('20000000-0000-4000-8000-0000000000c1', '20000000-0000-4000-8000-0000000000c2', '20000000-0000-4000-8000-0000000000c3');
+
+SELECT pg_temp.check(
+  (SELECT (public.renew_subscription_core(id, ended))->>'outcome' FROM ended WHERE tenant_id = '20000000-0000-4000-8000-0000000000c1') = 'renewed'
+  AND (SELECT (public.renew_subscription_core(id, ended))->>'outcome' FROM ended WHERE tenant_id = '20000000-0000-4000-8000-0000000000c2') = 'renewed'
+  AND (public.settle_billing_lock('20000000-0000-4000-8000-0000000000c3', true))->>'outcome' = 'renewed',
+  'the three months are paid');
+SELECT pg_temp.check(
+  (SELECT s.current_period_start = date_trunc('second', e.ended)
+          AND s.current_period_end = date_trunc('second', e.ended) + interval '30 days'
+     FROM public.subscriptions s JOIN ended e ON e.id = s.id
+    WHERE s.tenant_id = '20000000-0000-4000-8000-0000000000c1'),
+  'renewed 18 hours late: the month carries on from where the last ended, 30 days, not 31');
+SELECT pg_temp.check(
+  (SELECT w.reference_id = 'subscription:' || e.id || ':' || to_char(s.current_period_start AT TIME ZONE 'UTC', 'YYYYMMDD"T"HH24MISS')
+     FROM public.subscriptions s JOIN ended e ON e.id = s.id
+     JOIN public.wallet_transactions w ON w.tenant_id = s.tenant_id AND w.type = 'charge'
+    WHERE s.tenant_id = '20000000-0000-4000-8000-0000000000c1'),
+  'the charge''s reference names the end the month carries on from');
+SELECT pg_temp.check(
+  (SELECT s.current_period_start = date_trunc('second', e.ended)
+     FROM public.subscriptions s JOIN ended e ON e.id = s.id
+    WHERE s.tenant_id = '20000000-0000-4000-8000-0000000000c3'),
+  'paid 10 hours into a lock: the month keeps its date');
+SELECT pg_temp.check(
+  (SELECT s.current_period_start > now() - interval '1 minute'
+          AND s.current_period_end = s.current_period_start + interval '30 days'
+     FROM public.subscriptions s
+    WHERE s.tenant_id = '20000000-0000-4000-8000-0000000000c2'),
+  'renewed 2 days late: the month starts when it is paid');
+
+-- 12b. The paying count reads the same month as the renewal (staff console
+--      audit round 20, tests new 5). paid_plan_months rebuilds each month
+--      from the ledger with renew_subscription_core's "less than a day"
+--      rule; if one of the two windows changes alone, a month renewed late
+--      is drawn with a gap and the Paying page drops the shop. c4 ended 25
+--      hours ago: past the day, so its month starts when it is paid.
+INSERT INTO public.tenants (id, plan, status) VALUES ('20000000-0000-4000-8000-0000000000c4', 'starter', 'active');
+INSERT INTO public.wallet (tenant_id, balance_iqd) VALUES ('20000000-0000-4000-8000-0000000000c4', 9000);
+INSERT INTO public.subscriptions (tenant_id, plan, status, current_period_start, current_period_end, created_at) VALUES
+  ('20000000-0000-4000-8000-0000000000c4', 'starter', 'active', now() - interval '31 days 1 hour', now() - interval '25 hours', now() - interval '60 days');
+SELECT pg_temp.check(
+  (SELECT (public.renew_subscription_core(s.id, s.current_period_end))->>'outcome' FROM public.subscriptions s
+    WHERE s.tenant_id = '20000000-0000-4000-8000-0000000000c4') = 'renewed',
+  'the month 25 hours late is paid');
+SELECT pg_temp.check(
+  (SELECT s.current_period_start > now() - interval '1 minute' FROM public.subscriptions s
+    WHERE s.tenant_id = '20000000-0000-4000-8000-0000000000c4'),
+  'renewed 25 hours late: the month starts when it is paid');
+SELECT pg_temp.check(
+  (SELECT count(*) = 4 AND bool_and(p.month_end = s.current_period_end AND p.paid_until = s.current_period_end)
+     FROM public.paid_plan_months() p
+     JOIN public.subscriptions s ON s.tenant_id = p.tenant_id
+    WHERE p.tenant_id IN ('20000000-0000-4000-8000-0000000000c1', '20000000-0000-4000-8000-0000000000c2',
+                          '20000000-0000-4000-8000-0000000000c3', '20000000-0000-4000-8000-0000000000c4')),
+  'the paying count draws each renewed month where the renewal put it: 18 hours, 10 hours locked, 2 days and 25 hours late');
+
+-- 22. Renewal off (staff console audit round 20, data new 1). A month that
+--     ends with renewal off is not charged: past_due locks the shop like an
+--     unpaid month. No job charges it: not a wallet credit, not the hourly
+--     job. The shop paying from its lock screen turns renewal back on and
+--     pays, with one log row by the shop; if it cannot pay, renewal stays
+--     off. Staff turning renewal on lets money in pay it again. The demo
+--     store renews at no charge whatever the switch says.
+--     d1 has the month's money; d2 has none; d3 is the demo store.
+INSERT INTO public.tenants (id, plan, status, is_demo) VALUES
+  ('20000000-0000-4000-8000-0000000000d1', 'starter', 'active', false),
+  ('20000000-0000-4000-8000-0000000000d2', 'starter', 'active', false),
+  ('20000000-0000-4000-8000-0000000000d3', 'starter', 'active', true);
+INSERT INTO public.wallet (tenant_id, balance_iqd) VALUES
+  ('20000000-0000-4000-8000-0000000000d1', 50000),
+  ('20000000-0000-4000-8000-0000000000d2', 0),
+  ('20000000-0000-4000-8000-0000000000d3', 0);
+INSERT INTO public.subscriptions (tenant_id, plan, status, current_period_start, current_period_end, auto_renew, created_at) VALUES
+  ('20000000-0000-4000-8000-0000000000d1', 'starter', 'active', now() - interval '30 days 1 hour', now() - interval '1 hour', false, now() - interval '60 days'),
+  ('20000000-0000-4000-8000-0000000000d2', 'starter', 'active', now() - interval '30 days 1 hour', now() - interval '1 hour', false, now() - interval '60 days'),
+  ('20000000-0000-4000-8000-0000000000d3', 'starter', 'active', now() - interval '30 days 1 hour', now() - interval '1 hour', false, now() - interval '60 days');
+CREATE TEMP TABLE off_ended AS
+  SELECT tenant_id, id, current_period_end AS ended FROM public.subscriptions
+   WHERE tenant_id IN ('20000000-0000-4000-8000-0000000000d1', '20000000-0000-4000-8000-0000000000d2', '20000000-0000-4000-8000-0000000000d3');
+CREATE FUNCTION pg_temp.renew_off(p_tenant text) RETURNS jsonb LANGUAGE sql AS $$
+  SELECT public.renew_subscription_core(id, ended) FROM off_ended WHERE tenant_id = p_tenant::uuid;
+$$;
+CREATE FUNCTION pg_temp.auto_renew(p_tenant text) RETURNS boolean LANGUAGE sql AS $$
+  SELECT auto_renew FROM public.subscriptions WHERE tenant_id = p_tenant::uuid ORDER BY created_at DESC LIMIT 1;
+$$;
+
+-- The daily renewal: not charged, locked like an unpaid month.
+SELECT pg_temp.check(
+  (SELECT r->>'outcome' = 'not_renewed' AND r->>'plan' = 'starter'
+     FROM pg_temp.renew_off('20000000-0000-4000-8000-0000000000d1') r),
+  'renewal off: the renewal answers not_renewed');
+SELECT pg_temp.check(
+  pg_temp.debits('20000000-0000-4000-8000-0000000000d1') = 0
+  AND pg_temp.balance('20000000-0000-4000-8000-0000000000d1') = 50000,
+  'renewal off: nothing is charged, though the wallet holds the month');
+SELECT pg_temp.check(
+  pg_temp.sub_status('20000000-0000-4000-8000-0000000000d1') = 'past_due'
+  AND pg_temp.lock('20000000-0000-4000-8000-0000000000d1') = 'unpaid'
+  AND pg_temp.shop_status('20000000-0000-4000-8000-0000000000d1') = 'active',
+  'renewal off: the shop locks like an unpaid month, never suspended');
+SELECT pg_temp.check(
+  (pg_temp.renew_off('20000000-0000-4000-8000-0000000000d2'))->>'outcome' = 'not_renewed'
+  AND pg_temp.lock('20000000-0000-4000-8000-0000000000d2') = 'unpaid',
+  'renewal off with an empty wallet: the same lock');
+
+-- No job charges it.
+SELECT pg_temp.check(
+  NOT EXISTS (SELECT 1 FROM public.billing_lock_due()
+               WHERE tenant_id IN ('20000000-0000-4000-8000-0000000000d1', '20000000-0000-4000-8000-0000000000d2')),
+  'the hourly job leaves a shop with renewal off alone');
+CREATE TEMP TABLE off_before AS
+  SELECT updated_at FROM public.subscriptions WHERE tenant_id = '20000000-0000-4000-8000-0000000000d1';
+SELECT pg_temp.check(
+  (public.settle_billing_lock('20000000-0000-4000-8000-0000000000d1', true))->>'outcome' = 'not_renewed'
+  AND (public.settle_billing_lock('20000000-0000-4000-8000-0000000000d1', false))->>'outcome' = 'not_renewed'
+  AND pg_temp.debits('20000000-0000-4000-8000-0000000000d1') = 0
+  AND pg_temp.sub_status('20000000-0000-4000-8000-0000000000d1') = 'past_due',
+  'settling the lock with renewal off charges nothing');
+SELECT pg_temp.check(
+  (SELECT s.updated_at = b.updated_at FROM public.subscriptions s, off_before b
+    WHERE s.tenant_id = '20000000-0000-4000-8000-0000000000d1'),
+  'settling the lock with renewal off does not touch the month');
+SELECT public.admin_topup_wallet('20000000-0000-4000-8000-0000000000d1', 9000, 'receipt', NULL, 'manual', 'off-1');
+SELECT pg_temp.check(
+  pg_temp.balance('20000000-0000-4000-8000-0000000000d1') = 59000
+  AND pg_temp.debits('20000000-0000-4000-8000-0000000000d1') = 0
+  AND pg_temp.lock('20000000-0000-4000-8000-0000000000d1') = 'unpaid',
+  'money in does not buy a month staff stopped');
+SELECT pg_temp.check(
+  (SELECT (s->>'locked')::boolean AND s->>'reason' = 'unpaid' AND (s->>'renewal_off')::boolean
+     FROM public.billing_lock_snapshot('20000000-0000-4000-8000-0000000000d1') s),
+  'the snapshot says renewal is off, so money does not open the lock');
+
+-- The shop pays from its lock screen: renewal back on, the month paid.
+SELECT set_config('test.uid', '30000000-0000-4000-8000-0000000000d1', false);
+SELECT set_config('test.admin_of', '20000000-0000-4000-8000-0000000000d2', false);
+SELECT pg_temp.check(
+  (public.pay_billing_lock('20000000-0000-4000-8000-0000000000d2'))->>'outcome' = 'locked'
+  AND pg_temp.auto_renew('20000000-0000-4000-8000-0000000000d2') = false
+  AND pg_temp.logs('20000000-0000-4000-8000-0000000000d2', 'auto_renew_toggle') = 0
+  AND pg_temp.lock('20000000-0000-4000-8000-0000000000d2') = 'unpaid',
+  'a shop that cannot pay keeps the lock, and renewal stays off');
+SELECT set_config('test.admin_of', '20000000-0000-4000-8000-0000000000d1', false);
+SELECT pg_temp.check(
+  (public.pay_billing_lock('20000000-0000-4000-8000-0000000000d1'))->>'outcome' = 'renewed',
+  'the shop pays its month from the lock screen');
+SELECT pg_temp.check(
+  pg_temp.auto_renew('20000000-0000-4000-8000-0000000000d1')
+  AND pg_temp.lock('20000000-0000-4000-8000-0000000000d1') IS NULL
+  AND pg_temp.sub_status('20000000-0000-4000-8000-0000000000d1') = 'active'
+  AND pg_temp.balance('20000000-0000-4000-8000-0000000000d1') = 50000
+  AND pg_temp.debits('20000000-0000-4000-8000-0000000000d1') = 1,
+  'paying turns renewal back on, charges the month once and opens the shop');
+SELECT pg_temp.check(
+  (public.billing_lock_snapshot('20000000-0000-4000-8000-0000000000d1'))->>'renewal_off' = 'false',
+  'after paying, the snapshot says renewal is on');
+SELECT pg_temp.check(
+  (SELECT count(*) = 1
+          AND bool_and(admin_user_id IS NULL AND actor_email IS NULL AND admin_label = 'The shop'
+                       AND details->>'auto_renew' = 'true' AND details->>'source' = 'shop_paid'
+                       AND details->>'reason' IS NOT NULL)
+     FROM public.admin_activity_logs
+    WHERE tenant_id = '20000000-0000-4000-8000-0000000000d1' AND action = 'auto_renew_toggle'),
+  'one log row says the shop turned renewal back on by paying');
+SELECT set_config('test.uid', '', false);
+SELECT set_config('test.admin_of', '', false);
+
+-- Staff turn renewal back on: money in pays the month again.
+UPDATE public.subscriptions SET auto_renew = true WHERE tenant_id = '20000000-0000-4000-8000-0000000000d2';
+SELECT pg_temp.check(
+  (SELECT (s->>'locked')::boolean AND s->>'renewal_off' = 'false'
+     FROM public.billing_lock_snapshot('20000000-0000-4000-8000-0000000000d2') s),
+  'staff turned renewal on: the snapshot says money opens the lock again');
+SELECT public.admin_topup_wallet('20000000-0000-4000-8000-0000000000d2', 9000, 'receipt', NULL, 'manual', 'off-2');
+SELECT pg_temp.check(
+  pg_temp.lock('20000000-0000-4000-8000-0000000000d2') IS NULL
+  AND pg_temp.balance('20000000-0000-4000-8000-0000000000d2') = 0
+  AND pg_temp.debits('20000000-0000-4000-8000-0000000000d2') = 1,
+  'with renewal back on, a credit that covers the month pays it and unlocks');
+
+-- The demo store: renewal off changes nothing, it renews at no charge.
+SELECT pg_temp.check(
+  (SELECT r->>'outcome' = 'renewed' AND (r->>'demo')::boolean AND (r->>'charged')::numeric = 0
+     FROM pg_temp.renew_off('20000000-0000-4000-8000-0000000000d3') r)
+  AND pg_temp.lock('20000000-0000-4000-8000-0000000000d3') IS NULL,
+  'the demo store renews at no charge even with renewal off');
+SELECT pg_temp.check(
+  (public.billing_lock_snapshot('20000000-0000-4000-8000-0000000000d3'))->>'renewal_off' = 'false',
+  'the demo store''s snapshot never says renewal is off');

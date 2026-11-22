@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ExternalLink, Loader2, Phone, Pin, UserRound } from "lucide-react";
 import { toast } from "sonner";
-import { PLAN_LABELS, PLAN_TIERS, type PlanTier } from "@/types/admin";
+import { planLabel, statusLabel } from "@/types/admin";
 import { SupportShopCheck } from "@/components/support/support-shop-check";
 import { SupportCallList } from "@/components/support/support-call-list";
 import { SupportViewButton } from "@/components/support/support-view-button";
@@ -12,10 +12,6 @@ import { useSupportTakeShop } from "@/hooks/use-support-cases";
 import { SUPPORT_REASON_LABELS, SUPPORT_STATUS_LABELS, type SupportShopCard as ShopCard } from "@/lib/support";
 import { effectiveStatus } from "@/lib/effective-status";
 import { formatDay, formatIQD } from "@/lib/format";
-
-function isPlanTier(plan: string): plan is PlanTier {
-  return PLAN_TIERS.some((tier) => tier === plan);
-}
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -29,7 +25,6 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 /** Who is writing to us: the facts staff need before they answer. */
 export function SupportShopCard({ shop, caseId }: { shop: ShopCard; caseId: string }) {
   const { tenant } = shop;
-  const planLabel = isPlanTier(tenant.plan) ? PLAN_LABELS[tenant.plan] : tenant.plan;
   const now = useLiveTick(60_000);
 
   return (
@@ -61,9 +56,9 @@ export function SupportShopCard({ shop, caseId }: { shop: ShopCard; caseId: stri
       </div>
 
       <dl className="divide-y divide-[var(--card-border)] px-4">
-        <Row label="Plan" value={planLabel} />
-        {/* "Paused", the word the shop page and the check above use for a pause. */}
-        <Row label="Status" value={<span className="capitalize">{tenant.status === "limited" ? "paused" : tenant.status}</span>} />
+        <Row label="Plan" value={planLabel(tenant.plan)} />
+        {/* The Merchants page's word for each status: "Paused" for a pause. */}
+        <Row label="Status" value={statusLabel(tenant.status)} />
         {/* A paused trial still ends, and "Needs us" lists it as "Trial ends soon". */}
         {effectiveStatus(tenant.status, tenant.restrictions) === "trial" && tenant.trial_ends_at && (
           <Row label="Trial ends" value={formatDay(tenant.trial_ends_at)} />

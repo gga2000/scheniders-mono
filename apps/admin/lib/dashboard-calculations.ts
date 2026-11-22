@@ -25,8 +25,10 @@ import type {
   PlatformOrderStat,
 } from "@/types/dashboard";
 import { addDays, dayOf } from "./baghdad-day";
+import { formatMonth } from "./format";
 import { daysEnding, feesOf, type DashboardStats, type IncomeStats, type UsageStats } from "./console-stats";
 import { effectiveStatus } from "./effective-status";
+import { planLabel } from "@/types/admin";
 import { ONBOARDING_STEPS, onboardingDone, type OnboardingFacts } from "./onboarding-steps";
 import { SHOP_GOVERNORATES, shopGovernorate } from "./shop-city";
 
@@ -84,13 +86,6 @@ function median(sorted: number[]): number {
 
 function daysBetween(a: Date, b: Date): number {
   return Math.floor(Math.abs(b.getTime() - a.getTime()) / DAY_MS);
-}
-
-const BAGHDAD_OFFSET_MS = 3 * 60 * 60 * 1000;
-
-/** The Baghdad calendar day (UTC+3, no DST) of an instant; the UTC day files 00:00-02:59 under the day before. */
-export function getDateKey(d: Date): string {
-  return new Date(d.getTime() + BAGHDAD_OFFSET_MS).toISOString().slice(0, 10);
 }
 
 const pctChange = (curr: number, prev: number) =>
@@ -261,7 +256,7 @@ export function calculateGrowthMetrics(stats: DashboardStats, tenants: Dashboard
 
   const weekStart = addDays(today, -6);
   const prevStart = addDays(today, -13);
-  const signupDays = tenants.map((t) => getDateKey(new Date(t.created_at)));
+  const signupDays = tenants.map((t) => dayOf(t.created_at));
   const newMerchants = signupDays.filter((d) => d >= weekStart).length;
   const newMerchantsPrev = signupDays.filter((d) => d >= prevStart && d < weekStart).length;
 
@@ -370,7 +365,7 @@ export function calculateRevenueBreakdown(
 
   return {
     byPlan: byPlan90.map((p) => ({
-      label: titleCase(p.plan),
+      label: planLabel(p.plan),
       value: p.amount,
       color: PLAN_COLORS[p.plan] || "var(--pastel-mint)",
     })),
@@ -635,13 +630,13 @@ export function calculateKpis(
   const activeTenants = tenants.filter((t) => t.status === "active").length;
   const activeRate = tenants.length ? Math.round((activeTenants / tenants.length) * 100) : 0;
 
-  const signupDays = tenants.map((t) => getDateKey(new Date(t.created_at)));
+  const signupDays = tenants.map((t) => dayOf(t.created_at));
   const signupsDaily7 = daysEnding(today, 7).map((day) => signupDays.filter((d) => d === day).length);
 
   const avgOrderValue = sales.count90 > 0 ? Math.round(sales.sum90 / sales.count90) : 0;
 
   // Cards name the month: "Orders, Nov" says which month and fits on one line.
-  const month = new Date(`${today}T00:00:00Z`).toLocaleDateString("en-US", { month: "short", timeZone: "UTC" });
+  const month = formatMonth(today.slice(0, 7), false);
 
   const feesThisMonth = feesOf(income.monthly[11]);
   const feesLastMonth = feesOf(income.monthly[10]);

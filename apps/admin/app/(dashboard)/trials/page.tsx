@@ -108,7 +108,7 @@ function ExtendTrialButton({ tenantId }: { tenantId: string }) {
 
   const mutation = useMutation({
     mutationFn: async (days: number) => {
-      const request_id = requestIds.idFor(`${tenantId}:${days}:${reason.trim()}`);
+      const request_id = requestIds.idFor(`${tenantId}:${days}`);
       const res = await adminFetch("/api/trials/extend", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -266,10 +266,10 @@ export default function TrialsPage() {
                     {trial.business_name.charAt(0).toUpperCase()}
                   </div>
                   <div className="min-w-0">
-                    <p className="font-semibold text-foreground truncate name-dir">
+                    <p className="font-semibold text-foreground truncate name-dir" title={trial.business_name}>
                       {trial.business_name}
                     </p>
-                    <p className="text-xs text-foreground/70 truncate">
+                    <p className="text-xs text-foreground/70 truncate" title={`${trial.slug}${trial.city ? ` \u00b7 ${trial.city}` : ""}`}>
                       {trial.slug}
                       {trial.city ? ` \u00b7 ${trial.city}` : ""}
                     </p>

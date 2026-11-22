@@ -5,12 +5,21 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Plus, X, Filter, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EASE_CHROME } from "@/lib/animation-constants";
-import { PLAN_TIERS, type FilterCondition, type FilterGroup, type AdvancedFilters } from "@/types/admin";
+import {
+  PLAN_FILTER_OPTIONS,
+  STATUS_LABELS,
+  type FilterCondition,
+  type FilterGroup,
+  type AdvancedFilters,
+} from "@/types/admin";
+
+/** Every status, in the card's words ("Paused" was missing and the keys were shown raw). */
+const STATUS_OPTIONS = Object.entries(STATUS_LABELS).map(([value, label]) => ({ value, label }));
 
 // ── Field definitions ──────────────────────────────────────────────────
 const FIELDS = [
-  { id: "status", label: "Status", type: "enum", options: ["trial", "active", "suspended", "cancelled"] },
-  { id: "plan", label: "Plan", type: "enum", options: [...PLAN_TIERS] },
+  { id: "status", label: "Status", type: "enum", options: STATUS_OPTIONS },
+  { id: "plan", label: "Plan", type: "enum", options: PLAN_FILTER_OPTIONS },
   { id: "city", label: "City", type: "string" },
   { id: "balance", label: "Balance (IQD)", type: "number" },
   { id: "orders", label: "Orders", type: "number" },
@@ -181,9 +190,9 @@ export function AdvancedFilterBuilder({ isOpen, onClose, onApply }: AdvancedFilt
             <div className="p-5 max-h-[60vh] overflow-y-auto space-y-4">
               {/* Top-level logic */}
               <div className="flex items-center gap-2 text-xs">
-                <span className="text-foreground/50">Match</span>
+                <span className="text-foreground/70">Match</span>
                 <LogicToggle value={filters.logic} onChange={(l) => setFilters((f) => ({ ...f, logic: l }))} />
-                <span className="text-foreground/50">of the following groups</span>
+                <span className="text-foreground/70">of the following groups</span>
               </div>
 
               {/* Groups */}
@@ -195,17 +204,17 @@ export function AdvancedFilterBuilder({ isOpen, onClose, onApply }: AdvancedFilt
                   {/* Group header */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-xs">
-                      <span className="text-foreground/50">Where</span>
+                      <span className="text-foreground/70">Where</span>
                       <LogicToggle
                         value={group.logic}
                         onChange={(l) => updateGroupLogic(groupIdx, l)}
                       />
-                      <span className="text-foreground/50">conditions match</span>
+                      <span className="text-foreground/70">conditions match</span>
                     </div>
                     {filters.groups.length > 1 && (
                       <button
                         onClick={() => removeGroup(groupIdx)}
-                        className="p-1 text-foreground/30 hover:text-red-500 transition-colors"
+                        className="p-1 text-foreground/70 hover:text-red-500 transition-colors"
                         aria-label="Remove group"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -227,7 +236,7 @@ export function AdvancedFilterBuilder({ isOpen, onClose, onApply }: AdvancedFilt
                   {/* Add condition */}
                   <button
                     onClick={() => addCondition(groupIdx)}
-                    className="text-xs text-foreground/40 hover:text-foreground/70 transition-colors flex items-center gap-1"
+                    className="text-xs text-foreground/70 hover:text-foreground/70 transition-colors flex items-center gap-1"
                   >
                     <Plus className="w-3 h-3" />
                     Add condition
@@ -238,7 +247,7 @@ export function AdvancedFilterBuilder({ isOpen, onClose, onApply }: AdvancedFilt
               {/* Add group */}
               <button
                 onClick={addGroup}
-                className="text-xs text-foreground/40 hover:text-foreground/70 transition-colors flex items-center gap-1 px-1"
+                className="text-xs text-foreground/70 hover:text-foreground/70 transition-colors flex items-center gap-1 px-1"
               >
                 <Plus className="w-3 h-3" />
                 Add group
@@ -249,7 +258,7 @@ export function AdvancedFilterBuilder({ isOpen, onClose, onApply }: AdvancedFilt
             <div className="flex items-center justify-between px-5 py-4 border-t border-[var(--card-border)]">
               <button
                 onClick={handleClear}
-                className="text-xs text-foreground/50 hover:text-foreground transition-colors"
+                className="text-xs text-foreground/70 hover:text-foreground transition-colors"
               >
                 Clear all
               </button>
@@ -285,10 +294,10 @@ function LogicToggle({ value, onChange }: { value: "and" | "or"; onChange: (v: "
           key={opt}
           onClick={() => onChange(opt)}
           className={cn(
-            "px-2 py-0.5 text-[10px] font-bold uppercase rounded-md transition-all",
+            "px-2 py-0.5 text-xs font-bold rounded-md transition-all",
             value === opt
               ? "bg-[var(--card-bg)] text-foreground shadow-sm"
-              : "text-foreground/40 hover:text-foreground/60"
+              : "text-foreground/70 hover:text-foreground/60"
           )}
         >
           {opt}
@@ -346,7 +355,7 @@ function ConditionRow({
         >
           <option value="">Select...</option>
           {field.options.map((opt) => (
-            <option key={opt} value={opt}>{opt}</option>
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
           ))}
         </select>
       ) : condition.operator === "between" ? (
@@ -358,7 +367,7 @@ function ConditionRow({
             className="px-2.5 py-1.5 text-xs rounded-lg border border-[var(--card-border)] bg-[var(--card-bg)] text-foreground w-24"
             placeholder="From"
           />
-          <span className="text-[10px] text-foreground/40">to</span>
+          <span className="text-xs text-foreground/70">to</span>
           <input
             type={fieldType === "date" ? "date" : "number"}
             value={String(condition.secondValue ?? "")}
@@ -383,7 +392,7 @@ function ConditionRow({
       {canRemove && (
         <button
           onClick={onRemove}
-          className="p-1 text-foreground/20 hover:text-red-500 transition-colors"
+          className="p-1 text-foreground/70 hover:text-red-500 transition-colors"
           aria-label="Remove condition"
         >
           <X className="w-3.5 h-3.5" />

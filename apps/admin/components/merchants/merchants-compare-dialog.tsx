@@ -19,7 +19,7 @@ import {
   Minus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { AdminTenant } from "@/types/admin";
+import { planLabel, STATUS_LABELS, type AdminTenant } from "@/types/admin";
 import { formatCount } from "@/lib/format";
 
 interface MerchantsCompareDialogProps {
@@ -124,7 +124,7 @@ export function MerchantsCompareDialog({
               <Activity className="w-4 h-4" />
             </span>
             <div>
-              <p className="text-[10px] uppercase tracking-[0.1em] font-black text-foreground/50">
+              <p className="text-xs font-black text-foreground/70">
                 Compare
               </p>
               <h2 className="text-lg font-black tracking-tight text-foreground">
@@ -135,7 +135,7 @@ export function MerchantsCompareDialog({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-foreground/40 hover:text-foreground hover:bg-foreground/5 transition-colors"
+            className="p-1.5 rounded-lg text-foreground/70 hover:text-foreground hover:bg-foreground/5 transition-colors"
             aria-label="Close compare"
           >
             <X className="w-4 h-4" />
@@ -153,10 +153,7 @@ export function MerchantsCompareDialog({
           {merchants.map((m) => {
             const logoBg = m.branding?.primary_color || "#1E1E1E";
             const planGrad = PLAN_GRADIENTS[m.plan] ?? "from-slate-400 to-slate-500";
-            const statusGrad =
-              STATUS_GRADIENTS[
-                (m as { status?: string }).status ?? ""
-              ] ?? "from-slate-400 to-slate-500";
+            const statusGrad = STATUS_GRADIENTS[m.status] ?? "from-slate-400 to-slate-500";
             return (
               <div
                 key={m.id}
@@ -170,10 +167,10 @@ export function MerchantsCompareDialog({
                     {m.business_name.charAt(0).toUpperCase()}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-black text-foreground truncate name-dir leading-tight">
+                    <p className="text-sm font-black text-foreground truncate name-dir leading-tight" title={m.business_name}>
                       {m.business_name}
                     </p>
-                    <p className="text-[10px] text-foreground/50 truncate font-medium">
+                    <p className="text-xs text-foreground/70 truncate font-medium" title={m.slug}>
                       {m.slug}
                     </p>
                   </div>
@@ -181,19 +178,19 @@ export function MerchantsCompareDialog({
                 <div className="flex items-center gap-1 mt-2.5 flex-wrap">
                   <span
                     className={cn(
-                      "px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider text-white ring-1 ring-white/20 shadow-sm bg-gradient-to-br",
+                      "px-2 py-0.5 rounded-full text-xs font-black text-white ring-1 ring-white/20 shadow-sm bg-gradient-to-br",
                       statusGrad
                     )}
                   >
-                    {(m as { status?: string }).status}
+                    {STATUS_LABELS[m.status]}
                   </span>
                   <span
                     className={cn(
-                      "px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider text-white ring-1 ring-white/20 shadow-sm bg-gradient-to-br",
+                      "px-2 py-0.5 rounded-full text-xs font-black text-white ring-1 ring-white/20 shadow-sm bg-gradient-to-br",
                       planGrad
                     )}
                   >
-                    {m.plan}
+                    {planLabel(m.plan)}
                   </span>
                 </div>
                 {onOpenDetail && (
@@ -203,7 +200,7 @@ export function MerchantsCompareDialog({
                       onOpenDetail(m.id);
                       onClose();
                     }}
-                    className="absolute top-2 right-2 p-1 rounded-lg text-foreground/30 hover:text-foreground hover:bg-foreground/5 transition-colors"
+                    className="absolute top-2 right-2 p-1 rounded-lg text-foreground/70 hover:text-foreground hover:bg-foreground/5 transition-colors"
                     title="Open details"
                   >
                     <ArrowUpRight className="w-3.5 h-3.5" />
@@ -228,7 +225,7 @@ export function MerchantsCompareDialog({
                   gridTemplateColumns: `120px repeat(${merchants.length}, minmax(0, 1fr))`,
                 }}
               >
-                <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider font-black text-foreground/55">
+                <div className="flex items-center gap-2 text-xs font-black text-foreground/70">
                   <Icon className="w-3.5 h-3.5 text-foreground/40" />
                   {row.label}
                 </div>
@@ -267,7 +264,7 @@ export function MerchantsCompareDialog({
                         {row.format(v)}
                       </span>
                       {row.suffix && (
-                        <span className="text-[9px] font-bold text-foreground/40">
+                        <span className="text-xs font-bold text-foreground/70">
                           {row.suffix}
                         </span>
                       )}
@@ -324,7 +321,7 @@ function CompareInfoRow({
         gridTemplateColumns: `120px repeat(${merchants.length}, minmax(0, 1fr))`,
       }}
     >
-      <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider font-black text-foreground/55">
+      <div className="flex items-center gap-2 text-xs font-black text-foreground/70">
         <Icon className="w-3.5 h-3.5 text-foreground/40" />
         {label}
       </div>
@@ -332,7 +329,7 @@ function CompareInfoRow({
         <div
           key={m.id}
           className="rounded-xl px-3 py-2 bg-foreground/[0.02] text-sm font-bold text-foreground truncate"
-        >
+         title={getter(m)}>
           {getter(m)}
         </div>
       ))}

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { lockedBecause } from "@/lib/billing-lock-label";
 import { formatIQD } from "@/lib/format";
+import { planLabel } from "@/types/admin";
 
 /**
  * Shops that paid us by transfer and uploaded the receipt (Fermi B3). Read
@@ -30,6 +31,8 @@ const billingSchema = z.object({
   reason: z.enum(["trial_ended", "unpaid"]).nullable(),
   plan: z.string().nullable(),
   price_iqd: z.coerce.number(),
+  /** Renewal off: no job charges the month, so this payment alone does not open the lock (billing_lock_snapshot). */
+  renewal_off: z.boolean(),
 });
 
 export const topupQueueRowSchema = z.object({
@@ -90,11 +93,14 @@ export function amountStillOwed(row: Pick<TopupQueueRow, "billing" | "balance_iq
  * The locked chip on a payment: why it is locked and what opens it. A paused
  * shop's lock does not open with money until the pause lifts
  * (settle_billing_lock answers on_hold), and a short wallet still has to be
- * paid first, so a paused shop says both; null when the shop is not locked.
+ * paid first, so a paused shop says both. With renewal off no money opens it:
+ * the shop pays on its lock screen, or staff turn renewal on (round 20). Null
+ * when the shop is not locked.
  */
 export function lockedChip(row: Pick<TopupQueueRow, "billing" | "balance_iqd" | "tenant_status">): string | null {
   if (!row.billing?.locked) return null;
   const why = lockedBecause(row.billing.reason);
+  if (row.billing.renewal_off) return `${why} · renewal off, so this payment alone does not open it`;
   const owed = amountStillOwed(row);
   if (row.tenant_status === "limited") {
     return owed > 0
@@ -102,6 +108,18 @@ export function lockedChip(row: Pick<TopupQueueRow, "billing" | "balance_iqd" | 
       : `${why} · paused, opens once the pause lifts`;
   }
   return owed > 0 ? `${why} · needs ${formatIQD(owed)} to open` : `${why} · this payment opens it`;
+}
+
+/**
+ * The shop's plan, next payment and wallet on a request's card, the plan in
+ * the merchant's words ("Start plan", "Internal (no billing)").
+ */
+export function billingLine(row: Pick<TopupQueueRow, "billing" | "balance_iqd">): string {
+  const plan = row.billing?.plan;
+  const parts = [!plan ? "No plan" : plan === "internal" ? planLabel(plan) : `${planLabel(plan)} plan`];
+  if (row.billing) parts.push(`next payment ${formatIQD(row.billing.price_iqd)}`);
+  parts.push(`wallet ${formatIQD(row.balance_iqd)}`);
+  return parts.join(" · ");
 }
 
 /** Why staff should look twice before approving, in plain words; empty when nothing stands out. */

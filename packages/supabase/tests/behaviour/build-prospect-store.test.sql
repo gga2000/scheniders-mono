@@ -313,6 +313,10 @@ BEGIN
        OR shop.status <> 'active' OR shop.is_prospect OR shop.prospect_lead_id <> c1 THEN
         RAISE EXCEPTION 'converted shop row: %', to_jsonb(shop);
     END IF;
+    -- Its trial clock is the trial's 7 days (round 18 billing rule; was 14).
+    IF shop.trial_ends_at IS DISTINCT FROM now() + interval '7 days' THEN
+        RAISE EXCEPTION 'converted trial clock: %', shop.trial_ends_at;
+    END IF;
     SELECT count(*) INTO n FROM public.wallet WHERE tenant_id = shop.id AND balance_iqd = 0 AND threshold_iqd = 5000;
     IF n <> 1 THEN RAISE EXCEPTION 'converted wallet missing'; END IF;
     SELECT count(*) INTO n FROM public.subscriptions

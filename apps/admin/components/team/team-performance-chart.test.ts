@@ -22,7 +22,8 @@ describe("TeamPerformanceChart", () => {
         actions: [action("2026-11-16T22:30:00Z"), action("2026-11-16T23:10:00Z"), action("2026-11-16T12:00:00Z")],
       }),
     );
-    // Two on Tue 17 Nov (01:30 and 02:10 Baghdad), one on Mon 16 Nov.
-    expect(html).toContain("Nov 17 (2)");
+    // Two on Tue 17 Nov (01:30 and 02:10 Baghdad), one on Mon 16 Nov. Named
+    // "17 Nov" as every other screen names a day (it read "Nov 17", round 18).
+    expect(html).toContain("17 Nov (2)");
   });
 });

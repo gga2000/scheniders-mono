@@ -231,7 +231,7 @@ export default function MerchantsPage() {
                 <span className="text-2xl font-black text-foreground dark:text-white">
                   {isLoading || isError ? "—" : total}
                 </span>
-                <span className="text-xs font-semibold text-foreground-muted uppercase tracking-wide">
+                <span className="text-xs font-semibold text-foreground-muted">
                   {total === 1 ? "Merchant" : "Merchants"}
                 </span>
               </div>
@@ -279,7 +279,7 @@ export default function MerchantsPage() {
               )}
               <button
                 onClick={() => setShowAdvancedFilters(true)}
-                className="p-2 rounded-lg text-foreground/50 hover:bg-foreground/5 hover:text-foreground transition-all"
+                className="p-2 rounded-lg text-foreground/70 hover:bg-foreground/5 hover:text-foreground transition-all"
                 title="Advanced filters"
                 aria-label="Open advanced filters"
               >
@@ -304,7 +304,7 @@ export default function MerchantsPage() {
                       "p-1.5 rounded-lg transition-all",
                       viewMode === mode.value
                         ? "bg-[var(--card-bg)] text-foreground shadow-sm dark:bg-primary dark:text-black"
-                        : "text-foreground/50 hover:text-foreground"
+                        : "text-foreground/70 hover:text-foreground"
                     )}
                     title={mode.label}
                     aria-label={`${mode.label} view`}
@@ -455,7 +455,7 @@ export default function MerchantsPage() {
       {isFetchingNextPage && (
         <div className="flex items-center justify-center py-4">
           <Loader2 className="w-5 h-5 animate-spin text-foreground/30" />
-          <span className="text-xs text-foreground/40 ml-2">Loading more...</span>
+          <span className="text-xs text-foreground/70 ml-2">Loading more...</span>
         </div>
       )}
 
@@ -470,6 +470,7 @@ export default function MerchantsPage() {
         action={bulkAction}
         selectedCount={selectedMerchants.size}
         selectedIds={[...selectedMerchants]}
+        planOf={bulkAction === "change-plan" ? new Map(merchants.map((m) => [m.id, m.plan])) : undefined}
         onClose={() => setBulkAction(null)}
         onSuccess={() => clearSelection()}
       />

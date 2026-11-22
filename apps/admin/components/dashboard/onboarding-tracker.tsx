@@ -124,7 +124,7 @@ export function OnboardingTracker({ tenants }: OnboardingTrackerProps) {
                     className="w-2.5 h-2.5 rounded-full flex-shrink-0"
                     style={{ backgroundColor: tenant.primaryColor || "#9CA3AF" }}
                   />
-                  <span className="text-sm font-medium text-foreground truncate">
+                  <span className="text-sm font-medium text-foreground truncate" title={tenant.businessName}>
                     {tenant.businessName}
                   </span>
                 </div>

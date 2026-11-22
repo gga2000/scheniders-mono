@@ -14,7 +14,7 @@ import { AddedByAvatar } from "@/components/leads/added-by-avatar";
 import type { LeadColumnId } from "@/lib/leads-table-columns";
 import { cn } from "@/lib/utils";
 import { Pencil } from "lucide-react";
-import { formatDay, formatWhen } from "@/lib/format";
+import { formatCount, formatDay, formatWhen } from "@/lib/format";
 
 /** Extra inputs a cell may need beyond the Lead. Built once per render by <LeadsTable>. */
 export interface LeadCellContext {
@@ -38,7 +38,7 @@ function MerchantCell({ lead }: { lead: Lead }) {
       </div>
       <div className="min-w-0">
         <div className="flex items-center gap-1.5">
-          <span className="font-semibold text-[var(--foreground)] truncate name-dir max-w-[180px]">
+          <span className="font-semibold text-[var(--foreground)] truncate name-dir max-w-[180px]" title={lead.merchant_name}>
             {lead.merchant_name}
           </span>
           {lead.is_draft && (
@@ -48,7 +48,7 @@ function MerchantCell({ lead }: { lead: Lead }) {
           )}
         </div>
         {lead.management_name && (
-          <div className="text-xs text-[var(--muted)] truncate max-w-[220px]">{lead.management_name}</div>
+          <div className="text-xs text-[var(--muted)] truncate max-w-[220px]" title={lead.management_name}>{lead.management_name}</div>
         )}
       </div>
     </div>
@@ -124,7 +124,7 @@ export const LEAD_CELL_RENDERERS: Record<LeadColumnId, (lead: Lead, ctx: LeadCel
   followers: (lead) => (
     // Subtle tint by tier/rank — diamonds/legendaries read hotter at a glance.
     <span className="font-semibold tabular-nums" style={{ color: LEAD_TIER_UI[lead.tier].solid }}>
-      {lead.follower_count.toLocaleString()}
+      {formatCount(lead.follower_count)}
     </span>
   ),
   ranking: (lead) => <TierChip tier={lead.tier} />,

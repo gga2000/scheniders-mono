@@ -38,7 +38,7 @@ export const MerchantColumnVisibility = memo(function MerchantColumnVisibility({
           "p-1.5 rounded-xl transition-all text-xs border border-[var(--card-border)] bg-[var(--card-bg)]",
           hiddenColumns.length > 0
             ? "text-[var(--primary)] ring-1 ring-[var(--primary)]/20"
-            : "text-foreground/40 hover:text-foreground/70"
+            : "text-foreground/70 hover:text-foreground/70"
         )}
         title="Toggle columns"
         aria-label="Toggle column visibility"
@@ -48,7 +48,7 @@ export const MerchantColumnVisibility = memo(function MerchantColumnVisibility({
 
       {open && (
         <div className="absolute top-full right-0 mt-1 w-48 py-2 bg-[var(--card-bg)] rounded-xl shadow-xl border border-[var(--card-border)] z-50 animate-in fade-in slide-in-from-top-2 duration-150">
-          <div className="px-3 pb-1.5 text-[10px] font-semibold text-foreground/40 uppercase tracking-wider">
+          <div className="px-3 pb-1.5 text-xs font-semibold text-foreground/70">
             Columns
           </div>
           {MERCHANT_COLUMNS.map((col) => (
@@ -72,7 +72,7 @@ export const MerchantColumnVisibility = memo(function MerchantColumnVisibility({
           {hiddenColumns.length > 0 && (
             <button
               onClick={onReset}
-              className="w-full px-3 py-1.5 mt-1 text-[10px] text-[var(--primary)] hover:text-foreground font-medium text-center hover:bg-foreground/[0.03] transition-colors"
+              className="w-full px-3 py-1.5 mt-1 text-xs text-[var(--primary)] hover:text-foreground font-medium text-center hover:bg-foreground/[0.03] transition-colors"
             >
               Show All
             </button>

@@ -2,30 +2,42 @@
 
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { PLAN_LABELS, PLAN_TIERS, type PlanTier } from "@/types/admin";
+import { PLAN_LABELS, PLAN_TIERS, planLabel, type PlanTier } from "@/types/admin";
 import { isStaffReason } from "@/lib/billing-lock-tools";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
-import { Choice, ConfirmButton, ErrorLine, PanelTitle, postJson, WillHappen } from "./action-ui";
+import { shopActionKey } from "@/lib/shop-actions";
+import { Choice, ConfirmButton, ErrorLine, PanelFields, PanelTitle, postJson, useWriteFailed, WillHappen } from "./action-ui";
 
 /**
  * Move a shop to another plan. The button names the move; nothing is charged
  * or refunded. It waits for a reason, as a hold does: a plan decides what the
  * shop pays each month, so the staff log keeps why it moved.
  */
-export function PlanForm({ shopId, plan, onDone }: { shopId: string; plan: string; onDone: () => void }) {
+export function PlanForm({
+  shopId,
+  shopName,
+  plan,
+  onDone,
+}: {
+  shopId: string;
+  shopName: string;
+  plan: string;
+  onDone: () => void;
+}) {
   const [next, setNext] = useState<PlanTier | null>(null);
   const [why, setWhy] = useState("");
 
+  const failed = useWriteFailed(shopId, `${shopName}'s plan was not changed.`);
   const change = useMutation({
+    mutationKey: shopActionKey(shopId),
     mutationFn: (to: PlanTier) => postJson(`/api/merchants/${shopId}`, { plan: to, reason: why.trim() }, "PATCH"),
     onSuccess: onDone,
+    onError: failed,
   });
 
-  const current = PLAN_TIERS.find((tier) => tier === plan);
-
   return (
-    <div>
-      <PanelTitle aside={`Now ${current ? PLAN_LABELS[current] : plan}`}>Change plan</PanelTitle>
+    <PanelFields busy={change.isPending}>
+      <PanelTitle aside={`Now ${planLabel(plan)}`}>Change plan</PanelTitle>
       <div className="mb-3 flex flex-col gap-1.5">
         {PLAN_TIERS.filter((tier) => tier !== plan).map((tier) => (
           <Choice key={tier} selected={next === tier} onClick={() => setNext(tier)} className="text-left">
@@ -43,6 +55,6 @@ export function PlanForm({ shopId, plan, onDone }: { shopId: string; plan: strin
       <ConfirmButton disabled={!next || !isStaffReason(why) || change.isPending} onClick={() => next && change.mutate(next)}>
         {change.isPending ? "Changing..." : next ? `Move to ${PLAN_LABELS[next]}` : "Change plan"}
       </ConfirmButton>
-    </div>
+    </PanelFields>
   );
 }

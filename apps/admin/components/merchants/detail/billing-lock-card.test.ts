@@ -15,6 +15,7 @@ const LOCK: BillingLockSnapshot = {
   allowance: 50,
   plan: "starter",
   price_iqd: 25000,
+  renewal_off: false,
 };
 
 const render = (canForceUnlock: boolean, lock: BillingLockSnapshot = LOCK, shopPaused = false) =>
@@ -43,10 +44,21 @@ describe("BillingLockCard", () => {
 
   it("on a paused shop, says paying opens it once the pause lifts and offers no free unlock the database would refuse", () => {
     const html = render(true, LOCK, true);
-    expect(html).toContain("Paused: once the pause lifts, paying 25,000 IQD from the wallet unlocks it");
+    expect(html).toContain("Paused, so the lock stays until the pause lifts. Then paying 25,000 IQD from the wallet opens it.");
     expect(html).not.toContain("Unlock for");
     expect(html).toContain("Unlock free works once the pause lifts.");
-    expect(render(true)).toContain("Paying 25,000 IQD from the wallet unlocks it");
+    expect(render(true)).toContain("Paying 25,000 IQD from the wallet opens it again.");
+  });
+
+  it("with renewal off, says money alone does not open it, and how it opens", () => {
+    // Round 20 (Fermi's rule, 20261119073654): no wallet credit, approved
+    // receipt or hourly run charges a month that ended with renewal off.
+    const html = render(true, { ...LOCK, renewal_off: true });
+    expect(html).toContain(
+      "Renewal is off, so money alone does not open it: it opens when the shop pays 25,000 IQD on its lock screen, or when staff turn renewal on and the wallet pays it.",
+    );
+    expect(html).not.toContain("from the wallet opens it");
+    expect(render(true, { ...LOCK, renewal_off: true }, true)).toContain("Paused, and renewal is off. Once the pause lifts, it opens when the shop pays");
   });
 
   it("offers the free unlock to super admins only", () => {

@@ -3,22 +3,25 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { formatDayTime } from "@/lib/format";
-import { endAfterDays, type FreeDaysKind } from "@/lib/shop-actions";
+import { endAfterDays, shopActionKey, type FreeDaysKind } from "@/lib/shop-actions";
 import { isStaffReason } from "@/lib/billing-lock-tools";
-import { createRequestIds } from "@/lib/request-ids";
+import type { RequestIds } from "@/lib/request-ids";
 import { MAX_TRIAL_EXTENSION_DAYS } from "@/lib/trial-extension";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
-import { Choice, ConfirmButton, ErrorLine, FieldInput, PanelTitle, postJson, WillHappen } from "./action-ui";
+import { Choice, ConfirmButton, ErrorLine, FieldInput, PanelFields, PanelTitle, postJson, useWriteFailed, WillHappen } from "./action-ui";
 
 const PRESETS: Record<FreeDaysKind, number[]> = { trial: [3, 7, 14], month: [7, 30] };
 const MAX_DAYS: Record<FreeDaysKind, number> = { trial: MAX_TRIAL_EXTENSION_DAYS, month: 365 };
 
 interface FreeDaysFormProps {
   shopId: string;
+  shopName: string;
   kind: FreeDaysKind;
   /** When the trial or the month ends today. */
   endsAt: string | null;
   locked: boolean;
+  /** Held by the page: one id per ask, so a retry after a lost answer, even from a reopened form, gives the days once. */
+  requestIds: RequestIds;
   onDone: () => void;
 }
 
@@ -27,36 +30,39 @@ interface FreeDaysFormProps {
  * a paying shop. The line above the button gives the new end, counted the way
  * the database counts it (from the end, or from now when the end has passed).
  */
-export function FreeDaysForm({ shopId, kind, endsAt, locked, onDone }: FreeDaysFormProps) {
+export function FreeDaysForm({ shopId, shopName, kind, endsAt, locked, requestIds, onDone }: FreeDaysFormProps) {
   const [preset, setPreset] = useState<number | null>(PRESETS[kind][1] ?? null);
   const [typed, setTyped] = useState("");
   const [why, setWhy] = useState("");
-  // One id per ask: a retry after a lost answer gives the days once.
-  const [requestIds] = useState(createRequestIds);
 
   const typedDays = /^\d+$/.test(typed.trim()) ? Number(typed.trim()) : null;
   const days = preset ?? typedDays;
   const daysOk = days !== null && days >= 1 && days <= MAX_DAYS[kind];
-  // A trial's free days are logged with the reason; the month's log keeps the old and new end.
-  const ready = daysOk && (kind === "month" || isStaffReason(why));
+  // Both kinds ask why: it goes on the staff log row and the timeline (round 20).
+  const ready = daysOk && isStaffReason(why);
+
+  const failed = useWriteFailed(shopId, `${shopName} was not given free days.`);
 
   const give = useMutation({
+    mutationKey: shopActionKey(shopId),
     mutationFn: (value: number) => {
-      const request_id = requestIds.idFor(`${shopId}:${kind}:${value}:${why.trim()}`);
-      return kind === "trial"
-        ? postJson(`/api/merchants/${shopId}/extend-trial`, { days: value, reason: why.trim(), request_id })
-        : postJson(`/api/merchants/${shopId}/extend-subscription`, { days: value, request_id });
+      // Keyed by what is given, not the words: a reopened panel with the reason
+      // typed anew sends the same ask with the same id, so the days come once.
+      const request_id = requestIds.idFor(`${shopId}:${kind}:${value}`);
+      const url = kind === "trial" ? "extend-trial" : "extend-subscription";
+      return postJson(`/api/merchants/${shopId}/${url}`, { days: value, reason: why.trim(), request_id });
     },
     onSuccess: () => {
       requestIds.done();
       onDone();
     },
+    onError: failed,
   });
 
   const what = kind === "trial" ? "The trial" : "This month";
 
   return (
-    <div>
+    <PanelFields busy={give.isPending}>
       <PanelTitle aside={endsAt ? `ends ${formatDayTime(endsAt)}` : undefined}>
         {kind === "trial" ? "Give free trial days" : "Give free days this month"}
       </PanelTitle>
@@ -85,9 +91,7 @@ export function FreeDaysForm({ shopId, kind, endsAt, locked, onDone }: FreeDaysF
           className="w-24 tabular-nums"
         />
       </div>
-      {kind === "trial" && (
-        <StaffReasonInput value={why} onChange={setWhy} placeholder="Why? (saved in the log)" className="mb-3" />
-      )}
+      <StaffReasonInput value={why} onChange={setWhy} placeholder="Why? (saved in the log)" className="mb-3" />
       {days !== null && !daysOk && (
         <p className="mb-2 text-[13px] text-[var(--ink-red)]">From 1 to {MAX_DAYS[kind]} days.</p>
       )}
@@ -105,6 +109,6 @@ export function FreeDaysForm({ shopId, kind, endsAt, locked, onDone }: FreeDaysF
       <ConfirmButton disabled={!ready || give.isPending} onClick={() => daysOk && give.mutate(days)}>
         {give.isPending ? "Giving..." : daysOk ? `Give ${days} free days` : "Give free days"}
       </ConfirmButton>
-    </div>
+    </PanelFields>
   );
 }

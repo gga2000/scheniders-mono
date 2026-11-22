@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   alreadyDecidedText,
   amountStillOwed,
+  billingLine,
   EMPTY_PAYMENT_DETAILS,
   lockedChip,
   paymentDetailsSchema,
@@ -15,7 +16,7 @@ const TENANT = "33333333-3333-4333-8333-333333333333";
 const OTHER = "55555555-5555-4555-8555-555555555555";
 
 describe("amountStillOwed", () => {
-  const billing = { locked: true, reason: "unpaid" as const, plan: "basic", price_iqd: 9000 };
+  const billing = { locked: true, reason: "unpaid" as const, plan: "basic", price_iqd: 9000, renewal_off: false };
 
   it("is the next payment minus the wallet for a locked shop", () => {
     expect(amountStillOwed({ billing, balance_iqd: 1200 })).toBe(7800);
@@ -32,7 +33,7 @@ describe("amountStillOwed", () => {
 });
 
 describe("lockedChip", () => {
-  const billing = { locked: true, reason: "unpaid" as const, plan: "basic", price_iqd: 9000 };
+  const billing = { locked: true, reason: "unpaid" as const, plan: "basic", price_iqd: 9000, renewal_off: false };
 
   it("says what still opens a locked shop, or that this payment does", () => {
     expect(lockedChip({ billing, balance_iqd: 1200, tenant_status: "active" })).toBe("Locked: month not paid · needs 7,800 IQD to open");
@@ -53,6 +54,18 @@ describe("lockedChip", () => {
     );
   });
 
+  it("with renewal off, never says this payment opens it, paused or not", () => {
+    // Round 20 (Fermi's rule, 20261119073654): an approved receipt charges no
+    // month that ended with renewal off; the shop pays on its lock screen.
+    const off = { ...billing, renewal_off: true };
+    for (const tenant_status of ["active", "limited"]) {
+      expect(lockedChip({ billing: off, balance_iqd: 9000, tenant_status })).toBe(
+        "Locked: month not paid · renewal off, so this payment alone does not open it",
+      );
+    }
+    expect(lockedChip({ billing: off, balance_iqd: 0, tenant_status: "active" })).not.toContain("to open");
+  });
+
   it("says Locked without a reason rather than guess one", () => {
     expect(lockedChip({ billing: { ...billing, reason: null }, balance_iqd: 9000, tenant_status: "active" })).toBe(
       "Locked · this payment opens it",
@@ -62,6 +75,22 @@ describe("lockedChip", () => {
   it("is nothing for a shop that is not locked", () => {
     expect(lockedChip({ billing: { ...billing, locked: false, reason: null }, balance_iqd: 0, tenant_status: "limited" })).toBeNull();
     expect(lockedChip({ billing: null, balance_iqd: 0, tenant_status: "active" })).toBeNull();
+  });
+});
+
+// Payments kept its own plan map with no "internal", and a shop with no
+// billing row read "No plan plan" (round 19).
+describe("billingLine", () => {
+  const billing = { locked: false, reason: null, plan: "starter", price_iqd: 9000, renewal_off: false };
+
+  it("names the plan as the merchant does, then the next payment and the wallet", () => {
+    expect(billingLine({ billing: { ...billing, plan: "growth", price_iqd: 25000 }, balance_iqd: 4000 })).toBe(
+      "Team plan · next payment 25,000 IQD · wallet 4,000 IQD",
+    );
+    expect(billingLine({ billing: { ...billing, plan: "internal", price_iqd: 0 }, balance_iqd: 0 })).toBe(
+      "Internal (no billing) · next payment 0 IQD · wallet 0 IQD",
+    );
+    expect(billingLine({ billing: null, balance_iqd: 1500 })).toBe("No plan · wallet 1,500 IQD");
   });
 });
 

@@ -92,7 +92,7 @@ export function PrimeLinkRequestsSection({ requests }: { requests: PrimeLinkRequ
           <div key={req.id} className="flex items-start gap-3 px-4 py-3">
             <span className="mt-0.5 text-[#315EA8]"><Truck className="w-3.5 h-3.5" /></span>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-foreground truncate name-dir">{req.tenants?.business_name ?? req.tenant_id}</p>
+              <p className="text-xs font-medium text-foreground truncate name-dir" title={req.tenants?.business_name ?? req.tenant_id}>{req.tenants?.business_name ?? req.tenant_id}</p>
               <p className="text-xs text-foreground/70 tabular-nums mt-0.5">
                 Prime account {req.prime_phone}
                 {req.prime_name ? ` · ${req.prime_name}` : ""}

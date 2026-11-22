@@ -9,8 +9,10 @@
 --   stuck parcels went in transit more than 14 days ago (by their newest
 --   move to in_transit, else the order's own time);
 --   successful export files in the window are counted, failed ones not;
---   test, practice and deleted orders, the demo store and prospect stores
---   never count; the internal plan is listed with its plan;
+--   test, practice and deleted orders, return and exchange orders (round
+--   18, data new 6: as on Home), the demo store and prospect stores never
+--   count; the internal plan is listed with its plan;
+--   the answer states its two rules: 14 days stuck, 20 shipped for a rate;
 --   shops with nothing shipped or stuck are not listed;
 --   lowest rate first; only the service role may read it.
 --
@@ -38,6 +40,16 @@ SELECT '30000000-0000-4000-8000-000000000001',
   FROM generate_series(1, 20) g;
 INSERT INTO public.orders (tenant_id, status, created_at)
 VALUES ('30000000-0000-4000-8000-000000000001', 'delivered', now() - interval '80 days');
+-- steady's exchanges and returns, 20 days ago: 3 delivered and 5 in transit
+-- since 29 days ago. None counts: shipped, delivered or stuck.
+INSERT INTO public.orders (tenant_id, status, created_at, is_return)
+SELECT '30000000-0000-4000-8000-000000000001', CASE WHEN g <= 3 THEN 'delivered' ELSE 'in_transit' END,
+       now() - interval '30 days', true
+  FROM generate_series(1, 8) g;
+INSERT INTO public.order_status_history (order_id, tenant_id, from_status, to_status, changed_at)
+SELECT o.id, o.tenant_id, 'confirmed', 'in_transit', now() - interval '29 days'
+  FROM public.orders o
+ WHERE o.tenant_id = '30000000-0000-4000-8000-000000000001' AND o.status = 'in_transit';
 
 -- leaky: 8 completed and 12 never marked, in transit since 29 days ago (40.0);
 -- its test, practice and deleted delivered orders do not count.
@@ -113,8 +125,10 @@ DECLARE
 BEGIN
     IF (answer->>'at')::timestamptz <> now()
        OR (answer->>'window_to')::timestamptz <> now() - interval '14 days'
-       OR (answer->>'window_from')::timestamptz <> now() - interval '74 days' THEN
-        RAISE EXCEPTION 'window: %', answer - 'shops';
+       OR (answer->>'window_from')::timestamptz <> now() - interval '74 days'
+       OR (answer->>'stuck_after_days')::int IS DISTINCT FROM 14
+       OR (answer->>'min_shipped_for_rate')::int IS DISTINCT FROM 20 THEN
+        RAISE EXCEPTION 'window and rules: %', answer - 'shops';
     END IF;
 
     -- Median of 40, 70, 90 and 100.

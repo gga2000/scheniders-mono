@@ -1,15 +1,53 @@
+import { PLAN_KEYS, planName } from "@scheniders/shared/plans";
 import type { ListBillingLock } from "@/lib/billing-lock-label";
 
 export type AdminRole = "super_admin" | "support_staff";
 
-/** The one paid plan, plus "internal" for our own shops (never billed). */
+/**
+ * A plan's name in the console, from the product's own plan names
+ * (packages/shared/src/plans.ts: Start, Team, Business, Custom), so staff and
+ * the merchant name a plan alike. "internal" keeps the console's longer word.
+ * A shop can be on any plan the product sells, not only the two staff move
+ * shops to: a bare PLAN_LABELS[plan] broke Pipeline for a Team shop (round 18).
+ */
+export function planLabel(plan: string): string {
+  return plan === "internal" ? "Internal (no billing)" : planName(plan, "en");
+}
+
+/** Every plan a shop can be on, for the plan filters. */
+export const PLAN_FILTER_OPTIONS: ReadonlyArray<{ value: string; label: string }> = PLAN_KEYS.map((value) => ({
+  value,
+  label: planLabel(value),
+}));
+
+/** The plans staff move a shop to: the one paid plan, plus "internal" for our own shops (never billed). */
 export const PLAN_TIERS = ["starter", "internal"] as const;
 export type PlanTier = (typeof PLAN_TIERS)[number];
 export const PLAN_LABELS: Readonly<Record<PlanTier, string>> = {
-  starter: "Starter",
-  internal: "Internal (no billing)",
+  starter: planLabel("starter"),
+  internal: planLabel("internal"),
 };
-export type TenantStatus = "trial" | "active" | "limited" | "suspended" | "cancelled";
+/** The database's tenant_status enum, every value a shop's status can hold. */
+export const TENANT_STATUSES = ["trial", "active", "limited", "suspended", "cancelled"] as const;
+export type TenantStatus = (typeof TENANT_STATUSES)[number];
+/**
+ * A shop's status in the Merchants page's words, as its card chip says it.
+ * The Table, Sheet and Compare views printed the stored key ("limited")
+ * once #1476 took away the capitals that had hidden it (round 17).
+ */
+export const STATUS_LABELS: Readonly<Record<TenantStatus, string>> = {
+  trial: "Trial",
+  active: "Active",
+  limited: "Paused",
+  suspended: "Suspended",
+  cancelled: "Cancelled",
+};
+
+/** The same words for a status read as a plain string (the support card's shop row). */
+export function statusLabel(status: string): string {
+  const known = TENANT_STATUSES.find((s) => s === status);
+  return known ? STATUS_LABELS[known] : status;
+}
 
 /**
  * Whether a shop's trial was paid, read from its newest subscription
@@ -96,7 +134,8 @@ export interface AdminTenant {
   display_id?: number | null;
   business_name: string;
   slug: string;
-  plan: PlanTier;
+  /** The stored plan key: any plan the product sells, not only PLAN_TIERS. Name it with planLabel. */
+  plan: string;
   status: TenantStatus;
   trial_ends_at: string | null;
   branding: {
@@ -180,7 +219,8 @@ export type AdminAction =
   | "check_payments"
   | "manage_demo_store"
   | "manage_admins"
-  | "review_trials";
+  | "review_trials"
+  | "import_products";
 
 // Merchant table column definitions
 export type MerchantColumnId =

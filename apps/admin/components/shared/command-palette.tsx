@@ -161,9 +161,9 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
                     >
                       <span className="text-foreground/70">{item.icon}</span>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{item.label}</p>
+                        <p className="text-sm font-medium truncate" title={item.label}>{item.label}</p>
                         {item.sublabel && (
-                          <p className="text-xs text-foreground/70 truncate">
+                          <p className="text-xs text-foreground/70 truncate" title={item.sublabel}>
                             {item.sublabel}
                           </p>
                         )}

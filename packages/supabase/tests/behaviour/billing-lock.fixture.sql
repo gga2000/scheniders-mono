@@ -66,6 +66,8 @@ CREATE TABLE public.subscriptions (
     current_period_end timestamptz NOT NULL,
     pending_plan public.plan_tier,
     plan_change_at timestamptz,
+    -- Staff's Renewal switch (live: NOT NULL DEFAULT true).
+    auto_renew boolean NOT NULL DEFAULT true,
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now()
 );
@@ -202,3 +204,5 @@ CREATE FUNCTION public.finance_summary_core(_tenant_id uuid, _from date, _to dat
 
 -- tenants.is_demo (Fermi B13): the demo store is never charged, never sends.
 ALTER TABLE public.tenants ADD COLUMN is_demo boolean NOT NULL DEFAULT false;
+-- tenants.is_prospect: a store built for a lead pays no month (paid_plan_months).
+ALTER TABLE public.tenants ADD COLUMN is_prospect boolean NOT NULL DEFAULT false;

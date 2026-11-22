@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
-import { formatCount, formatIQD } from "@/lib/format";
+import { formatCount, formatIQD, formatMonth } from "@/lib/format";
 import { useLeadAnalytics } from "@/hooks/use-lead-analytics";
 import { LoadError } from "@/components/shared/load-error";
 import {
@@ -223,7 +223,7 @@ function AnalyticsDashboard({
 
               return (
                 <div key={platform} className="flex items-center gap-3">
-                  <span className="text-xs font-medium text-[var(--muted)] w-20 truncate text-right">
+                  <span className="text-xs font-medium text-[var(--muted)] w-20 truncate text-right" title={label}>
                     {label}
                   </span>
                   <div className="flex-1 h-6 rounded-md bg-[var(--card-border)] overflow-hidden relative">
@@ -337,7 +337,7 @@ function AnalyticsDashboard({
 
               return (
                 <div key={entry.industry_name} className="flex items-center gap-3">
-                  <span className="text-xs font-medium text-[var(--muted)] w-32 truncate text-right">
+                  <span className="text-xs font-medium text-[var(--muted)] w-32 truncate text-right" title={entry.industry_name}>
                     {entry.industry_name}
                   </span>
                   <div className="flex-1 h-6 rounded-md bg-[var(--card-border)] overflow-hidden relative">
@@ -409,8 +409,8 @@ function AnalyticsDashboard({
                     title={`Converted: ${month.converted}`}
                   />
                 </div>
-                <span className="text-xs text-[var(--muted)] font-medium mt-1 truncate w-full text-center">
-                  {formatMonth(month.month)}
+                <span className="text-xs text-[var(--muted)] font-medium mt-1 truncate w-full text-center" title={formatMonth(month.month)}>
+                  {formatMonth(month.month, false)}
                 </span>
               </div>
             ))}
@@ -452,9 +452,8 @@ function AnalyticsDashboard({
               </tr>
             </thead>
             <tbody>
-              {data.top_employees
-                .sort((a, b) => b.leads_converted - a.leads_converted)
-                .map((emp, idx) => (
+              {/* In the server's order: most made shops, then most leads added. */}
+              {data.top_employees.map((emp, idx) => (
                   <tr
                     key={emp.user_id}
                     className="border-b border-[var(--card-border)] last:border-0 hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors"
@@ -512,11 +511,3 @@ function AnalyticsDashboard({
 
 // ── Helpers ───────────────────────────────────────────────────────────
 
-const MONTH = new Intl.DateTimeFormat("en", { month: "short", timeZone: "UTC" });
-
-/** "2026-11" -> "Nov". The month is a calendar month, not an instant: read and named in UTC, it cannot shift. */
-function formatMonth(monthStr: string): string {
-  const [year, month] = monthStr.split("-").map(Number);
-  if (!year || !month) return monthStr;
-  return MONTH.format(Date.UTC(year, month - 1, 1));
-}

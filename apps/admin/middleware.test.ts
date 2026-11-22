@@ -13,7 +13,11 @@ import { NO_CONSOLE_ACCESS, SIGNED_OUT, SIGN_IN_ENDED, isNoConsoleAccess } from 
 type GetUser = { data: { user: { id: string } | null }; error: unknown };
 type Claims = Record<string, unknown>;
 type GetClaims = { data: { claims: Claims } | null; error: unknown };
-type AdminRead = { data: { admin_role: string; is_active: boolean } | null; error: { message: string } | null };
+type AdminRead = {
+  data: { admin_role: string; is_active: boolean } | null;
+  error: { message: string; code?: string } | null;
+  status?: number;
+};
 
 let getUser: GetUser;
 /** What the local check of the session's own token answers. */
@@ -167,7 +171,24 @@ describe("middleware access check", () => {
 
     expect(errors.mock.calls).toEqual([
       ["[middleware] Access check failed", { stage: "staff row", path: "/api/leads", message: "connection lost" }],
-      ["[middleware] Access check failed", { stage: "sign-in", path: "/merchants", message: "fetch failed" }],
+      ["[middleware] Access check failed", { stage: "sign-in", path: "/merchants", status: 0, message: "fetch failed" }],
+    ]);
+  });
+
+  // Round 19 (SCHENIDERS-1N): the database answered 500 with an empty body,
+  // and the event said only `"message": ""`.
+  it("reports the answer's status and the error's code, even with an empty message", async () => {
+    adminRead = { data: null, error: { message: "", code: "PGRST002" }, status: 503 };
+    await call("/merchants");
+    getUser = { data: { user: null }, error: new AuthApiError("server error", 500, "unexpected_failure") };
+    await call("/api/leads");
+
+    expect(errors.mock.calls).toEqual([
+      ["[middleware] Access check failed", { stage: "staff row", path: "/merchants", status: 503, code: "PGRST002", message: "" }],
+      [
+        "[middleware] Access check failed",
+        { stage: "sign-in", path: "/api/leads", status: 500, code: "unexpected_failure", message: "server error" },
+      ],
     ]);
   });
 
@@ -295,6 +316,23 @@ describe("the page staff asked for", () => {
   it("sends a signed-in admin from the login page Home, without the login page's reason", async () => {
     expect(await location("/login?error=expired")).toBe("https://console.test/");
     expect(await location("/login?next=%2F%2Fexample.com")).toBe("https://console.test/");
+  });
+
+  it("treats only the login page itself as the login page, not an address named like it", async () => {
+    // Round 17 (Workflow new 1): signed out, /login/help was let through as
+    // the login page. It drew the not-found page, whose shell read got a 401
+    // and reloaded it, about 1.4 times a second for as long as it was open.
+    signedOut();
+    expect(await location("/loginx")).toBe("https://console.test/login");
+    expect(await location("/login/help")).toBe("https://console.test/login");
+    expect(await location("/login-help?x=1")).toBe("https://console.test/login");
+    expect((await call("/login")).status).toBe(200);
+    expect(await location("/login")).toBeNull();
+  });
+
+  it("lets a signed-in admin reach the not-found page of an address named like the login page", async () => {
+    expect((await call("/login/help")).status).toBe(200);
+    expect(await location("/login/help")).toBeNull();
   });
 
   it("never sends a signed-in admin to another site through a dot segment", async () => {

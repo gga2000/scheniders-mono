@@ -17,6 +17,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { EASE_CHROME, STAGGER_CHILDREN } from "@/lib/animation-constants";
+import { formatCount } from "@/lib/format";
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -211,7 +212,7 @@ export function LeadConvertDialog({ isOpen, onClose, lead }: LeadConvertDialogPr
                       <div className="rounded-xl border border-[var(--card-border)] bg-[var(--foreground)]/[0.02] p-4">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
-                            <h3 className="font-bold text-[var(--foreground)] text-base truncate name-dir">
+                            <h3 className="font-bold text-[var(--foreground)] text-base truncate name-dir" title={lead.merchant_name}>
                               {lead.merchant_name}
                             </h3>
                             <div className="flex items-center gap-2 mt-1.5 flex-wrap">
@@ -239,7 +240,7 @@ export function LeadConvertDialog({ isOpen, onClose, lead }: LeadConvertDialogPr
                               ~<strong className="text-[var(--foreground)]">{lead.estimated_daily_orders}</strong> orders/day
                             </span>
                             <span>
-                              ~<strong className="text-[var(--foreground)]">{lead.follower_count.toLocaleString()}</strong> followers
+                              ~<strong className="text-[var(--foreground)]">{formatCount(lead.follower_count)}</strong> followers
                             </span>
                           </div>
                         )}

@@ -19,7 +19,7 @@ import {
   Building2,
   Mail,
 } from "lucide-react";
-import { formatDay, formatWhen } from "@/lib/format";
+import { formatCount, formatDay, formatWhen } from "@/lib/format";
 import { storeAddress } from "@scheniders/shared/store-address";
 
 // ── Helpers ────────────────────────────────────────────────────────────
@@ -35,8 +35,6 @@ export function stalenessColor(dateStr: string | null | undefined): string {
   if (days <= 7) return "#F59E0B"; // amber
   return "#EF4444"; // red
 }
-
-export const fmt = (n: number) => n.toLocaleString();
 
 // ── Score Breakdown Keys ───────────────────────────────────────────────
 
@@ -82,7 +80,7 @@ export function OverviewContent({ lead }: { lead: Lead }) {
                 className="flex items-center gap-1 text-sm font-medium text-[var(--primary)] hover:underline truncate max-w-[200px]"
               >
                 <Globe className="w-3.5 h-3.5 shrink-0" />
-                <span className="truncate">{lead.website_url.replace(/^https?:\/\//, "")}</span>
+                <span className="truncate" title={lead.website_url.replace(/^https?:\/\//, "")}>{lead.website_url.replace(/^https?:\/\//, "")}</span>
               </a>
             </div>
           )}
@@ -94,7 +92,7 @@ export function OverviewContent({ lead }: { lead: Lead }) {
                 className="flex items-center gap-1 text-sm font-medium text-[var(--foreground)] hover:text-[var(--primary)] transition-colors truncate max-w-[200px]"
               >
                 <Mail className="w-3.5 h-3.5 shrink-0" />
-                <span className="truncate">{lead.email}</span>
+                <span className="truncate" title={lead.email}>{lead.email}</span>
               </a>
             </div>
           )}
@@ -230,19 +228,19 @@ export function OverviewContent({ lead }: { lead: Lead }) {
         <div className="grid grid-cols-2 gap-4">
           <div>
             <span className="text-xs text-[var(--muted)] block">Avg Views</span>
-            <span className="text-lg font-bold text-[var(--foreground)]">{fmt(lead.avg_view_count)}</span>
+            <span className="text-lg font-bold text-[var(--foreground)]">{formatCount(lead.avg_view_count)}</span>
           </div>
           <div>
             <span className="text-xs text-[var(--muted)] block">Avg Likes</span>
-            <span className="text-lg font-bold text-[var(--foreground)]">{fmt(lead.avg_like_count)}</span>
+            <span className="text-lg font-bold text-[var(--foreground)]">{formatCount(lead.avg_like_count)}</span>
           </div>
           <div>
             <span className="text-xs text-[var(--muted)] block">Avg Comments</span>
-            <span className="text-lg font-bold text-[var(--foreground)]">{fmt(lead.avg_comments_count)}</span>
+            <span className="text-lg font-bold text-[var(--foreground)]">{formatCount(lead.avg_comments_count)}</span>
           </div>
           <div>
             <span className="text-xs text-[var(--muted)] block">Avg Orders / Day</span>
-            <span className="text-lg font-bold text-[var(--foreground)]">{fmt(lead.avg_order_count)}</span>
+            <span className="text-lg font-bold text-[var(--foreground)]">{formatCount(lead.avg_order_count)}</span>
           </div>
         </div>
       </div>
@@ -291,7 +289,7 @@ export function OverviewContent({ lead }: { lead: Lead }) {
           {lead.source_referrer && (
             <div className="flex items-center justify-between">
               <span className="text-xs text-[var(--muted)]">Referrer</span>
-              <span className="text-sm font-medium text-[var(--foreground)] truncate max-w-[200px]">{lead.source_referrer}</span>
+              <span className="text-sm font-medium text-[var(--foreground)] truncate max-w-[200px]" title={lead.source_referrer}>{lead.source_referrer}</span>
             </div>
           )}
           {!lead.source_campaign && !lead.source_medium && !lead.source_referrer && (
@@ -393,7 +391,7 @@ export function SocialContent({
             </div>
             <div className="flex items-center justify-between">
               <span className="text-xs text-[var(--muted)]">
-                {fmt(link.follower_count)} followers
+                {formatCount(link.follower_count)} followers
               </span>
               <a
                 href={link.url}

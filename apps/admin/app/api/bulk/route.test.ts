@@ -181,9 +181,12 @@ describe("POST /api/bulk top_up", () => {
     },
   );
 
-  it.each([null, "", "not-a-uuid"])("refuses a top-up without a valid request id (%s)", async (requestId) => {
+  it.each([null, "", "not-a-uuid"])("refuses a top-up without a valid request id (%s), asking the page to reload", async (requestId) => {
     const res = await POST(topUp(10_000, [T1, T2], requestId));
     expect(res.status).toBe(400);
+    // Round 19 (structure new 5): the top-up said "params.request_id is
+    // required and must be a UUID" where every other money form says reload.
+    expect((await res.json()).error).toBe("This page is out of date. Reload it and try again");
     expect(rpc).not.toHaveBeenCalled();
   });
 
@@ -259,7 +262,7 @@ describe("POST /api/bulk extend_trial", () => {
     expect(res.status).toBe(409);
     expect(body.success).toBe(false);
     expect(body.succeeded).toEqual([{ tenant_id: T1, trial_ends_at: "2026-12-01T00:00:00+00:00" }]);
-    expect(body.failed).toEqual([{ tenant_id: T2, name: "Najaf Gifts", error: "Tenant is not on a trial plan" }]);
+    expect(body.failed).toEqual([{ tenant_id: T2, name: "Najaf Gifts", error: "This shop is no longer on trial. Reload the page to see it" }]);
   });
 
   it("reports a database error for one shop as a failure and still tries the rest", async () => {
@@ -328,7 +331,7 @@ describe("POST /api/bulk suspend, reactivate, change_plan", () => {
   it.each([
     ["suspend", undefined, { _status: "suspended", _plan: null }],
     ["reactivate", undefined, { _status: "active", _plan: null }],
-    ["change_plan", { plan: "internal" }, { _status: null, _plan: "internal" }],
+    ["change_plan", { plan: "internal", reason: " Our own test shops " }, { _status: null, _plan: "internal", _reason: "Our own test shops" }],
   ])("%s asks the database once per shop, with the acting admin, never a table write", async (action, params, asked) => {
     rpc.mockResolvedValueOnce(shop(T1)).mockResolvedValueOnce(shop(T2));
     const res = await POST(req({ action, tenant_ids: [T1, T2], params }));
@@ -389,7 +392,16 @@ describe("POST /api/bulk suspend, reactivate, change_plan", () => {
     expect(body.succeeded).toEqual([{ tenant_id: T2, status: "suspended", plan: "starter" }]);
   });
 
-  it.each([undefined, {}, { plan: "gold" }, { plan: 7 }])("change_plan refuses params %j before the database", async (params) => {
+  it.each([
+    undefined,
+    {},
+    { plan: "gold", reason: "Moving them" },
+    { plan: 7, reason: "Moving them" },
+    // Round 19: a plan decides what each shop pays, so bulk asks why, as one shop does.
+    { plan: "starter" },
+    { plan: "starter", reason: "..." },
+    { plan: "starter", reason: " ok " },
+  ])("change_plan refuses params %j before the database", async (params) => {
     const res = await POST(req({ action: "change_plan", tenant_ids: [T1], params }));
 
     expect(res.status).toBe(400);

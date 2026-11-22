@@ -24,18 +24,16 @@ import { shopStatusLine } from "@/lib/shop-status";
 import { ShopStatus } from "@/components/merchants/detail/shop-status";
 import { isSubscriptionRunning, reactivateComeback, shopFormFrom } from "@/lib/shop-actions";
 import { trialPayment } from "@/lib/shop-status-choice";
-import { PLAN_LABELS, PLAN_TIERS, type TenantRestrictions } from "@/types/admin";
+import { planLabel, type TenantRestrictions } from "@/types/admin";
 import { CopyableText } from "@/components/shared/copyable-text";
 import { LoadError } from "@/components/shared/load-error";
 import { loadFailureKind } from "@/lib/load-failure";
 import { inkOn } from "@/lib/ink-on";
 import { usePageHeader } from "@/store/use-page-header";
 
-/** "Starter plan", or "Growth plan" from the plan's own word for a plan this console does not sell. */
-function planLabel(plan: string): string {
-  const tier = PLAN_TIERS.find((t) => t === plan);
-  if (tier) return tier === "internal" ? PLAN_LABELS.internal : `${PLAN_LABELS[tier]} plan`;
-  return `${plan.charAt(0).toUpperCase()}${plan.slice(1)} plan`;
+/** "Start plan" or "Team plan", in the product's plan names; our own shops read "Internal (no billing)". */
+function planLine(plan: string): string {
+  return plan === "internal" ? planLabel(plan) : `${planLabel(plan)} plan`;
 }
 
 const tabs = ["Overview", "Timeline", "Usage", "Team", "Onboarding"] as const;
@@ -193,22 +191,29 @@ export default function MerchantDetailPage() {
           </div>
         </div>
         <div className="mt-4 border-t border-[var(--card-border)] pt-4">
-          <ShopStatus line={shopStatusLine(data)} planLabel={planLabel(tenant.plan)} />
+          <ShopStatus line={shopStatusLine(data)} planLabel={planLine(tenant.plan)} />
         </div>
       </div>
 
       <ShopActions
         shopId={tenant.id}
+        shopName={tenant.business_name}
         facts={{
           status: tenant.status,
           locked: !!data.billingLock?.locked,
           subscriptionRunning: isSubscriptionRunning(subscription?.status),
           demo: tenant.is_demo,
+          prospect: tenant.is_prospect === true,
         }}
         plan={tenant.plan}
         balance={wallet?.balance_iqd ?? 0}
         freeDaysFrom={tenant.status === "trial" ? tenant.trial_ends_at : (subscription?.current_period_end ?? null)}
-        comeback={reactivateComeback(trialPayment(subscription, tenant.trial_ends_at) === "never_paid", subscription?.status, tenant.plan)}
+        comeback={reactivateComeback(
+          trialPayment(subscription, tenant.trial_ends_at) === "never_paid",
+          subscription?.status,
+          tenant.plan,
+          subscription?.auto_renew === false && !tenant.is_demo,
+        )}
         trialEndsAt={tenant.trial_ends_at}
         onGiveOrders={() => {
           setActiveTab("Overview");

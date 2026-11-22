@@ -2,8 +2,43 @@
 
 import { useMemo } from "react";
 import { cn } from "@/lib/utils";
-import { Trophy, Lock } from "lucide-react";
-import { ACHIEVEMENTS, type AdminEmployee } from "@/types/leads";
+import {
+  Award,
+  Bell,
+  Building2,
+  Crosshair,
+  Crown,
+  Flame,
+  Lock,
+  Rocket,
+  Store,
+  Target,
+  Trophy,
+  Users,
+  Zap,
+  type LucideIcon,
+} from "lucide-react";
+import { ACHIEVEMENTS, type AchievementIcon, type AdminEmployee } from "@/types/leads";
+
+/*
+ * Round 17 (C-06): the wall drew each achievement as an emoji (a trophy, a
+ * rocket, a crown), where the console uses icons only. Each achievement now
+ * shows the Lucide icon its definition names, in ink; its colour stays on the tile.
+ */
+const ACHIEVEMENT_ICONS: Record<AchievementIcon, LucideIcon> = {
+  Target,
+  Crosshair,
+  Zap,
+  Trophy,
+  Award,
+  Store,
+  Building2,
+  Flame,
+  Rocket,
+  Bell,
+  Crown,
+  Users,
+};
 
 interface TeamAchievementWallProps {
   employees: AdminEmployee[];
@@ -51,6 +86,7 @@ export function TeamAchievementWall({ employees }: TeamAchievementWallProps) {
         {ACHIEVEMENTS.map((ach) => {
           const unlockers = achievementMap[ach.key];
           const unlocked = unlockers.length > 0;
+          const Icon = ACHIEVEMENT_ICONS[ach.icon];
 
           return (
             <div
@@ -78,38 +114,7 @@ export function TeamAchievementWall({ employees }: TeamAchievementWallProps) {
                 }}
               >
                 {unlocked ? (
-                  <span
-                    className="text-xl"
-                    style={{ color: ach.color }}
-                    role="img"
-                    aria-label={ach.name}
-                  >
-                    {ach.icon === "Target"
-                      ? "\u25CE"
-                      : ach.icon === "Crosshair"
-                        ? "\u2316"
-                        : ach.icon === "Zap"
-                          ? "\u26A1"
-                          : ach.icon === "Trophy"
-                            ? "\uD83C\uDFC6"
-                            : ach.icon === "Award"
-                              ? "\uD83C\uDFC5"
-                              : ach.icon === "Store"
-                                ? "\uD83C\uDFEA"
-                                : ach.icon === "Building2"
-                                  ? "\uD83C\uDFD7"
-                                  : ach.icon === "Flame"
-                                    ? "\uD83D\uDD25"
-                                    : ach.icon === "Rocket"
-                                      ? "\uD83D\uDE80"
-                                      : ach.icon === "Bell"
-                                        ? "\uD83D\uDD14"
-                                        : ach.icon === "Crown"
-                                          ? "\uD83D\uDC51"
-                                          : ach.icon === "Users"
-                                            ? "\uD83D\uDC65"
-                                            : "\u2B50"}
-                  </span>
+                  <Icon className="w-5 h-5 text-foreground" role="img" aria-label={ach.name} />
                 ) : (
                   <Lock className="w-5 h-5 text-foreground/70" />
                 )}

@@ -47,14 +47,17 @@ export function LeadMobileRow({ lead, onStatusTap, onResumeDraft }: LeadMobileRo
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
-          <span className="truncate name-dir font-semibold text-[var(--foreground)]">{lead.merchant_name}</span>
+          <span className="truncate name-dir font-semibold text-[var(--foreground)]" title={lead.merchant_name}>{lead.merchant_name}</span>
           {lead.is_draft && (
             <span className="inline-flex shrink-0 items-center gap-0.5 rounded-md bg-amber-500/15 px-1.5 py-0.5 text-xs font-bold uppercase tracking-wider text-[var(--ink-amber)]">
               <Pencil className="h-2.5 w-2.5" /> Draft
             </span>
           )}
         </div>
-        <div className="mt-0.5 truncate text-xs text-[var(--muted)]">
+        <div
+          className="mt-0.5 truncate text-xs text-[var(--muted)]"
+          title={`${platform.label} · ${compactFollowers(lead.follower_count)} · ${tier.label}`}
+        >
           <span style={{ color: platform.color }}>{platform.label}</span>
           {" · "}{compactFollowers(lead.follower_count)}
           {" · "}<span style={{ color: LEAD_TIER_UI[lead.tier].solid }}>{tier.label}</span>

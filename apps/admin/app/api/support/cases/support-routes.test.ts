@@ -790,7 +790,7 @@ describe("support first-week calls", () => {
     expect(dbCalls).toHaveLength(0);
   });
 
-  it("records the call as the signed-in admin, whatever the body claims, and logs it", async () => {
+  it("records the call as the signed-in admin, whatever the body claims, with who did it", async () => {
     dbQueue.push(
       { data: { display_name: "Noor", email: null }, error: null },
       { data: { task_id: TASK_ID, tenant_id: TENANT }, error: null },
@@ -799,14 +799,17 @@ describe("support first-week calls", () => {
     expect(res.status).toBe(200);
     expect(rpcCall()?.args).toEqual([
       "support_task_log",
-      { p_task_id: TASK_ID, p_admin_id: SUPPORT_ID, p_admin_name: "Noor", p_outcome: "no_answer", p_note: "رن ولا جواب" },
+      {
+        p_task_id: TASK_ID,
+        p_admin_id: SUPPORT_ID,
+        p_admin_name: "Noor",
+        p_outcome: "no_answer",
+        p_note: "رن ولا جواب",
+        p_actor_email: "agent@example.com",
+      },
     ]);
-    expect(dbCalls.find((c) => c.method === "insert")?.args[0]).toMatchObject({
-      admin_user_id: SUPPORT_ID,
-      tenant_id: TENANT,
-      action: "support_task_logged",
-      details: { task_id: TASK_ID, outcome: "no_answer" },
-    });
+    // The database writes the activity row with the call; the route writes none.
+    expect(dbCalls.some((c) => c.method === "insert")).toBe(false);
   });
 
   it.each([
@@ -845,7 +848,7 @@ describe("support shop call with no task", () => {
     expect(dbCalls).toHaveLength(0);
   });
 
-  it("records the call as the signed-in admin, whatever the body claims, and logs it like a task call", async () => {
+  it("records the call as the signed-in admin, whatever the body claims, with who did it", async () => {
     const logged = { call_id: CALL_ID, tenant_id: TENANT, outcome: "no_answer", created_at: "2026-11-19T10:00:00+00:00" };
     dbQueue.push(
       { data: { display_name: "Noor", email: null }, error: null },
@@ -856,14 +859,17 @@ describe("support shop call with no task", () => {
     expect(await res.json()).toEqual({ success: true, call: logged });
     expect(rpcCall()?.args).toEqual([
       "support_log_shop_call",
-      { p_tenant_id: TENANT, p_admin_id: SUPPORT_ID, p_admin_name: "Noor", p_outcome: "no_answer", p_note: "التجربة تخلص باچر" },
+      {
+        p_tenant_id: TENANT,
+        p_admin_id: SUPPORT_ID,
+        p_admin_name: "Noor",
+        p_outcome: "no_answer",
+        p_note: "التجربة تخلص باچر",
+        p_actor_email: "agent@example.com",
+      },
     ]);
-    expect(dbCalls.find((c) => c.method === "insert")?.args[0]).toMatchObject({
-      admin_user_id: SUPPORT_ID,
-      tenant_id: TENANT,
-      action: "support_task_logged",
-      details: { task_id: null, call_id: CALL_ID, outcome: "no_answer" },
-    });
+    // The database writes the activity row with the call; the route writes none.
+    expect(dbCalls.some((c) => c.method === "insert")).toBe(false);
   });
 
   it.each([

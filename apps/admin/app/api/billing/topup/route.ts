@@ -2,15 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdminPermission } from "@/lib/api-auth";
 import { logAdminActivity } from "@/lib/activity-logger";
-import { staffReasonSchema } from "@/lib/staff-reason";
-import { topUpWallet, topupAmountSchema, topupRequestIdSchema } from "@/lib/wallet-topup";
+import { staffReasonSchema, staffRequestIdSchema } from "@/lib/staff-reason";
+import { topUpWallet, topupAmountSchema } from "@/lib/wallet-topup";
 
 const topupSchema = z.object({
   tenant_id: z.string().uuid(),
   amount: topupAmountSchema,
   // Why the money is added. It goes on the wallet line and in the staff log.
   description: staffReasonSchema,
-  request_id: topupRequestIdSchema,
+  // Made once by the browser for one top-up and sent again on a retry, so a
+  // double click or a lost answer credits the wallet once.
+  request_id: staffRequestIdSchema,
 });
 
 export async function POST(request: NextRequest) {

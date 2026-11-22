@@ -286,7 +286,7 @@ export function LeadsTable({
       >
         <span className="flex items-center gap-1.5">
           {isEditing && reorder && <GripVertical className="h-3 w-3 shrink-0 opacity-50" />}
-          <span className="truncate">{def.label}</span>
+          <span className="truncate" title={def.label}>{def.label}</span>
         </span>
         {isEditing && reorder && dropTarget?.id === col.id && (
           <span

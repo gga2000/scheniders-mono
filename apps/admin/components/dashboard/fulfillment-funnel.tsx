@@ -3,6 +3,7 @@
 import { Filter } from "lucide-react";
 import type { FunnelStep } from "@/types/dashboard";
 import { uiHue } from "@/types/leads";
+import { formatCount } from "@/lib/format";
 
 interface FulfillmentFunnelProps {
   funnel: FunnelStep[] | undefined;
@@ -67,7 +68,7 @@ export function FulfillmentFunnel({ funnel }: FulfillmentFunnelProps) {
                     {step.label}
                   </span>
                   <span className="text-sm font-bold text-foreground">
-                    {step.count.toLocaleString()}
+                    {formatCount(step.count)}
                   </span>
                 </div>
 

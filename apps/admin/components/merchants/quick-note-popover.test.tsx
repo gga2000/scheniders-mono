@@ -1,10 +1,12 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createElement } from "react";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-vi.mock("@/hooks/use-admin-users", () => ({ useAdminUsers: () => ({ data: [] }) }));
+vi.mock("@/hooks/use-admin-users", () => ({
+  useAdminUsers: () => ({ data: [{ id: "u1", display_name: "Noor", role: "support" }] }),
+}));
 vi.mock("@/lib/admin-fetch", () => ({
   adminFetch: async () => new Response(JSON.stringify({ notes: [] }), { status: 200 }),
 }));
@@ -14,6 +16,8 @@ import { QuickNotePopover } from "./quick-note-popover";
 /*
  * Round 16 (R15 Workflow new 1): when a sign-in ended, the console reloaded
  * the page and a quick note being written was gone. Leaving now asks first.
+ * Round 17 (Craft new 6): the note opened inside the card and, on the first
+ * card at 1280, ran under the menu. It is now drawn over the page.
  */
 function leaving(): boolean {
   const event = new Event("beforeunload", { cancelable: true });
@@ -21,19 +25,66 @@ function leaving(): boolean {
   return event.defaultPrevented;
 }
 
+function open() {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const view = render(createElement(QueryClientProvider, { client }, createElement(QuickNotePopover, { merchantId: "m1" })));
+  fireEvent.click(screen.getByLabelText("Quick note"));
+  return view;
+}
+
+const box = () => screen.getByPlaceholderText("Add a quick note... @ to mention");
+
+/** The pop-up listens for a press outside only after the press that opened it. */
+const settle = () => act(() => new Promise((resolve) => setTimeout(resolve, 0)));
+
 afterEach(cleanup);
 
 describe("QuickNotePopover: a quick note being written", () => {
-  it("asks before the page is left, and lets it go once the note is closed", () => {
-    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    render(createElement(QueryClientProvider, { client }, createElement(QuickNotePopover, { merchantId: "m1" })));
-    fireEvent.click(screen.getByLabelText("Quick note"));
+  it("asks before the page is left while a draft is kept, the box open or closed", async () => {
+    // Round 18: closing the box keeps the draft, but leaving then asked nothing.
+    open();
     expect(leaving()).toBe(false);
 
-    fireEvent.change(screen.getByPlaceholderText("Add a quick note... @ to mention"), { target: { value: "Owner is travelling" } });
+    fireEvent.change(box(), { target: { value: "Owner is travelling" } });
     expect(leaving()).toBe(true);
 
-    fireEvent.mouseDown(document.body);
+    await settle();
+    fireEvent.pointerDown(document.body);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(leaving()).toBe(true);
+
+    fireEvent.click(screen.getByLabelText("Quick note"));
+    fireEvent.change(box(), { target: { value: "  " } });
     expect(leaving()).toBe(false);
+  });
+
+  it("names its Send button, and the button sends no form", () => {
+    open();
+    const send = screen.getByRole("button", { name: "Send note" });
+    expect(send.getAttribute("type")).toBe("button");
+  });
+
+  it("is drawn over the page, so the card and the menu cannot cut it", () => {
+    const { container } = open();
+    const dialog = screen.getByRole("dialog", { name: "Quick note" });
+    expect(container.contains(dialog)).toBe(false);
+    expect(document.body.contains(dialog)).toBe(true);
+  });
+
+  it("Escape in the @ list closes the list only; a second Escape closes the note and keeps its words", async () => {
+    open();
+    fireEvent.change(box(), { target: { value: "Ask @No" } });
+    expect(screen.getByRole("button", { name: /Noor/ })).toBeTruthy();
+
+    fireEvent.keyDown(box(), { key: "Escape" });
+    expect(screen.queryByRole("button", { name: /Noor/ })).toBeNull();
+    expect(screen.getByRole("dialog", { name: "Quick note" })).toBeTruthy();
+
+    fireEvent.keyDown(box(), { key: "Escape" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+
+    fireEvent.click(screen.getByLabelText("Quick note"));
+    await settle();
+    expect((box() as HTMLTextAreaElement).value).toBe("Ask @No");
   });
 });

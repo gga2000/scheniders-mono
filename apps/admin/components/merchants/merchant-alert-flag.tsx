@@ -168,7 +168,7 @@ export function MerchantAlertFlag({ merchant }: MerchantAlertFlagProps) {
             <div className="min-w-0 flex-1">
               <p
                 className={cn(
-                  "text-[10px] font-black uppercase tracking-wider",
+                  "text-xs font-black",
                   isCritical
                     ? "text-rose-700 dark:text-rose-300"
                     : "text-amber-700 dark:text-amber-300"
@@ -180,7 +180,7 @@ export function MerchantAlertFlag({ merchant }: MerchantAlertFlagProps) {
                 {alert.detail}
               </p>
               {alert.age !== null && isCritical && alert.age >= 7 && (
-                <p className="text-[10px] text-foreground/50 font-medium mt-1.5">
+                <p className="text-xs text-foreground/70 font-medium mt-1.5">
                   Action needed
                 </p>
               )}

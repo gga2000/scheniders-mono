@@ -153,7 +153,7 @@ export function SmartAlertRules({ merchants, total }: SmartAlertRulesProps) {
             ruleId: rule.id,
             merchantId: m.id,
             merchantName: m.business_name,
-            message: `${fieldInfo.label} is ${val.toLocaleString()} ${fieldInfo.unit} (${opInfo.symbol} ${rule.value.toLocaleString()})`,
+            message: `${fieldInfo.label} is ${formatCount(val)} ${fieldInfo.unit} (${opInfo.symbol} ${formatCount(rule.value)})`,
           });
         }
       }
@@ -192,13 +192,13 @@ export function SmartAlertRules({ merchants, total }: SmartAlertRulesProps) {
       {/* Trigger button */}
       <button
         onClick={() => setIsOpen(true)}
-        className="relative p-1.5 rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] text-foreground/40 hover:text-foreground/70 transition-all"
+        className="relative p-1.5 rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] text-foreground/70 hover:text-foreground/70 transition-all"
         title="Smart alert rules"
         aria-label="Smart alert rules"
       >
         <Bell className="w-3.5 h-3.5" />
         {alertCount > 0 && (
-          <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white text-[8px] font-bold flex items-center justify-center">
+          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 leading-none rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center">
             {alertCount > 99 ? "99+" : alertCount}
           </span>
         )}
@@ -224,14 +224,14 @@ export function SmartAlertRules({ merchants, total }: SmartAlertRulesProps) {
                   <Settings className="w-4 h-4 text-foreground/50" />
                   <h2 className="text-sm font-bold text-foreground">Smart Alert Rules</h2>
                   {alertCount > 0 && (
-                    <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700 dark:bg-red-400/15 dark:text-red-400">
+                    <span className="px-1.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-700 dark:bg-red-400/15 dark:text-red-400">
                       {alertCount} triggered
                     </span>
                   )}
                 </div>
                 <button
                   onClick={() => setIsOpen(false)}
-                  className="p-1.5 rounded-lg text-foreground/40 hover:text-foreground hover:bg-foreground/5 transition-colors"
+                  className="p-1.5 rounded-lg text-foreground/70 hover:text-foreground hover:bg-foreground/5 transition-colors"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -240,7 +240,7 @@ export function SmartAlertRules({ merchants, total }: SmartAlertRulesProps) {
               {/* Body */}
               <div className="flex-1 overflow-y-auto p-5 space-y-4">
                 {merchants.length < total && (
-                  <p className="text-[13px] text-foreground/60">
+                  <p className="text-[13px] text-foreground/70">
                     Checked against the {formatCount(merchants.length)} shops loaded so far, of {formatCount(total)}.
                     Scroll the list to check more.
                   </p>
@@ -248,7 +248,7 @@ export function SmartAlertRules({ merchants, total }: SmartAlertRulesProps) {
                 {rules.length === 0 ? (
                   <div className="text-center py-8">
                     <AlertTriangle className="w-8 h-8 text-foreground/20 mx-auto mb-3" />
-                    <p className="text-sm text-foreground/40 mb-3">No alert rules configured</p>
+                    <p className="text-sm text-foreground/70 mb-3">No alert rules configured</p>
                     <button
                       onClick={addPresets}
                       className="px-4 py-2 rounded-xl text-xs font-semibold bg-foreground text-background hover:opacity-90 transition-all"
@@ -277,18 +277,18 @@ export function SmartAlertRules({ merchants, total }: SmartAlertRulesProps) {
                               onChange={(e) => updateRule(rule.id, { enabled: e.target.checked })}
                               className="w-3.5 h-3.5 rounded border-[var(--card-border)] accent-[#1E1E1E]"
                             />
-                            <span className="text-[10px] font-semibold text-foreground/50 uppercase tracking-wider">
+                            <span className="text-xs font-semibold text-foreground/70">
                               {rule.enabled ? "Active" : "Paused"}
                             </span>
                           </label>
                           {matchCount > 0 && (
-                            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-100 text-red-700 dark:bg-red-400/15 dark:text-red-400">
+                            <span className="px-1.5 py-0.5 rounded text-xs font-bold bg-red-100 text-red-700 dark:bg-red-400/15 dark:text-red-400">
                               {matchCount} match{matchCount !== 1 ? "es" : ""}
                             </span>
                           )}
                           <button
                             onClick={() => removeRule(rule.id)}
-                            className="p-1 rounded text-foreground/30 hover:text-red-500 transition-colors"
+                            className="p-1 rounded text-foreground/70 hover:text-red-500 transition-colors"
                             aria-label="Remove rule"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -296,7 +296,7 @@ export function SmartAlertRules({ merchants, total }: SmartAlertRulesProps) {
                         </div>
 
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-xs text-foreground/50">When</span>
+                          <span className="text-xs text-foreground/70">When</span>
                           <select
                             value={rule.field}
                             onChange={(e) => updateRule(rule.id, { field: e.target.value as RuleField })}
@@ -306,7 +306,7 @@ export function SmartAlertRules({ merchants, total }: SmartAlertRulesProps) {
                               <option key={f.value} value={f.value}>{f.label}</option>
                             ))}
                           </select>
-                          <span className="text-xs text-foreground/50">is</span>
+                          <span className="text-xs text-foreground/70">is</span>
                           <select
                             value={rule.operator}
                             onChange={(e) => updateRule(rule.id, { operator: e.target.value as RuleOperator })}
@@ -322,7 +322,7 @@ export function SmartAlertRules({ merchants, total }: SmartAlertRulesProps) {
                             onChange={(e) => updateRule(rule.id, { value: Number(e.target.value) })}
                             className="w-20 px-2 py-1 rounded-lg border border-[var(--card-border)] bg-[var(--background)] text-xs text-foreground text-right focus:outline-none focus:ring-1 focus:ring-foreground/10"
                           />
-                          <span className="text-[10px] text-foreground/40">
+                          <span className="text-xs text-foreground/70">
                             {FIELD_OPTIONS.find((f) => f.value === rule.field)?.unit}
                           </span>
                         </div>
@@ -334,7 +334,7 @@ export function SmartAlertRules({ merchants, total }: SmartAlertRulesProps) {
                 {/* Triggered alerts preview */}
                 {alerts.length > 0 && (
                   <div className="mt-4 pt-4 border-t border-[var(--card-border)]">
-                    <h3 className="text-[10px] font-semibold text-foreground/50 uppercase tracking-wider mb-2">
+                    <h3 className="text-xs font-semibold text-foreground/70 mb-2">
                       Triggered Alerts ({alerts.length})
                     </h3>
                     <div className="space-y-1.5 max-h-40 overflow-y-auto">
@@ -345,17 +345,17 @@ export function SmartAlertRules({ merchants, total }: SmartAlertRulesProps) {
                         >
                           <AlertTriangle className="w-3 h-3 text-red-500 shrink-0 mt-0.5" />
                           <div className="min-w-0 flex-1">
-                            <p className="text-[11px] font-medium text-foreground truncate">
+                            <p className="text-xs font-medium text-foreground truncate" title={alert.merchantName}>
                               {alert.merchantName}
                             </p>
-                            <p className="text-[10px] text-foreground/50 truncate">
+                            <p className="text-xs text-foreground/70 truncate" title={alert.message}>
                               {alert.message}
                             </p>
                           </div>
                         </div>
                       ))}
                       {alerts.length > 20 && (
-                        <p className="text-[10px] text-foreground/40 text-center">
+                        <p className="text-xs text-foreground/70 text-center">
                           +{alerts.length - 20} more alerts
                         </p>
                       )}
@@ -368,7 +368,7 @@ export function SmartAlertRules({ merchants, total }: SmartAlertRulesProps) {
               <div className="px-5 py-3 border-t border-[var(--card-border)] flex items-center justify-between">
                 <button
                   onClick={addRule}
-                  className="px-3 py-1.5 rounded-lg text-xs font-semibold text-foreground/60 hover:text-foreground border border-dashed border-[var(--card-border)] hover:border-foreground/30 transition-all flex items-center gap-1"
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold text-foreground/70 hover:text-foreground border border-dashed border-[var(--card-border)] hover:border-foreground/30 transition-all flex items-center gap-1"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   Add Rule

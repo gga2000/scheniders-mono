@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { formatCount, formatDay, formatDayTime, formatIQD, formatUntil, formatUntilDay, formatWhen } from "./format";
+import { formatCount, formatDateKey, formatDay, formatDayTime, formatIQD, formatMonth, formatUntil, formatUntilDay, formatWhen } from "./format";
 
 describe("formatIQD", () => {
   it("writes whole dinars with commas and IQD after", () => {
@@ -39,8 +39,35 @@ describe("formatDay", () => {
     expect(formatDay("2025-04-09T09:00:00Z", now)).toBe("Wed 9 Apr 2025");
   });
 
+  it("writes every month in three letters, September too", () => {
+    // en-GB wrote "Tue 1 Sept" (round 17, C-04).
+    expect(formatDay("2026-09-01T09:00:00Z", now)).toBe("Tue 1 Sep");
+    expect(formatDay("2025-09-30T09:00:00Z", now)).toBe("Tue 30 Sep 2025");
+    expect(formatDayTime("2026-09-01T09:00:00Z", now)).toBe("Tue 1 Sep, 12:00");
+  });
+
+  it("takes the year in Baghdad, not in UTC", () => {
+    // 21:30 UTC on 31 Dec is 00:30 on 1 Jan in Baghdad: this year, no year written.
+    expect(formatDay("2025-12-31T21:30:00Z", now)).toBe("Thu 1 Jan");
+  });
+
   it("adds the Baghdad time when asked", () => {
     expect(formatDayTime("2026-11-15T11:05:00Z", now)).toBe("Sun 15 Nov, 14:05");
+  });
+});
+
+describe("formatDateKey", () => {
+  it("writes a day key as a short date, with or without its year", () => {
+    expect(formatDateKey("2025-11-23")).toBe("23 Nov 2025");
+    expect(formatDateKey("2026-09-06", false)).toBe("6 Sep");
+  });
+});
+
+describe("formatMonth", () => {
+  it("writes a calendar month in three letters, with or without its year", () => {
+    expect(formatMonth("2026-11")).toBe("Nov 2026");
+    expect(formatMonth("2026-09")).toBe("Sep 2026");
+    expect(formatMonth("2027-01", false)).toBe("Jan");
   });
 });
 
@@ -139,6 +166,64 @@ describe("the console's days and times", () => {
           for (const match of text.match(pattern) ?? []) {
             found.push(`${path.relative(ADMIN_DIR, file).split(path.sep).join("/")}: ${match}`);
           }
+        }
+      }
+    }
+    expect(found).toEqual([]);
+  });
+});
+
+/*
+ * Round 17 (C-04): a bare toLocaleString() writes a number in the browser's
+ * language, so a staff member whose browser runs Arabic read "١٬٢٥٠" for
+ * followers on Leads, and German "1.250", where every other screen says
+ * "1,250". Every number goes through formatCount or formatIQD, or names its
+ * locale.
+ */
+// en-GB spells September "Sept" and every other month in three letters (round 17, C-04).
+const FOUR_LETTER_SEPTEMBER = /(?:Intl\.DateTimeFormat|toLocale(?:Date)?String)\(\s*"en-GB"[^;]*?month:\s*"short"/g;
+const BROWSER_LANGUAGE = [/\.toLocaleString\(\s*(?:undefined\s*)?[,)]/g, /Intl\.NumberFormat\(\s*(?:undefined\s*)?[,)]/g];
+
+describe("the console's numbers and months", () => {
+  it("never take the browser's language, nor en-GB's four-letter September", () => {
+    const found: string[] = [];
+    for (const dir of ["app", "components", "hooks", "lib"]) {
+      for (const file of sourceFiles(path.join(ADMIN_DIR, dir))) {
+        const text = readFileSync(file, "utf8");
+        for (const pattern of [...BROWSER_LANGUAGE, FOUR_LETTER_SEPTEMBER]) {
+          for (const match of text.match(pattern) ?? []) {
+            found.push(`${path.relative(ADMIN_DIR, file).split(path.sep).join("/")}: ${match}`);
+          }
+        }
+      }
+    }
+    expect(found).toEqual([]);
+  });
+});
+
+/*
+ * Round 18 (structure 4, data 9): a month was written "Nov 26" on Revenue
+ * (read as 26 November), "Nov 2026" on Paying and "November 2026" on
+ * WhatsApp, and the Team chart named a day "Nov 18" beside Home's "18 Nov".
+ * Each screen had built its own formatter. Months and days are written by
+ * lib/format and counted by lib/baghdad-day, and nowhere else.
+ */
+const OWN_DATE_FORMAT = /(?:Intl\.DateTimeFormat|\.toLocaleDateString)\(/g;
+// Round 19 (data 3): the guard above let two heatmaps through. Each kept its
+// own month list and printed its day key, "2026-11-18", as the day.
+const OWN_MONTH_LIST = /["']Jan["'],\s*["']Feb["']/g;
+const PRINTED_DAY_KEY = /\$\{[\w.]+\.date\}|>\s*\{[\w.]+\.date\}\s*</g;
+
+describe("the console's months and days", () => {
+  it("are written only by lib/format and lib/baghdad-day", () => {
+    const found: string[] = [];
+    for (const dir of ["app", "components", "hooks", "lib"]) {
+      for (const file of sourceFiles(path.join(ADMIN_DIR, dir))) {
+        const name = path.relative(ADMIN_DIR, file).split(path.sep).join("/");
+        if (name === "lib/format.ts" || name === "lib/baghdad-day.ts") continue;
+        const text = readFileSync(file, "utf8");
+        for (const pattern of [OWN_DATE_FORMAT, OWN_MONTH_LIST, PRINTED_DAY_KEY]) {
+          for (const match of text.match(pattern) ?? []) found.push(`${name}: ${match}`);
         }
       }
     }

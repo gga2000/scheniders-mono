@@ -10,6 +10,7 @@ import {
   type NoteRow,
   type WalletRow,
 } from "./shop-timeline";
+import { newestDefinition } from "./sql-migrations.test-data";
 
 const ALI = "aaaaaaaa-0000-4000-8000-000000000001";
 const NOOR = "aaaaaaaa-0000-4000-8000-000000000002";
@@ -81,6 +82,45 @@ describe("toTimelineEntries", () => {
     expect(entries.map((e) => [e.title, e.who, e.detail])).toEqual([["Support question solved", "Noor", null]]);
   });
 
+  // The database writes a plan charge with the plan's key: "Monthly subscription -
+  // starter plan" (round 19).
+  it("names the plan of a monthly charge and an upgrade as the merchant does", () => {
+    const entries = toTimelineEntries({
+      wallet: [
+        wallet({ id: "w1", amount_iqd: 9000, description: "Monthly subscription - starter plan", created_at: "2026-11-16T10:00:00Z" }),
+        wallet({ id: "w2", amount_iqd: 8000, description: "Plan upgrade to growth plan (rest of this month)", created_at: "2026-11-15T10:00:00Z" }),
+        wallet({ id: "w3", amount_iqd: 500, description: "Fixed by hand", created_at: "2026-11-14T10:00:00Z" }),
+      ],
+      logs: [],
+      notes: [],
+      names,
+    });
+    expect(entries.map((e) => [e.title, e.detail])).toEqual([
+      ["Charge", "Monthly plan: Start"],
+      ["Charge", "Upgrade to Team, rest of this month"],
+      ["Charge", "Fixed by hand"],
+    ]);
+  });
+
+  // The timeline reads those words back, so they must be the ones the database
+  // writes today. Built from the newest SQL for the starter plan: if a migration
+  // rewords a charge, this fails instead of the timeline showing the raw text.
+  it.each([
+    ["renew_subscription_core", "Monthly plan: Start"],
+    ["change_plan", "Upgrade to Start, rest of this month"],
+  ])("reads the charge %s writes", (fn, said) => {
+    const charge = /charge_wallet_core\(\s*[^,]+,\s*[^,]+,\s*'([^']*)'\s*\|\|\s*\w+::text\s*\|\|\s*'([^']*)'/.exec(newestDefinition(fn));
+    expect(charge, `${fn} no longer writes its charge as 'words' || plan || 'words'`).not.toBeNull();
+    const description = `${charge?.[1]}starter${charge?.[2]}`;
+    const entries = toTimelineEntries({
+      wallet: [wallet({ id: "w1", amount_iqd: 9000, description, created_at: "2026-11-16T10:00:00Z" })],
+      logs: [],
+      notes: [],
+      names,
+    });
+    expect(entries.map((e) => e.detail)).toEqual([said]);
+  });
+
   it("names the system's own steps Automatic and falls back to the email the database kept", () => {
     const entries = toTimelineEntries({
       wallet: [],
@@ -104,14 +144,29 @@ describe("changeTitle", () => {
     expect(changeTitle("extend_subscription", { days: 30 })).toBe("Gave 30 free days this month");
     expect(changeTitle("add_lock_orders", { orders: 25 })).toBe("Gave 25 more store orders");
     expect(changeTitle("force_unlock", { days: 7 })).toBe("Unlocked for 7 days, no charge");
+    expect(changeTitle("convert_trial", { days: 30, plan: "growth" })).toBe("Started 30 days of free time on the Team plan, no charge");
+    expect(changeTitle("convert_trial", { days: 365, plan: "internal" })).toBe("Started 365 days of free time on Internal (no billing), no charge");
+    expect(changeTitle("convert_trial", {})).toBe("Started free time, no charge");
     expect(changeTitle("pause_tenant", { duration_days: null })).toBe("Paused, no end date");
     expect(changeTitle("unpause_tenant", { status: "active" })).toBe("Pause lifted");
     expect(changeTitle("unpause_tenant", { status: "active", ended: true })).toBe("Pause ended on its end date");
     expect(changeTitle("status_change", { status: "active", previous_status: "suspended" })).toBe("Reactivated");
-    expect(changeTitle("plan_change", { plan: "starter" })).toBe("Moved to the Starter plan");
+    expect(changeTitle("plan_change", { plan: "starter" })).toBe("Moved to the Start plan");
+    expect(changeTitle("plan_change", { plan: "growth" })).toBe("Moved to the Team plan");
+    expect(changeTitle("plan_change", { plan: "internal" })).toBe("Moved to Internal (no billing)");
     expect(changeTitle("support_view", {})).toBe("Looked at the shop as the merchant");
     expect(changeTitle("support_view_end", {})).toBeNull();
     expect(changeTitle("something_new", null)).toBe("Something new");
+  });
+
+  // Round 19 (data new 5): every logged call read "Support task noted", with
+  // "outcome: no_answer" beside it, and a call with no task was a "task".
+  it("names a logged call by its outcome, in the Support page's words", () => {
+    const task = "7a1d0b63-8f4f-4d2b-8e3f-2b3c4d5e6f70";
+    expect(changeTitle("support_task_logged", { task_id: null, call_id: "c1", outcome: "no_answer" })).toBe("Called the shop: No answer");
+    expect(changeTitle("support_task_logged", { task_id: task, outcome: "done" })).toBe("Called the shop for a support task: Done");
+    expect(changeTitle("support_task_logged", { task_id: task, outcome: "later" })).toBe("Called the shop for a support task: Later");
+    expect(changeTitle("support_task_logged", { task_id: task })).toBe("Support task noted");
   });
 });
 

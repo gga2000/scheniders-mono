@@ -21,6 +21,7 @@ const shop = (facts: Partial<ShopFacts> = {}): ShopFacts => ({
   locked: false,
   subscriptionRunning: true,
   demo: false,
+  prospect: false,
   ...facts,
 });
 
@@ -81,6 +82,20 @@ describe("the demo store", () => {
   it("still offers what works on it", () => {
     expect(moreActions(shop({ demo: true }), as("support_staff"))).toEqual(["note"]);
   });
+
+  it("is never offered paid time with no charge, even on trial", () => {
+    expect(moreActions(shop({ demo: true, status: "trial" }), as("super_admin"))).not.toContain("convert");
+  });
+});
+
+// Round 19: a lead's pre-built store is on trial, and the convert step ("Start
+// paid time, no charge" then) was offered on it. Converted that way, the lead could no longer be
+// converted into it (convert_lead_atomic answers prospect_not_open).
+describe("a store built for a lead", () => {
+  it("is not offered paid time with no charge; the lead is converted instead", () => {
+    expect(moreActions(shop({ prospect: true, status: "trial" }), as("super_admin"))).not.toContain("convert");
+    expect(moreActions(shop({ status: "trial" }), as("super_admin"))).toContain("convert");
+  });
 });
 
 describe("where free days end", () => {
@@ -119,6 +134,17 @@ describe("what Reactivate says", () => {
       "The shop is active again now, but its last month is not paid, so it stays locked until its wallet covers the month.",
     );
   });
+
+  // Round 20 (Fermi's rule, 20261119073654): with renewal off no money pays
+  // the month, so "charged as usual" and "until its wallet covers" were wrong.
+  it("with renewal off, never says the fee is charged or that the wallet opens the lock", () => {
+    expect(reactivateWords("active_renewal_off", null, now)).toBe(
+      "The shop is active again now. Renewal is off, so when its month ends it is not charged and the shop locks.",
+    );
+    expect(reactivateWords("active_unpaid_renewal_off", null, now)).toBe(
+      "The shop is active again now, but its last month is not paid and renewal is off, so it stays locked until it pays on its lock screen or staff turn renewal on.",
+    );
+  });
 });
 
 /*
@@ -128,17 +154,24 @@ describe("what Reactivate says", () => {
  */
 describe("what a shop on hold comes back as", () => {
   it("a trial never paid comes back as a trial", () => {
-    expect(reactivateComeback(true, "trialing", "starter")).toBe("trial");
+    expect(reactivateComeback(true, "trialing", "starter", false)).toBe("trial");
+    expect(reactivateComeback(true, "trialing", "starter", true)).toBe("trial");
   });
 
   it("a paid shop whose last month is unpaid comes back active and locked", () => {
-    expect(reactivateComeback(false, "past_due", "starter")).toBe("active_unpaid");
+    expect(reactivateComeback(false, "past_due", "starter", false)).toBe("active_unpaid");
+  });
+
+  it("a paid shop with renewal off comes back knowing no money renews it", () => {
+    expect(reactivateComeback(false, "past_due", "starter", true)).toBe("active_unpaid_renewal_off");
+    expect(reactivateComeback(false, "active", "starter", true)).toBe("active_renewal_off");
   });
 
   it("a paid shop in good standing, or on the internal plan, comes back active", () => {
-    expect(reactivateComeback(false, "active", "starter")).toBe("active");
-    expect(reactivateComeback(false, null, "starter")).toBe("active");
-    expect(reactivateComeback(false, "past_due", "internal")).toBe("active");
+    expect(reactivateComeback(false, "active", "starter", false)).toBe("active");
+    expect(reactivateComeback(false, null, "starter", false)).toBe("active");
+    expect(reactivateComeback(false, "past_due", "internal", false)).toBe("active");
+    expect(reactivateComeback(false, "past_due", "internal", true)).toBe("active");
   });
 });
 
@@ -151,9 +184,10 @@ describe("the renewal line", () => {
     expect(renewalWords(true, false, "cancelled")).toBe("On: not charged while cancelled");
   });
 
-  it("says the demo store is never charged, and an ended renewal is off", () => {
+  it("says the demo store is never charged, and renewal off locks the shop at the month's end", () => {
     expect(renewalWords(true, true, "active")).toBe("On: renews each month, never charged (demo store)");
-    expect(renewalWords(false, false, "suspended")).toBe("Off: the month ends and is not renewed");
+    expect(renewalWords(false, true, "active")).toBe("Off, but the demo store renews each month at no charge");
+    expect(renewalWords(false, false, "suspended")).toBe("Off: when the month ends it is not charged, and the shop locks");
   });
 });
 

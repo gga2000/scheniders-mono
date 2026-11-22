@@ -6,7 +6,12 @@
  * table is still complete; the page groups order fees into one line per day.
  */
 
-import { formatCount, formatDayKey } from "@/lib/format";
+import { formatCount } from "@/lib/format";
+import { dayOf } from "@/lib/baghdad-day";
+import { planLabel } from "@/types/admin";
+import { CALL_OUTCOMES, CALL_OUTCOME_LABELS, type CallOutcome } from "@/lib/support";
+
+const callOutcomeOf = (value: unknown): CallOutcome | null => CALL_OUTCOMES.find((o) => o === value) ?? null;
 
 export interface WalletRow {
   id: string;
@@ -99,7 +104,10 @@ export function changeTitle(action: string, details: Record<string, unknown> | n
       return n === null ? "Gave free days this month" : `Gave ${formatCount(n)} free ${n === 1 ? "day" : "days"} this month`;
     case "convert_trial": {
       const period = num(d.duration_days) ?? n;
-      return period === null ? "Started paid time, no charge" : `Started ${nDays(period)} of paid time, no charge`;
+      const started = period === null ? "Started free time" : `Started ${nDays(period)} of free time`;
+      const plan = text(d.plan);
+      if (!plan) return `${started}, no charge`;
+      return plan === "internal" ? `${started} on ${planLabel(plan)}, no charge` : `${started} on the ${planLabel(plan)} plan, no charge`;
     }
     case "add_lock_orders": {
       const orders = num(d.orders);
@@ -115,7 +123,8 @@ export function changeTitle(action: string, details: Record<string, unknown> | n
     case "plan_change":
     case "change_plan": {
       const plan = text(d.plan);
-      return plan ? `Moved to the ${capitalise(plan)} plan` : "Plan changed";
+      if (!plan) return "Plan changed";
+      return plan === "internal" ? `Moved to ${planLabel(plan)}` : `Moved to the ${planLabel(plan)} plan`;
     }
     case "auto_renew_toggle":
       return d.auto_renew === false ? "Monthly renewal turned off" : "Monthly renewal turned on";
@@ -156,8 +165,14 @@ export function changeTitle(action: string, details: Record<string, unknown> | n
       return "Reached out to the shop";
     case "support_shop_taken":
       return "Took the shop for support";
-    case "support_task_logged":
-      return "Support task noted";
+    case "support_task_logged": {
+      // A call staff logged, with or without a task (support_log_shop_call
+      // writes task_id null), in the Support page's outcome words (round 19:
+      // "Support task noted | outcome: no_answer").
+      const outcome = callOutcomeOf(d.outcome);
+      if (!outcome) return "Support task noted";
+      return `${d.task_id ? "Called the shop for a support task" : "Called the shop"}: ${CALL_OUTCOME_LABELS[outcome]}`;
+    }
     case "trial_withheld":
       return "Free trial not given";
     case "create_demo_store":
@@ -179,6 +194,21 @@ function changeDetail(action: string, details: Record<string, unknown> | null): 
   }
   if (REASON_IS_TOPIC.test(action)) return null;
   return text(d.reason) ?? text(d.description);
+}
+
+// The database writes a plan charge's line with the plan's key
+// (renew_subscription_core, change_plan): name the plan as the merchant does.
+const MONTHLY_CHARGE = /^Monthly subscription - (\w+) plan$/;
+const PLAN_UPGRADE = /^Plan upgrade to (\w+) plan \(rest of this month\)$/;
+
+function walletDetail(description: string | null): string | null {
+  const said = text(description);
+  if (said === null || said === "Order charge") return null;
+  const monthly = MONTHLY_CHARGE.exec(said);
+  if (monthly) return `Monthly plan: ${planLabel(monthly[1])}`;
+  const upgrade = PLAN_UPGRADE.exec(said);
+  if (upgrade) return `Upgrade to ${planLabel(upgrade[1])}, rest of this month`;
+  return said;
 }
 
 function moneyTitle(row: WalletRow): string {
@@ -220,7 +250,7 @@ export function toTimelineEntries(input: {
     kind: "money",
     at: row.created_at,
     title: moneyTitle(row),
-    detail: row.description === "Order charge" ? null : text(row.description),
+    detail: walletDetail(row.description),
     who: (row.created_by && names.get(row.created_by)) || AUTOMATIC,
     amount: signed(row),
     walletAfter: row.balance_after_iqd,
@@ -303,7 +333,7 @@ export function groupOrderFees(entries: readonly TimelineEntry[]): TimelineEntry
   const byDay = new Map<string, TimelineEntry[]>();
   for (const entry of entries) {
     if (!entry.orderFee) continue;
-    const day = formatDayKey(entry.at);
+    const day = dayOf(entry.at);
     const list = byDay.get(day);
     if (list) list.push(entry);
     else byDay.set(day, [entry]);
@@ -315,7 +345,7 @@ export function groupOrderFees(entries: readonly TimelineEntry[]): TimelineEntry
       out.push(entry);
       continue;
     }
-    const day = formatDayKey(entry.at);
+    const day = dayOf(entry.at);
     const fees = byDay.get(day);
     if (!fees || fees[0] !== entry) continue;
     const newest = fees[0];

@@ -58,7 +58,7 @@ function KanbanCard({
       </div>
 
       {/* Merchant name */}
-      <h4 className="font-semibold text-sm text-[var(--foreground)] truncate name-dir pr-5 mb-1.5">
+      <h4 className="font-semibold text-sm text-[var(--foreground)] truncate name-dir pr-5 mb-1.5" title={lead.merchant_name}>
         {lead.merchant_name}
       </h4>
 
@@ -179,7 +179,7 @@ export function LeadKanbanColumn({
           className="w-2.5 h-2.5 rounded-full flex-shrink-0"
           style={{ backgroundColor: ui.solid }}
         />
-        <span className="text-sm font-semibold text-[var(--foreground)] truncate">
+        <span className="text-sm font-semibold text-[var(--foreground)] truncate" title={config.label}>
           {config.label}
         </span>
         <span

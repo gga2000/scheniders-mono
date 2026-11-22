@@ -91,4 +91,16 @@ describe("SubscriptionCard on a paused trial", () => {
     const paused = { ...tenant, status: "limited", restrictions: { status_before: "active" } } as MerchantDetail["tenant"];
     expect(render("super_admin", paused)).toContain("On: not charged while paused, then charges the wallet each month");
   });
+
+  // Round 19 (UX new 4): a year of free time read "This month Thu 19 Nov to Fri 19 Nov 2027".
+  it("names a period longer than a month This period", () => {
+    auth.role = "super_admin";
+    const year = { ...subscription, current_period_start: "2026-11-19T00:00:00+00:00", current_period_end: "2027-11-19T00:00:00+00:00" } as MerchantDetail["subscription"];
+    const html = renderToStaticMarkup(
+      createElement(QueryClientProvider, { client: new QueryClient() }, createElement(SubscriptionCard, { merchantId: "t1", tenant, subscription: year })),
+    );
+    expect(html).toContain("This period");
+    expect(html).not.toContain("This month");
+    expect(render("super_admin")).toContain("This month");
+  });
 });

@@ -3,10 +3,10 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { formatDayTime } from "@/lib/format";
-import { endAfterDays } from "@/lib/shop-actions";
+import { endAfterDays, shopActionKey } from "@/lib/shop-actions";
 import { isStaffReason } from "@/lib/billing-lock-tools";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
-import { Choice, ConfirmButton, ErrorLine, PanelTitle, postJson, WillHappen } from "./action-ui";
+import { Choice, ConfirmButton, ErrorLine, PanelFields, PanelTitle, postJson, useWriteFailed, WillHappen } from "./action-ui";
 
 const DAYS = [1, 3, 7, 30];
 
@@ -31,20 +31,23 @@ const FIRST_BLOCKS: Record<BlockKey, boolean> = {
  * Pause a shop for some days: the chosen parts stop, the rest keep working,
  * and the pause lifts on its own on the day the line above the button gives.
  */
-export function PauseForm({ shopId, onDone }: { shopId: string; onDone: () => void }) {
+export function PauseForm({ shopId, shopName, onDone }: { shopId: string; shopName: string; onDone: () => void }) {
   const [days, setDays] = useState(7);
   const [why, setWhy] = useState("");
   const [blocks, setBlocks] = useState(FIRST_BLOCKS);
   const stopped = BLOCKS.filter((b) => blocks[b.key]).map((b) => b.label.toLowerCase());
   const ready = isStaffReason(why) && stopped.length > 0;
 
+  const failed = useWriteFailed(shopId, `${shopName} was not paused.`);
   const pause = useMutation({
+    mutationKey: shopActionKey(shopId),
     mutationFn: () => postJson(`/api/merchants/${shopId}/pause`, { duration_days: days, reason: why.trim(), blocks }),
     onSuccess: onDone,
+    onError: failed,
   });
 
   return (
-    <div>
+    <PanelFields busy={pause.isPending}>
       <PanelTitle>Pause the shop</PanelTitle>
       <div className="mb-3 grid grid-cols-4 gap-1.5">
         {DAYS.map((d) => (
@@ -68,7 +71,8 @@ export function PauseForm({ shopId, onDone }: { shopId: string; onDone: () => vo
         ))}
       </div>
       <StaffReasonInput value={why} onChange={setWhy} placeholder="Why? (the shop page shows it)" className="mb-3" />
-      {ready && (
+      {/* Said once the days and parts are chosen; only the button waits for the reason (round 20). */}
+      {stopped.length > 0 && (
         <WillHappen>
           {stopped.join(", ").replace(/^./, (c) => c.toUpperCase())} stop until{" "}
           {formatDayTime(endAfterDays(null, days))}, then the pause lifts on its own.
@@ -78,6 +82,6 @@ export function PauseForm({ shopId, onDone }: { shopId: string; onDone: () => vo
       <ConfirmButton tone="stop" disabled={!ready || pause.isPending} onClick={() => pause.mutate()}>
         {pause.isPending ? "Pausing..." : `Pause for ${days === 1 ? "1 day" : `${days} days`}`}
       </ConfirmButton>
-    </div>
+    </PanelFields>
   );
 }

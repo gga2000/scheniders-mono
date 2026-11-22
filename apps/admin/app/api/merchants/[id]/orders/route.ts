@@ -22,7 +22,7 @@ export async function GET(
     const { data, error } = await supabase
       .from("orders")
       .select(
-        "id, customer_name, customer_phone:phone, total_iqd:price, status, created_at, updated_at, items"
+        "id, customer_name, customer_phone:phone, total_iqd:price, status, is_return, created_at, updated_at, items"
       )
       .eq("tenant_id", id)
       .order("created_at", { ascending: false })
@@ -31,8 +31,11 @@ export async function GET(
     if (error) throw error;
 
     // The orders table stores line items as jsonb and has no items_count column.
-    const orders = (data ?? []).map(({ items, ...order }) => ({
+    // is_return marks a refund order (money going back to the customer); it
+    // may be null on old rows, which are sales.
+    const orders = (data ?? []).map(({ items, is_return, ...order }) => ({
       ...order,
+      is_return: is_return === true,
       items_count: Array.isArray(items) ? items.length : 0,
     }));
 

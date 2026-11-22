@@ -15,14 +15,14 @@ interface RenewalResult {
     tenant_id: string;
     business_name: string;
     plan: string;
-    outcome: "renewed" | "plan_changed" | "locked" | "already_processed" | "exempt" | "on_hold" | "error";
+    outcome: "renewed" | "plan_changed" | "locked" | "not_renewed" | "already_processed" | "exempt" | "on_hold" | "error";
     details?: string;
 }
 
-/** What renew_subscription_atomic returns (renew_subscription_core, 20261116114258_b13_demo_store_renewal_free.sql). */
+/** What renew_subscription_atomic returns (renew_subscription_core, 20261119073654_renewal_off_stops_charge.sql). */
 const renewResultSchema = z.object({
     success: z.boolean(),
-    outcome: z.enum(["renewed", "plan_changed", "locked", "already_processed", "exempt", "on_hold", "error"]),
+    outcome: z.enum(["renewed", "plan_changed", "locked", "not_renewed", "already_processed", "exempt", "on_hold", "error"]),
     plan: z.string().optional(),
     charged: z.coerce.number().optional(),
     /** The demo store (B13): its month renews at no charge and is never locked. */
@@ -44,14 +44,20 @@ const renewResultSchema = z.object({
  * saw is still the current, due period (compare-and-set on
  * current_period_end), applies a pending plan change, charges base_price_iqd
  * from money in the wallet (no overdraft) with a per-period reference, then
- * advances the period +30 days and resets usage — or, when the wallet cannot
+ * opens the next 30 days and resets usage. A month renewed less than a day
+ * after it ended carries on from that end, so the once-a-day run never adds a
+ * free day; a later one starts when it is paid. Or, when the wallet cannot
  * cover the month, marks it past_due, which LOCKS the shop (handoff A1: never
  * suspended; the hourly billing-lock job and any wallet credit pay it later).
  * A billing-exempt (`internal`) tenant is skipped here (lib/billing-exempt.ts)
  * and refused again inside the RPC, which returns outcome "exempt" without
  * charging, locking or touching the row. The demo store (B13) renews inside
  * the RPC at no charge, whatever its wallet holds (demo: true), so it is never
- * locked in front of a customer; it gets no reminder either.
+ * locked in front of a customer; it gets no reminder either. A month whose
+ * renewal staff turned off is not charged (outcome "not_renewed"): it becomes
+ * past_due, which locks the shop like an unpaid month, and no job charges it
+ * until the shop pays from its lock screen (which turns renewal back on) or
+ * staff turn renewal on. It gets no reminder.
  *
  * That makes the cron idempotent: a retry, an overlapping run, or a crash
  * after the charge can never charge the same period twice (the period either
@@ -143,7 +149,7 @@ async function runScheduled(request: Request) {
         const r = parsed.data;
         const plan = r.plan ?? sub.plan;
         const details =
-            r.outcome === "locked" || r.outcome === "on_hold" || r.outcome === "error"
+            r.outcome === "locked" || r.outcome === "not_renewed" || r.outcome === "on_hold" || r.outcome === "error"
                 ? r.error
                 : r.outcome === "already_processed"
                   ? "Period already renewed by another run"
@@ -161,12 +167,13 @@ async function runScheduled(request: Request) {
 
     const renewed = results.filter(r => r.outcome === "renewed" || r.outcome === "plan_changed").length;
     const locked = results.filter(r => r.outcome === "locked").length;
+    const notRenewed = results.filter(r => r.outcome === "not_renewed").length;
     const errors = results.filter(r => r.outcome === "error").length;
 
-    console.log(`[subscription-renew] Done: ${renewed} renewed, ${locked} locked, ${errors} error(s)`);
+    console.log(`[subscription-renew] Done: ${renewed} renewed, ${locked} locked, ${notRenewed} not renewed (renewal off), ${errors} error(s)`);
 
     const ok = errors === 0 && !remindError;
-    return NextResponse.json({ success: ok, ...reminders, renewed, locked, errors, results }, { status: ok ? 200 : 500 });
+    return NextResponse.json({ success: ok, ...reminders, renewed, locked, notRenewed, errors, results }, { status: ok ? 200 : 500 });
 }
 
 export const GET = withCronMonitor(CRON_MONITORS.subscriptionRenew, runScheduled);

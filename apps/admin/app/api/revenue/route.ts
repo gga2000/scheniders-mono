@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminFromRequest } from "@/lib/api-auth";
-import { cohortMonthsSoFar, feesOf, fetchIncomeStats, monthLabel } from "@/lib/console-stats";
+import { cohortMonthsSoFar, feesOf, fetchIncomeStats } from "@/lib/console-stats";
+import { formatMonth } from "@/lib/format";
 import { calculateMerchantLTV } from "@/lib/dashboard-calculations";
 import { everyRow } from "@/lib/every-row";
 import { CUSTOMER_SHOP } from "@/lib/customer-shops";
@@ -35,7 +36,7 @@ export async function GET(request: NextRequest) {
     // messages), summed in the database by Baghdad month. Any other wallet
     // charge is a correction and is reported apart, never as income.
     const months = income.monthly.slice(-MONTHS_SHOWN);
-    const mrrWaterfall = months.map((m) => ({ month: monthLabel(m.month), revenue: feesOf(m) }));
+    const mrrWaterfall = months.map((m) => ({ month: formatMonth(m.month), revenue: feesOf(m) }));
     const otherCharges = months.reduce((sum, m) => sum + m.other, 0);
 
     const cohorts = income.cohorts.map((c) => ({
@@ -64,7 +65,7 @@ export async function GET(request: NextRequest) {
       topLTV: ltv.topMerchants.map((m) => ({ id: m.tenantId, name: m.businessName, revenue: m.totalRevenue })),
       avgLTV: ltv.avgLTV,
       revenueByPlan: [...planFees].map(([plan, data]) => ({ plan, data })),
-      monthLabels: months.map((m) => monthLabel(m.month)),
+      monthLabels: months.map((m) => formatMonth(m.month)),
     });
   } catch (error) {
     console.error("Revenue API error:", error);

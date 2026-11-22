@@ -85,7 +85,7 @@ function signedInAgain(): void {
  */
 export function leaveWithoutAccess(): void {
   const { pathname, search } = window.location;
-  const onLogin = pathname.startsWith("/login");
+  const onLogin = pathname === "/login";
   const params = new URLSearchParams(search);
   if (onLogin && params.get("error") === "forbidden") return;
   const page = pageAfterSignIn(onLogin ? params.get(NEXT_PAGE) : pathname + search);

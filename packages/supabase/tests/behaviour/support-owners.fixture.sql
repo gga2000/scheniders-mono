@@ -50,6 +50,18 @@ CREATE TABLE public.admin_order_facts (
     created_at timestamptz NOT NULL DEFAULT now()
 );
 
+-- Staff activity rows a logged call writes (support_task_logged).
+CREATE TABLE public.admin_activity_logs (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    admin_user_id uuid,
+    admin_label text,
+    actor_email text,
+    tenant_id uuid REFERENCES public.tenants (id) ON DELETE SET NULL,
+    action text NOT NULL,
+    details jsonb NOT NULL DEFAULT '{}'::jsonb,
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+
 -- For the call-back line in the chat (support_merchant_send).
 CREATE TABLE public.support_cases (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

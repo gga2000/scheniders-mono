@@ -211,12 +211,6 @@ export function daysEnding(today: string, count: number): string[] {
   return Array.from({ length: count }, (_, i) => addDays(today, i - (count - 1)));
 }
 
-const baghdadMonth = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Baghdad", year: "numeric", month: "2-digit" });
-/** The Baghdad month an instant falls in, as '2026-11'. 00:30 on the 1st in Baghdad is still the month before in UTC. */
-export function monthOf(instant: string | Date): string {
-  return baghdadMonth.format(new Date(instant));
-}
-
 /** The `count` months ending on `month`, oldest first. */
 export function monthsEnding(month: string, count: number): string[] {
   const [year, monthNumber] = month.split("-").map(Number);
@@ -236,13 +230,4 @@ export function cohortMonthsSoFar(cohort: string, months: number[], today: strin
   const [nowYear, nowMonth] = today.split("-").map(Number);
   const lastReached = (nowYear - year) * 12 + (nowMonth - month);
   return months.map((amount, age) => (age <= lastReached ? amount : null));
-}
-
-/** '2026-11' reads "Nov 26". */
-export function monthLabel(month: string): string {
-  return new Date(`${month}-01T00:00:00Z`).toLocaleDateString("en-US", {
-    month: "short",
-    year: "2-digit",
-    timeZone: "UTC",
-  });
 }

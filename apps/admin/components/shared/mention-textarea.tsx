@@ -140,6 +140,8 @@ export function MentionTextarea({
         value={value}
         onChange={(e) => handleInput(e.target.value)}
         onKeyDown={handleKeyDown}
+        // Read by a pop-up around it: Escape then closes this list, not the pop-up.
+        data-mention-list={showDropdown && filteredUsers.length > 0 ? "open" : undefined}
         placeholder={placeholder}
         rows={rows}
         autoFocus={autoFocus}
@@ -169,10 +171,10 @@ export function MentionTextarea({
                 {user.display_name.charAt(0).toUpperCase()}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-xs font-medium text-foreground truncate">
+                <p className="text-xs font-medium text-foreground truncate" title={user.display_name}>
                   {user.display_name}
                 </p>
-                <p className="text-xs text-foreground/70 truncate">
+                <p className="text-xs text-foreground/70 truncate" title={user.role === "super_admin" ? "Admin" : "Support"}>
                   {user.role === "super_admin" ? "Admin" : "Support"}
                 </p>
               </div>

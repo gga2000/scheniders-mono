@@ -9,6 +9,7 @@ import { usePageHeader } from "@/store/use-page-header";
 import { pageTitle as menuPageTitle } from "@/lib/admin-menu";
 import { roleLabel } from "@/lib/admin-access";
 import { adminFetch } from "@/lib/admin-fetch";
+import { planLabel } from "@/types/admin";
 
 
 interface MerchantResult {
@@ -36,9 +37,11 @@ interface AdminTopbarProps {
   onMenuClick?: () => void;
   isMobile?: boolean;
   onOpenCommandPalette?: () => void;
+  /** The tab's name when the address names no page (not-found), drawn in the first answer. */
+  pageName?: string;
 }
 
-export function AdminTopbar({ user, onMenuClick, isMobile, onOpenCommandPalette }: AdminTopbarProps) {
+export function AdminTopbar({ user, onMenuClick, isMobile, onOpenCommandPalette, pageName }: AdminTopbarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { theme, setTheme } = useTheme();
@@ -62,7 +65,7 @@ export function AdminTopbar({ user, onMenuClick, isMobile, onOpenCommandPalette 
   // The browser tab says where you are, in the menu's words or the shop's name.
   // React puts this <title> in the document head, on the server and after every
   // change; the root layout sets none, so nothing writes over it.
-  const tabTitle = `${tab ?? pageTitle} · Scheniders Admin`;
+  const tabTitle = `${tab ?? pageName ?? pageTitle} · Scheniders Admin`;
 
   // The global merchant search queries /api/merchants and jumps to a merchant
   // profile — it only belongs on the Merchants directory, not every page.
@@ -217,7 +220,7 @@ export function AdminTopbar({ user, onMenuClick, isMobile, onOpenCommandPalette 
                     />
 
                     {/* Business name */}
-                    <span className="text-sm font-bold text-foreground truncate name-dir flex-1 min-w-0">
+                    <span className="text-sm font-bold text-foreground truncate name-dir flex-1 min-w-0" title={merchant.business_name}>
                       {merchant.business_name}
                     </span>
 
@@ -225,7 +228,7 @@ export function AdminTopbar({ user, onMenuClick, isMobile, onOpenCommandPalette 
                     <span
                       className={`text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 ${PLAN_COLORS[merchant.plan] ?? "bg-gray-500/15 text-[var(--muted)] dark:bg-gray-700 dark:text-gray-300"}`}
                     >
-                      {merchant.plan}
+                      {planLabel(merchant.plan)}
                     </span>
 
                     {/* City */}
@@ -263,7 +266,7 @@ export function AdminTopbar({ user, onMenuClick, isMobile, onOpenCommandPalette 
             <div className="w-px h-6 bg-[var(--card-border)] mx-1.5" />
             <div className="flex items-center gap-2.5">
               <div className="hidden sm:flex flex-col items-end leading-tight">
-                <span className="text-[13px] font-semibold text-foreground truncate max-w-[160px]">
+                <span className="text-[13px] font-semibold text-foreground truncate max-w-[160px]" title={user.full_name || user.email?.split("@")[0]}>
                   {user.full_name || user.email?.split("@")[0]}
                 </span>
                 {user.role && (

@@ -11,6 +11,7 @@ import { LoadFailedLine } from "@/components/shared/load-failed-line";
 import { LEAD_GONE } from "@/lib/lead-update";
 import {
   LEAD_STATUS_CONFIG,
+  LEAD_STATUS_UI,
   LEAD_PRIORITY_CONFIG,
   LEAD_TIER_CONFIG,
   LEAD_TIER_UI,
@@ -43,10 +44,9 @@ import {
   CompetitorsContent,
   StoreContent,
   daysBetween,
-  fmt,
   SCORE_KEYS,
 } from "@/components/leads/lead-detail-tabs";
-import { formatDay } from "@/lib/format";
+import { formatCount, formatDay, formatIQD } from "@/lib/format";
 import { leadPhone, toIntlIraqi } from "@/components/leads/lead-phone";
 import { toast } from "sonner";
 
@@ -122,6 +122,7 @@ export function LeadDetailDesktop() {
 
   const { lead, activities, follow_ups, social_links, competitors } = data;
   const statusCfg = LEAD_STATUS_CONFIG[lead.status];
+  const statusUi = LEAD_STATUS_UI[lead.status];
   const priorityCfg = LEAD_PRIORITY_CONFIG[lead.priority];
   const tierCfg = LEAD_TIER_CONFIG[lead.tier];
 
@@ -203,7 +204,7 @@ export function LeadDetailDesktop() {
               {/* Status */}
               <span
                 className="px-3 py-1 rounded-full text-xs font-bold"
-                style={{ backgroundColor: statusCfg.bgColor, color: statusCfg.color }}
+                style={{ backgroundColor: statusUi.soft, color: statusUi.solid }}
               >
                 {statusCfg.label}
               </span>
@@ -329,24 +330,24 @@ export function LeadDetailDesktop() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <p className="text-xs font-bold uppercase tracking-wider text-[var(--muted)] mb-2">
-              Revenue Prediction
+              Their sales, estimated
             </p>
             <p className="text-3xl font-black text-[var(--foreground)]">
               ~{lead.estimated_daily_orders} orders/day
             </p>
             <p className="text-lg font-semibold text-[var(--muted)] mt-1">
-              ~{fmt(estMonthlyOrders)} orders/month
+              ~{formatCount(estMonthlyOrders)} orders/month
             </p>
             <p className="text-lg font-bold text-[var(--ink-green)] mt-1">
-              ~{fmt(lead.estimated_monthly_revenue)} IQD/month potential revenue
+              ~{formatIQD(lead.estimated_monthly_revenue)} in sales a month
             </p>
           </div>
           <div className="bg-black/10 dark:bg-white/5 rounded-xl px-4 py-3 text-sm text-[var(--muted)]">
             <p className="font-semibold text-[var(--foreground)] mb-1">Calculation</p>
             {lead.avg_order_count > 0 ? (
-              <p>Manual override &middot; {fmt(lead.avg_order_count)} orders/day</p>
+              <p>Manual override &middot; {formatCount(lead.avg_order_count)} orders/day</p>
             ) : (
-              <p>{fmt(lead.avg_view_count)} avg views &divide; 10,000</p>
+              <p>{formatCount(lead.avg_view_count)} avg views &divide; 10,000</p>
             )}
           </div>
         </div>
@@ -386,7 +387,7 @@ export function LeadDetailDesktop() {
             <span className="text-xs font-semibold">Followers</span>
           </div>
           <p className="text-xl font-bold text-[var(--foreground)]">
-            {fmt(lead.follower_count)}
+            {formatCount(lead.follower_count)}
           </p>
           <span
             className="text-xs font-bold px-1.5 py-0.5 rounded mt-1 inline-block"

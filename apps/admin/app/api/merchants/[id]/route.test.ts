@@ -70,8 +70,25 @@ function table(name: string): unknown {
 }
 
 const rpc = vi.fn();
+/** What paid_plan_months answers, and the filters it was read with. */
+const paid: { answer: Answer; filters: unknown[][] } = { answer: { data: [], error: null }, filters: [] };
+function paidPlanMonths(): unknown {
+  const chain: unknown = new Proxy(() => undefined, {
+    get(_target, prop) {
+      if (prop === "then") return (resolve: (value: Answer) => void) => resolve(paid.answer);
+      return (...args: unknown[]) => {
+        paid.filters.push([prop, ...args]);
+        return chain;
+      };
+    },
+  });
+  return chain;
+}
 vi.mock("@/lib/admin-supabase", () => ({
-  createAdminClient: () => ({ from: (name: string) => table(name), rpc }),
+  createAdminClient: () => ({
+    from: (name: string) => table(name),
+    rpc: (fn: string, args?: unknown) => (fn === "paid_plan_months" ? paidPlanMonths() : rpc(fn, args)),
+  }),
 }));
 
 const { GET, PATCH } = await import("./route");
@@ -87,6 +104,7 @@ const LOCKED = {
   allowance: 50,
   plan: "starter",
   price_iqd: 9000,
+  renewal_off: false,
 };
 
 beforeEach(() => {
@@ -94,6 +112,8 @@ beforeEach(() => {
   selects.length = 0;
   writes.length = 0;
   rpc.mockReset();
+  paid.answer = { data: [], error: null };
+  paid.filters.length = 0;
   for (const name of Object.keys(TABLES)) delete TABLES[name];
   Object.assign(TABLES, ORIGINAL);
   vi.spyOn(console, "error").mockImplementation(() => {});
@@ -119,6 +139,18 @@ describe("GET /api/merchants/[id] billing lock", () => {
     rpc.mockResolvedValue({ data: LOCKED, error: null });
     const body = await (await call()).json();
     expect(body.canForceUnlock).toBe(can);
+  });
+
+  it("carries whether renewal is off, and fails the record on a snapshot that does not say", async () => {
+    // Round 20: with renewal off, money alone does not open the lock, so the
+    // page must know; an old snapshot without the key is not guessed at.
+    rpc.mockResolvedValue({ data: { ...LOCKED, renewal_off: true }, error: null });
+    expect((await (await call()).json()).billingLock).toMatchObject({ locked: true, renewal_off: true });
+
+    const old: Record<string, unknown> = { ...LOCKED };
+    delete old.renewal_off;
+    rpc.mockResolvedValue({ data: old, error: null });
+    expect((await call()).status).toBe(500);
   });
 
   it("an unlocked store comes back unlocked", async () => {
@@ -182,6 +214,44 @@ describe("GET /api/merchants/[id] parts of the record", () => {
     expect(selects.map(([name]) => name)).toContain("admin_order_facts");
     expect(selects.map(([name]) => name)).not.toContain("orders");
     expect(body.orderCount).toBe(4);
+  });
+
+  it("reads the shop's charged plan months by the Paying page's rule, for this shop only", async () => {
+    // Round 18: the page said "Paying" for a shop never charged; it now knows
+    // whether a charged month covers now (lib/shop-status.ts). Round 20: the
+    // latest month's own end, the day the Paying page shows, not paid_until,
+    // which runs a day past it while the renewal run is still to come.
+    paid.answer = {
+      data: [
+        {
+          tenant_id: TENANT,
+          paid_at: "2026-10-19T09:00:00+00:00",
+          paid_until: "2026-11-19T09:00:00+00:00",
+          month_end: "2026-11-18T09:00:00+00:00",
+        },
+        {
+          tenant_id: TENANT,
+          paid_at: "2026-09-19T09:00:00+00:00",
+          paid_until: "2026-10-19T09:00:00+00:00",
+          month_end: "2026-10-19T09:00:00+00:00",
+        },
+      ],
+      error: null,
+    };
+    const body = await (await call()).json();
+
+    expect(paid.filters).toEqual([["eq", "tenant_id", TENANT]]);
+    expect(body.paidPlan).toEqual({ first_paid_at: "2026-09-19T09:00:00+00:00", month_end: "2026-11-18T09:00:00+00:00" });
+  });
+
+  it("says never charged with no months, and fails the record when the months cannot be read", async () => {
+    expect((await (await call()).json()).paidPlan).toEqual({ first_paid_at: null, month_end: null });
+
+    paid.answer = { data: null, error: { code: "42501", message: "permission denied" } };
+    expect((await call()).status).toBe(500);
+
+    paid.answer = { data: [{ tenant_id: TENANT, paid_at: null, paid_until: null, month_end: null }], error: null };
+    expect((await call()).status).toBe(500);
   });
 
   it("a shop with no wallet and no subscription yet is still a record", async () => {
@@ -304,11 +374,21 @@ describe("PATCH /api/merchants/[id]", () => {
     );
   });
 
-  it("refuses a reason too short to say anything, before the database", async () => {
-    const res = await patch({ status: "suspended", reason: "no" });
+  it.each(["no", "...", "1 2 3"])("refuses a reason too short to say anything, before the database (%s)", async (reason) => {
+    const res = await patch({ status: "suspended", reason });
 
     expect(res.status).toBe(400);
-    expect((await res.json()).error).toMatch(/at least 3 characters/);
+    expect((await res.json()).error).toBe("Write a reason with at least 3 letters.");
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  // Round 19: every form that moves a plan asks why; the route now holds
+  // that rule too, so a plan change never reaches the log without a reason.
+  it("refuses a plan change without a reason, before the database", async () => {
+    const res = await patch({ plan: "starter" });
+
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe("Say why the plan changes.");
     expect(rpc).not.toHaveBeenCalled();
   });
 
@@ -321,7 +401,7 @@ describe("PATCH /api/merchants/[id]", () => {
   });
 
   it.each([
-    ["still_trial", 409, 'This shop is on trial. Open its page and use "Start paid time, no charge" to make it a paying shop.'],
+    ["still_trial", 409, 'This shop is on trial. Open its page and use "Start free time, no charge" to end its trial.'],
     ["paused", 409, "This shop is paused. Lift the pause first (on its page)."],
     ["use_pause", 409, "Use Pause to limit a shop: it sets what is blocked and for how long."],
     ["demo_store", 409, "This is the demo store. Its status does not change."],
@@ -337,7 +417,7 @@ describe("PATCH /api/merchants/[id]", () => {
   it("a database error answers 500", async () => {
     rpc.mockResolvedValue({ data: null, error: { message: "deadlock detected" } });
 
-    expect((await patch({ plan: "starter" })).status).toBe(500);
+    expect((await patch({ plan: "starter", reason: "Owner asked for it" })).status).toBe(500);
   });
 
   it.each([{}, { status: "frozen" }, { plan: "gold" }, { auto_renew: "yes" }])("refuses the body %j before the database", async (body) => {

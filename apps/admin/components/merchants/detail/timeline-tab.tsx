@@ -8,7 +8,8 @@ import { MentionTextarea } from "@/components/shared/mention-textarea";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { useLeaveGuard } from "@/hooks/use-leave-guard";
 import { hasPermission } from "@/lib/admin-permissions";
-import { formatCount, formatDay, formatDayKey, formatTime } from "@/lib/format";
+import { formatCount, formatDay, formatTime } from "@/lib/format";
+import { dayOf } from "@/lib/baghdad-day";
 import { groupOrderFees, type TimelineEntry, type TimelineKind } from "@/lib/shop-timeline";
 import { Choice, ErrorLine, postJson } from "./action-ui";
 import { adminFetch } from "@/lib/admin-fetch";
@@ -69,7 +70,7 @@ export function TimelineTab({ merchantId, focusNote = false }: { merchantId: str
     const shown = filter === "all" ? all : all.filter((entry) => entry.kind === filter);
     const byDay = new Map<string, TimelineEntry[]>();
     for (const entry of shown) {
-      const key = formatDayKey(entry.at);
+      const key = dayOf(entry.at);
       const list = byDay.get(key);
       if (list) list.push(entry);
       else byDay.set(key, [entry]);
@@ -139,7 +140,7 @@ export function TimelineTab({ merchantId, focusNote = false }: { merchantId: str
       ) : (
         <ol className="space-y-5">
           {days.map((entries) => (
-            <li key={formatDayKey(entries[0].at)}>
+            <li key={dayOf(entries[0].at)}>
               <h3 className="mb-1 text-[13px] font-semibold text-foreground/70">{formatDay(entries[0].at)}</h3>
               <ul className="divide-y divide-[var(--card-border)]">
                 {entries.map((entry) => (

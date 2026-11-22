@@ -31,7 +31,7 @@ const sub = (status: string, periodEnd: string, shop: Row, plan = "starter"): Ro
     status,
     plan,
     current_period_end: periodEnd,
-    tenants: { business_name: `Shop ${n}`, status: "active", plan, ...shop },
+    tenants: { business_name: `Shop ${n}`, status: "active", plan, is_demo: false, is_prospect: false, ...shop },
   };
 };
 
@@ -67,10 +67,19 @@ describe("GET /api/billing-check", () => {
     });
   });
 
-  it("gives the job 26 hours after an end before it counts as missed", async () => {
+  it("gives the job 25 hours after an end before it counts as missed", async () => {
     await check();
-    // NOW less 26 hours: an end at 03:00 today (9 hours ago) is not asked for.
-    expect(stub.callsTo("subscriptions.lt")).toEqual([["current_period_end", "2026-11-17T10:00:00.000Z"]]);
+    // NOW less 25 hours: an end at 03:00 today (9 hours ago) is not asked for;
+    // one at 03:01 yesterday, which today's 03:00 run could not reach, is not either.
+    expect(stub.callsTo("subscriptions.lte")).toEqual([["current_period_end", "2026-11-17T11:00:00.000Z"]]);
+  });
+
+  it("leaves out the demo store and a store built for a lead, as every list in the console does", async () => {
+    stub.state.tables.subscriptions = [
+      sub("active", LONG_AGO, { is_demo: true }),
+      sub("trialing", LONG_AGO, { status: "trial", is_prospect: true }),
+    ];
+    expect(await check()).toEqual({ trialsNotBilled: [], renewalsMissed: [] });
   });
 
   it("leaves out shops the job skips on purpose: on hold, paused or internal", async () => {

@@ -23,6 +23,7 @@ import { LoadFailedLine } from "@/components/shared/load-failed-line";
 import { LEAD_GONE } from "@/lib/lead-update";
 import {
   LEAD_STATUS_CONFIG,
+  LEAD_STATUS_UI,
   LEAD_PRIORITY_CONFIG,
   LEAD_TIER_CONFIG,
   LEAD_TIER_UI,
@@ -112,6 +113,7 @@ export function LeadMobileDetail() {
   const { lead, activities, follow_ups, social_links, competitors } = data;
 
   const statusCfg = LEAD_STATUS_CONFIG[lead.status];
+  const statusUi = LEAD_STATUS_UI[lead.status];
   const priorityCfg = LEAD_PRIORITY_CONFIG[lead.priority];
   const tierCfg = LEAD_TIER_CONFIG[lead.tier];
 
@@ -147,11 +149,11 @@ export function LeadMobileDetail() {
             {lead.merchant_name.charAt(0).toUpperCase()}
           </div>
           <div className="min-w-0">
-            <h1 className="text-xl font-bold text-[var(--foreground)] truncate name-dir">
+            <h1 className="text-xl font-bold text-[var(--foreground)] truncate name-dir" title={lead.merchant_name}>
               {lead.merchant_name}
             </h1>
             {lead.management_name && (
-              <p className="text-sm text-[var(--muted)] mt-0.5 truncate">
+              <p className="text-sm text-[var(--muted)] mt-0.5 truncate" title={lead.management_name}>
                 {lead.management_name}
               </p>
             )}
@@ -192,7 +194,7 @@ export function LeadMobileDetail() {
           {/* Status */}
           <span
             className="px-3 py-1 rounded-full text-xs font-bold"
-            style={{ backgroundColor: statusCfg.bgColor, color: statusCfg.color }}
+            style={{ backgroundColor: statusUi.soft, color: statusUi.solid }}
           >
             {statusCfg.label}
           </span>

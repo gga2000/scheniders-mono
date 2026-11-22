@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TENANT_STATUSES } from "@/types/admin";
 
 /**
  * The staff console's WhatsApp page (Fermi B2): what each shop's messages cost
@@ -19,7 +20,7 @@ export const whatsappReportShopSchema = z.object({
   display_id: z.number().int().nullable(),
   name: z.string().nullable(),
   plan: z.string(),
-  status: z.string(),
+  status: z.enum(TENANT_STATUSES),
   messages: z.number().int(),
   utility: z.number().int(),
   marketing: z.number().int(),
@@ -70,11 +71,6 @@ export function whatsappReportTotals(shops: readonly WhatsAppReportShop[]): What
     }),
     { messages: 0, shopPaidIqd: 0, trialMessages: 0, trialCostIqd: 0, unpaid: 0, pausedShops: 0 },
   );
-}
-
-/** "2026-11" for the month a Baghdad date falls in. */
-export function baghdadMonth(now: Date): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Baghdad", year: "numeric", month: "2-digit" }).format(now);
 }
 
 /** The month before or after a "YYYY-MM". */

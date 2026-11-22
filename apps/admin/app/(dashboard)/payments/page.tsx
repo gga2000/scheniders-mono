@@ -8,6 +8,7 @@ import { z } from "zod";
 import { AlertTriangle, Check, ExternalLink, FileText, Loader2, Lock, X } from "lucide-react";
 import { toast } from "sonner";
 import { adminFetch } from "@/lib/admin-fetch";
+import { formatIQD } from "@/lib/format";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { hasPermission } from "@/lib/admin-permissions";
 import { LoadError } from "@/components/shared/load-error";
@@ -20,6 +21,7 @@ import {
   TOPUP_MAX_IQD,
   TOPUP_MIN_IQD,
   alreadyDecidedText,
+  billingLine,
   lockedChip,
   topupQueueItemSchema,
   topupWarnings,
@@ -29,9 +31,7 @@ import {
 
 const responseSchema = z.object({ requests: z.array(topupQueueItemSchema) });
 
-const iqd = (n: number) => `${new Intl.NumberFormat("en-IQ").format(n)} IQD`;
 const METHOD_LABEL: Record<TopupQueueItem["method"], string> = { zain_cash: "Zain Cash", qi_card: "Qi Card" };
-const PLAN_LABEL: Record<string, string> = { starter: "Start", growth: "Team", professional: "Business", enterprise: "Custom" };
 
 function sentAgo(iso: string): string {
   const minutes = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60_000));
@@ -40,13 +40,6 @@ function sentAgo(iso: string): string {
   return hours < 48 ? `${hours} h ago` : `${Math.round(hours / 24)} days ago`;
 }
 
-function billingLine(row: TopupQueueItem): string {
-  const plan = row.billing?.plan ? (PLAN_LABEL[row.billing.plan] ?? row.billing.plan) : "No plan";
-  const parts = [`${plan} plan`];
-  if (row.billing) parts.push(`next payment ${iqd(row.billing.price_iqd)}`);
-  parts.push(`wallet ${iqd(row.balance_iqd)}`);
-  return parts.join(" · ");
-}
 
 function Receipt({ row }: { row: TopupQueueItem }) {
   if (!row.receipt_url) {
@@ -131,7 +124,7 @@ function Decision({ row, canDecide, canAddMore }: { row: TopupQueueItem; canDeci
     return (
       <div className="flex flex-col items-end gap-2 text-right" data-testid="payment-confirm">
         <p className="text-xs font-semibold text-foreground">
-          {approve ? `Add ${iqd(amount)} to ${row.business_name ?? "this shop"}'s wallet?` : "Refuse this receipt?"}
+          {approve ? `Add ${formatIQD(amount)} to ${row.business_name ?? "this shop"}'s wallet?` : "Refuse this receipt?"}
         </p>
         {!approve && <p className="max-w-[16rem] text-xs text-foreground/70">The shop will read: “{reason.trim()}”</p>}
         <div className="flex gap-1.5">
@@ -192,9 +185,9 @@ function Decision({ row, canDecide, canAddMore }: { row: TopupQueueItem; canDeci
         className="w-full rounded-xl bg-white/80 px-3 py-1.5 text-sm font-semibold tabular-nums ring-1 ring-foreground/10 outline-none focus:ring-foreground/30 dark:bg-white/10"
       />
       {overAsked ? (
-        <p className="text-xs text-[var(--ink-red)]">The shop said {iqd(row.amount_iqd)}. More than that needs a super admin.</p>
+        <p className="text-xs text-[var(--ink-red)]">The shop said {formatIQD(row.amount_iqd)}. More than that needs a super admin.</p>
       ) : (
-        differs && <p className="text-xs text-[var(--ink-amber)]">The shop said {iqd(row.amount_iqd)}. The shop will see what you add.</p>
+        differs && <p className="text-xs text-[var(--ink-amber)]">The shop said {formatIQD(row.amount_iqd)}. The shop will see what you add.</p>
       )}
       {!amountOk && <p className="text-xs text-[var(--ink-red)]">Between 1,000 and 10,000,000 IQD.</p>}
       <div className="flex justify-end gap-1.5">
@@ -214,7 +207,7 @@ function Decision({ row, canDecide, canAddMore }: { row: TopupQueueItem; canDeci
           data-testid="payment-approve"
         >
           <Check className="w-3 h-3" />
-          {amountOk ? `Add ${iqd(amount)}` : "Add"}
+          {amountOk ? `Add ${formatIQD(amount)}` : "Add"}
         </button>
       </div>
     </div>
@@ -229,13 +222,13 @@ function PaymentRow({ row, canDecide, canAddMore }: { row: TopupQueueItem; canDe
       <Receipt row={row} />
       <div className="min-w-[16rem] flex-1 space-y-1.5">
         <div className="flex flex-wrap items-baseline gap-2">
-          <Link href={`/merchants/${row.tenant_id}`} className="text-sm font-semibold text-foreground hover:underline">
+          <Link href={`/merchants/${row.tenant_id}`} dir="auto" className="text-sm font-semibold text-foreground hover:underline">
             {row.business_name ?? "Shop"}
           </Link>
           {row.display_id && <span className="text-xs text-foreground/70 tabular-nums">#{row.display_id}</span>}
         </div>
         <p className="text-sm text-foreground">
-          <span className="font-bold tabular-nums">{iqd(row.amount_iqd)}</span>
+          <span className="font-bold tabular-nums">{formatIQD(row.amount_iqd)}</span>
           <span className="text-foreground/70"> by {METHOD_LABEL[row.method]} · sent {sentAgo(row.created_at)}</span>
         </p>
         <p className="text-xs text-foreground/70">{billingLine(row)}</p>

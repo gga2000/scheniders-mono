@@ -3,7 +3,7 @@
 import { useRef } from "react";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { cn } from "@/lib/utils";
-import { PLAN_LABELS, type AdminTenant, type SortConfig } from "@/types/admin";
+import { planLabel, STATUS_LABELS, type AdminTenant, type SortConfig } from "@/types/admin";
 import { isSortableMerchantColumn } from "@/lib/merchant-sort";
 import {
   ArrowUp,
@@ -37,7 +37,6 @@ const PLAN_PILL: Record<string, string> = {
     "bg-gradient-to-br from-slate-400 to-slate-500 text-white shadow-sm shadow-slate-500/30 ring-1 ring-white/20",
 };
 
-const PLAN_LABEL: Readonly<Record<string, string>> = PLAN_LABELS;
 
 interface SheetColumn {
   id: string;
@@ -124,7 +123,7 @@ export function MerchantSheetView({
                 key={col.id}
                 onClick={sortable ? (e) => onToggleSort(col.id, e.shiftKey) : undefined}
                 className={cn(
-                  "shrink-0 px-2 py-2.5 text-[9px] font-black text-foreground/45 uppercase tracking-[0.1em] select-none flex items-center gap-1 border-r border-[var(--card-border)]/50 transition-colors",
+                  "shrink-0 px-2 py-2.5 text-xs font-black text-foreground/70 select-none flex items-center gap-1 border-r border-[var(--card-border)]/50 transition-colors",
                   col.width,
                   col.align === "text-right" && "justify-end",
                   col.align === "text-center" && "justify-center",
@@ -155,7 +154,7 @@ export function MerchantSheetView({
                 data-index={virtualRow.index}
                 ref={virtualizer.measureElement}
                 className={cn(
-                  "absolute left-0 w-full flex items-center min-w-max border-b border-[var(--card-border)]/50 transition-colors text-[11px]",
+                  "absolute left-0 w-full flex items-center min-w-max border-b border-[var(--card-border)]/50 transition-colors text-xs",
                   isSelected
                     ? "bg-[var(--primary)]/[0.04] ring-2 ring-inset ring-[var(--primary)]"
                     : "hover:bg-foreground/[0.025]",
@@ -199,20 +198,20 @@ export function MerchantSheetView({
                   </button>
                 </div>
 
-                <div className="w-12 shrink-0 px-2 text-center text-foreground/30 tabular-nums font-bold">
+                <div className="w-12 shrink-0 px-2 text-center text-foreground/70 tabular-nums font-bold">
                   {virtualRow.index + 1}
                 </div>
 
                 <div className="min-w-[220px] shrink-0 px-2 sticky left-[72px] z-10 bg-inherit flex items-center gap-2 border-r border-[var(--card-border)]/30">
                   <div
-                    className="w-7 h-7 rounded-lg flex items-center justify-center text-white font-black text-[10px] shrink-0 ring-1 ring-black/5 shadow-sm"
+                    className="w-7 h-7 rounded-lg flex items-center justify-center text-white font-black text-xs shrink-0 ring-1 ring-black/5 shadow-sm"
                     style={{ backgroundColor: logoBg }}
                   >
                     {m.business_name.charAt(0).toUpperCase()}
                   </div>
                   <button
                     onClick={() => onOpenDetail(m.id)}
-                    className="font-black text-foreground tracking-tight truncate name-dir hover:underline text-left text-[12px] leading-tight"
+                    className="font-black text-foreground tracking-tight truncate name-dir hover:underline text-left text-xs leading-tight"
                   >
                     {m.business_name}
                   </button>
@@ -221,18 +220,18 @@ export function MerchantSheetView({
                 <div className="min-w-[130px] shrink-0 px-2 truncate border-r border-[var(--card-border)]/30 flex items-center">
                   <CopyableText
                     value={m.slug}
-                    className="text-[11px] text-foreground/50 max-w-full"
+                    className="text-xs text-foreground/70 max-w-full"
                   />
                 </div>
 
                 <div className="w-28 shrink-0 px-2 flex items-center justify-center border-r border-[var(--card-border)]/30">
                   <span
                     className={cn(
-                      "px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider w-fit",
+                      "px-2 py-0.5 rounded-full text-xs font-black w-fit",
                       PLAN_PILL[m.plan],
                     )}
                   >
-                    {PLAN_LABEL[m.plan] ?? m.plan}
+                    {planLabel(m.plan)}
                   </span>
                 </div>
 
@@ -242,24 +241,24 @@ export function MerchantSheetView({
                   ) : (
                     <span
                       className={cn(
-                        "px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider flex items-center gap-1 w-fit",
+                        "px-2 py-0.5 rounded-full text-xs font-black flex items-center gap-1 w-fit",
                         STATUS_PILL[m.status],
                       )}
                     >
                       <span className="w-1.5 h-1.5 rounded-full bg-white/90" />
-                      {m.status}
+                      {STATUS_LABELS[m.status]}
                     </span>
                   )}
                 </div>
 
                 <div className="min-w-[110px] shrink-0 px-2 flex items-center gap-1 border-r border-[var(--card-border)]/30">
                   {m.city ? (
-                    <span className="text-foreground/70 flex items-center gap-1 truncate font-medium">
+                    <span className="text-foreground/70 flex items-center gap-1 truncate font-medium" title={m.city}>
                       <MapPin className="w-2.5 h-2.5 shrink-0 text-foreground/30" />
                       {m.city}
                     </span>
                   ) : (
-                    <span className="text-foreground/25">—</span>
+                    <span className="text-foreground/70">—</span>
                   )}
                 </div>
 
@@ -267,10 +266,10 @@ export function MerchantSheetView({
                   {m.contact_email ? (
                     <CopyableText
                       value={m.contact_email}
-                      className="text-[11px] text-foreground/55 max-w-full"
+                      className="text-xs text-foreground/70 max-w-full"
                     />
                   ) : (
-                    <span className="text-foreground/25">—</span>
+                    <span className="text-foreground/70">—</span>
                   )}
                 </div>
 
@@ -278,25 +277,25 @@ export function MerchantSheetView({
                   {m.contact_phone ? (
                     <CopyableText
                       value={m.contact_phone}
-                      className="text-[11px] text-foreground/55 tabular-nums max-w-full"
+                      className="text-xs text-foreground/70 tabular-nums max-w-full"
                     />
                   ) : (
-                    <span className="text-foreground/25">—</span>
+                    <span className="text-foreground/70">—</span>
                   )}
                 </div>
 
                 <div className="min-w-[110px] shrink-0 px-2 flex items-center justify-end border-r border-[var(--card-border)]/30">
-                  <span className="font-black tabular-nums text-foreground text-[12px]">
+                  <span className="font-black tabular-nums text-foreground text-xs">
                     {formatCount(m.wallet?.balance_iqd ?? 0)}
-                    <span className="text-[9px] font-bold text-foreground/40 ml-1">IQD</span>
+                    <span className="text-xs font-bold text-foreground/70 ml-1">IQD</span>
                   </span>
                 </div>
 
-                <div className="min-w-[110px] shrink-0 px-2 flex items-center justify-end text-foreground/55 tabular-nums font-bold border-r border-[var(--card-border)]/30">
+                <div className="min-w-[110px] shrink-0 px-2 flex items-center justify-end text-foreground/70 tabular-nums font-bold border-r border-[var(--card-border)]/30">
                   {formatIQD(m.wallet?.total_charged_iqd ?? 0)}
                 </div>
 
-                <div className="min-w-[120px] shrink-0 px-2 flex items-center justify-end text-foreground/55 tabular-nums font-bold border-r border-[var(--card-border)]/30">
+                <div className="min-w-[120px] shrink-0 px-2 flex items-center justify-end text-foreground/70 tabular-nums font-bold border-r border-[var(--card-border)]/30">
                   {formatIQD(m.wallet?.total_topped_up_iqd ?? 0)}
                 </div>
 
@@ -311,7 +310,7 @@ export function MerchantSheetView({
                 <div className="w-24 shrink-0 px-2 flex items-center justify-center border-r border-[var(--card-border)]/30">
                   <span
                     className={cn(
-                      "inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-black tabular-nums",
+                      "inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-xs font-black tabular-nums",
                       healthChipClass(healthScore),
                     )}
                   >
@@ -322,11 +321,11 @@ export function MerchantSheetView({
 
                 <div className="min-w-[120px] shrink-0 px-2 flex items-center justify-end tabular-nums text-foreground/85 font-black border-r border-[var(--card-border)]/30">
                   {formatCount(m.fees_30d)}
-                  <span className="text-[9px] font-bold text-foreground/40 ml-1">IQD</span>
+                  <span className="text-xs font-bold text-foreground/70 ml-1">IQD</span>
                 </div>
 
-                <div className="min-w-[110px] shrink-0 px-2 flex items-center text-foreground/55 text-[10px] font-medium border-r border-[var(--card-border)]/30">
-                  {m.last_active_at ? formatWhen(m.last_active_at) : <span className="text-foreground/25">—</span>}
+                <div className="min-w-[110px] shrink-0 px-2 flex items-center text-foreground/70 text-xs font-medium border-r border-[var(--card-border)]/30">
+                  {m.last_active_at ? formatWhen(m.last_active_at) : <span className="text-foreground/70">—</span>}
                 </div>
 
                 <div className="min-w-[160px] shrink-0 px-2 flex items-center gap-1 border-r border-[var(--card-border)]/30">
@@ -335,23 +334,23 @@ export function MerchantSheetView({
                       {m.tags.slice(0, 2).map((t) => (
                         <span
                           key={t}
-                          className="px-1.5 py-0.5 rounded-md bg-foreground/[0.06] text-[9px] font-bold text-foreground/65 truncate max-w-[70px]"
-                        >
+                          className="px-1.5 py-0.5 rounded-md bg-foreground/[0.06] text-xs font-bold text-foreground/70 truncate max-w-[70px]"
+                         title={t}>
                           {t}
                         </span>
                       ))}
                       {m.tags.length > 2 && (
-                        <span className="text-[9px] text-foreground/40 font-bold">
+                        <span className="text-xs text-foreground/70 font-bold">
                           +{m.tags.length - 2}
                         </span>
                       )}
                     </>
                   ) : (
-                    <span className="text-foreground/25">—</span>
+                    <span className="text-foreground/70">—</span>
                   )}
                 </div>
 
-                <div className="min-w-[110px] shrink-0 px-2 flex items-center text-foreground/45 text-[10px] font-medium tabular-nums">
+                <div className="min-w-[110px] shrink-0 px-2 flex items-center text-foreground/70 text-xs font-medium tabular-nums">
                   {formatDay(m.created_at)}
                 </div>
               </div>

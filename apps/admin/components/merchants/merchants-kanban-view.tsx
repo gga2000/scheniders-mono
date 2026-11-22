@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import type { AdminTenant, TenantStatus } from "@/types/admin";
+import { planLabel, type AdminTenant, type TenantStatus } from "@/types/admin";
 import { formatCount, formatIQD } from "@/lib/format";
 import { useMerchantsStats } from "@/hooks/use-merchants-stats";
 import { useCan } from "@/hooks/use-admin-auth";
@@ -53,7 +53,9 @@ const STAGE_BY_STATUS: Record<TenantStatus, Stage> = {
   active: {
     key: "active",
     label: "Active",
-    description: "Paying",
+    // Not "Paying": our own never-billed shop, the demo store and a shop whose
+    // month is unpaid are all active too. Each card's plan pill says which.
+    description: "Store open",
     icon: CheckCircle2,
     gradient: "from-emerald-400 to-teal-500",
     bg: "bg-gradient-to-br from-emerald-50/60 to-teal-50/60 dark:from-emerald-400/5 dark:to-teal-400/5",
@@ -102,10 +104,8 @@ const STAGES = Object.values(STAGE_BY_STATUS);
  */
 const isPaused = (status: StageKey) => status === "limited";
 
-const PLAN_GRADIENTS: Record<string, string> = {
-  starter: "from-sky-400 to-cyan-500",
-  internal: "from-slate-400 to-slate-500",
-};
+/** Our own shops in slate; every plan a shop pays for (Start, Team, Business, Custom) in sky, its letter telling which. */
+const planGradient = (plan: string) => (plan === "internal" ? "from-slate-400 to-slate-500" : "from-sky-400 to-cyan-500");
 
 interface MerchantsKanbanViewProps {
   merchants: AdminTenant[];
@@ -268,7 +268,7 @@ export function MerchantsKanbanView({
                     <p className="text-sm font-black text-foreground tracking-tight leading-none">
                       {stage.label}
                     </p>
-                    <p className="text-[10px] text-foreground/50 font-medium mt-0.5">
+                    <p className="text-xs text-foreground/70 font-medium mt-0.5">
                       {stage.description}
                     </p>
                   </div>
@@ -289,11 +289,11 @@ export function MerchantsKanbanView({
                         "opacity-30"
                       )}
                     />
-                    <p className="text-[10px] text-foreground/35 font-medium">
+                    <p className="text-xs text-foreground/70 font-medium">
                       Empty
                     </p>
                     {isHover && (
-                      <p className="text-[10px] text-violet-600 dark:text-violet-400 font-bold mt-1">
+                      <p className="text-xs text-violet-600 dark:text-violet-400 font-bold mt-1">
                         Drop here
                       </p>
                     )}
@@ -312,7 +312,7 @@ export function MerchantsKanbanView({
                   ))
                 )}
                 {notLoaded > 0 && (
-                  <p className="text-[13px] text-foreground/60 text-center py-2">
+                  <p className="text-[13px] text-foreground/70 text-center py-2">
                     {formatCount(notLoaded)} more not loaded yet. Scroll down to load them.
                   </p>
                 )}
@@ -340,7 +340,7 @@ export function MerchantsKanbanView({
               onClick={(e) => e.stopPropagation()}
               className="bg-[var(--card-bg)] rounded-3xl shadow-2xl border border-[var(--card-border)] p-5 max-w-sm w-full mx-4"
             >
-              <p className="text-[10px] uppercase tracking-[0.1em] font-black text-foreground/50 mb-2">
+              <p className="text-xs font-black text-foreground/70 mb-2">
                 Confirm Stage Change
               </p>
               <p className="text-sm font-black text-foreground tracking-tight mb-4 leading-snug">
@@ -359,7 +359,7 @@ export function MerchantsKanbanView({
                     <>
                       <span
                         className={cn(
-                          "px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider text-white ring-1 ring-white/20 shadow-sm bg-gradient-to-br flex items-center gap-1",
+                          "px-2.5 py-1 rounded-full text-xs font-black text-white ring-1 ring-white/20 shadow-sm bg-gradient-to-br flex items-center gap-1",
                           fromStage.gradient
                         )}
                       >
@@ -369,7 +369,7 @@ export function MerchantsKanbanView({
                       <ArrowRight className="w-4 h-4 text-foreground/40 shrink-0" />
                       <span
                         className={cn(
-                          "px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider text-white ring-1 ring-white/20 shadow-sm bg-gradient-to-br flex items-center gap-1",
+                          "px-2.5 py-1 rounded-full text-xs font-black text-white ring-1 ring-white/20 shadow-sm bg-gradient-to-br flex items-center gap-1",
                           toStage.gradient
                         )}
                       >
@@ -380,7 +380,7 @@ export function MerchantsKanbanView({
                   );
                 })()}
               </div>
-              <p className="text-[11px] text-foreground/55 mb-4 leading-snug">
+              <p className="text-xs text-foreground/70 mb-4 leading-snug">
                 {stageMoveNote(pendingMove.to, pendingMove.saves, pendingMove.trialEndsAt, new Date())}
               </p>
               <div className="flex items-center gap-2">
@@ -407,7 +407,7 @@ export function MerchantsKanbanView({
                 <button
                   type="button"
                   onClick={() => setPendingMove(null)}
-                  className="px-4 py-2.5 rounded-xl text-xs font-bold text-foreground/60 hover:text-foreground hover:bg-foreground/5 transition-colors"
+                  className="px-4 py-2.5 rounded-xl text-xs font-bold text-foreground/70 hover:text-foreground hover:bg-foreground/5 transition-colors"
                 >
                   Cancel
                 </button>
@@ -440,7 +440,7 @@ function KanbanCard({
   const logoBg = merchant.branding?.primary_color || "#1E1E1E";
   const balance = merchant.wallet?.balance_iqd ?? 0;
 
-  const planGrad = PLAN_GRADIENTS[merchant.plan] ?? "from-slate-400 to-slate-500";
+  const plan = planLabel(merchant.plan);
 
   return (
     <div
@@ -462,23 +462,24 @@ function KanbanCard({
           {merchant.business_name.charAt(0).toUpperCase()}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-black text-foreground truncate name-dir leading-tight">
+          <p className="text-xs font-black text-foreground truncate name-dir leading-tight" title={merchant.business_name}>
             {merchant.business_name}
           </p>
-          <p className="text-[9px] text-foreground/45 truncate font-medium">
+          <p className="text-xs text-foreground/70 truncate font-medium" title={merchant.slug}>
             {merchant.slug}
           </p>
         </div>
         <span
           className={cn(
-            "px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider text-white ring-1 ring-white/20 shadow-sm bg-gradient-to-br shrink-0",
-            planGrad
+            "px-1.5 py-0.5 rounded-full text-xs font-black text-white ring-1 ring-white/20 shadow-sm bg-gradient-to-br shrink-0",
+            planGradient(merchant.plan)
           )}
+          title={plan}
         >
-          {merchant.plan.charAt(0)}
+          {plan.charAt(0).toUpperCase()}
         </span>
       </div>
-      <div className="flex items-center gap-2 text-[10px] text-foreground/55 font-medium tabular-nums">
+      <div className="flex items-center gap-2 text-xs text-foreground/70 font-medium tabular-nums">
         <span className="flex items-center gap-1">
           <Wallet className="w-2.5 h-2.5 text-foreground/35" />
           {formatIQD(balance)}

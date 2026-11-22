@@ -106,6 +106,23 @@ describe("staffLogSummary", () => {
     expect(staffLogSummary("any_step", { rows: 40, kind: "leads", format: "csv" })).toBe("rows: 40 | kind: leads");
   });
 
+  // A converted trial's words name the days and the plan, so the reason comes first, never a raw plan key.
+  it("leads a converted trial with its reason", () => {
+    expect(
+      staffLogSummary("convert_trial", {
+        days: 30,
+        plan: "growth",
+        reason: "Paid in cash",
+        current_period_end: "2026-12-19T05:00:00+00:00",
+        previous_period_end: "2026-11-22T05:00:00+00:00",
+      }),
+    ).toMatch(/^reason: Paid in cash \| current period end: \S/);
+  });
+
+  it("does not repeat a logged call's outcome its words already say", () => {
+    expect(staffLogSummary("support_task_logged", { task_id: null, call_id: "c1", outcome: "no_answer" })).toBeNull();
+  });
+
   it("leaves out ids, lists and empty values", () => {
     expect(staffLogSummary("any_step", { session_id: "5f0c2c1e-0000-4000-8000-000000000001" })).toBeNull();
     expect(
@@ -163,6 +180,14 @@ describe("staffLogSummary", () => {
     expect(staffLogSummary("status_change", { status: "trial", source: "single" })).toBeNull();
     // A way the console does not know is kept as written.
     expect(staffLogSummary("edit_lead", { merchant_name: "Kawkab", source: "form" })).toBe("source: form");
+  });
+
+  // Round 20: the shop paying its locked month turns renewal back on with one
+  // row by "The shop" (pay_billing_lock); "source: shop_paid" was a code word.
+  it("says a renewal the shop turned back on by paying in words, never its code", () => {
+    const paid = { auto_renew: true, source: "shop_paid", reason: "The shop paid its month from the lock screen" };
+    expect(staffActionText("auto_renew_toggle", paid)).toBe("Monthly renewal turned on");
+    expect(staffLogSummary("auto_renew_toggle", paid)).toBe("reason: The shop paid its month from the lock screen");
   });
 
   it("keeps a value the words did not use", () => {

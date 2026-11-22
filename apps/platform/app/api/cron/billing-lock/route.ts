@@ -10,10 +10,10 @@ const supabaseAdmin = () => (_supabaseAdmin ??= createSupabaseServiceClient());
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-/** What settle_billing_lock returns (20261116014641_billing_lock_instead_of_suspend.sql). */
+/** What settle_billing_lock returns (20261119073654_renewal_off_stops_charge.sql; not_renewed: renewal is off, nothing charged). */
 const settleResultSchema = z.object({
     success: z.boolean(),
-    outcome: z.enum(["renewed", "plan_changed", "locked", "not_locked", "busy", "already_processed", "exempt", "on_hold", "error"]),
+    outcome: z.enum(["renewed", "plan_changed", "locked", "not_locked", "not_renewed", "busy", "already_processed", "exempt", "on_hold", "error"]),
     error: z.string().optional(),
 });
 

@@ -10,8 +10,9 @@ export const dynamic = "force-dynamic";
  * 250,000 + 1,000 x shops paying at the month's end (handoff B12 item 4,
  * Q10), for the month still running and the last `months` months. The team
  * is every active support staff login; super admins are the owners and the
- * audit login. Read-only numbers for Ali to pay by hand, so only a login that
- * manages staff pay may read them.
+ * audit login. A month pays the members who had joined by its end. Read-only
+ * numbers for Ali to pay by hand, so only a login that manages staff pay may
+ * read them.
  */
 export async function GET(request: NextRequest) {
   const auth = await requireAdminPermission(request, "manage_commissions");
@@ -31,7 +32,7 @@ export async function GET(request: NextRequest) {
       }),
       supabase
         .from("admin_users")
-        .select("user_id, display_name")
+        .select("user_id, display_name, created_at")
         .eq("is_active", true)
         .eq("admin_role", "support_staff")
         .order("display_name", { ascending: true })
@@ -45,7 +46,7 @@ export async function GET(request: NextRequest) {
       basePerPersonIqd: BONUS_BASE_IQD,
       perPayerIqd: BONUS_PER_PAYER_IQD,
       people,
-      months: bonusMonths(paying, people.length),
+      months: bonusMonths(paying, team.map((p) => ({ joinedAt: p.created_at }))),
     });
   } catch (error) {
     console.error("Staff bonus API error:", error);

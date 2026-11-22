@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireBearerAdmin } from "@/lib/api-auth";
-import { monthOf, monthsEnding } from "@/lib/console-stats";
+import { monthOf } from "@/lib/baghdad-day";
+import { monthsEnding } from "@/lib/console-stats";
 import { everyRow } from "@/lib/every-row";
 
 export async function GET(request: NextRequest) {
@@ -58,12 +59,12 @@ export async function GET(request: NextRequest) {
 
     // Avg time to convert, in whole days; none while no lead became a shop
     // (a 0 read as "the same day").
-    const convertedLeads = allLeads.filter((l) => l.converted_at);
+    const convertedLeads = allLeads.flatMap((l) => (l.converted_at ? [{ created_at: l.created_at, converted_at: l.converted_at }] : []));
     let avg_time_to_convert_days: number | null = null;
     if (convertedLeads.length > 0) {
       const totalDays = convertedLeads.reduce((sum, l) => {
         const created = new Date(l.created_at).getTime();
-        const convertedAt = new Date(l.converted_at!).getTime();
+        const convertedAt = new Date(l.converted_at).getTime();
         return sum + (convertedAt - created) / (1000 * 60 * 60 * 24);
       }, 0);
       avg_time_to_convert_days = Math.round(totalDays / convertedLeads.length);
@@ -101,7 +102,9 @@ export async function GET(request: NextRequest) {
         ...stats,
         commission_earned: 0,
       }))
-      .sort((a, b) => b.leads_converted - a.leads_converted)
+      // Most leads made shops first; on a tie (all 0 while nobody has
+      // converted yet), the most leads added, never the order rows came in.
+      .sort((a, b) => b.leads_converted - a.leads_converted || b.leads_added - a.leads_added)
       .slice(0, 10);
 
     // Monthly trends: this month and the five before it, on the Baghdad

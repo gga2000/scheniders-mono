@@ -3,11 +3,14 @@ import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminPermission } from "@/lib/api-auth";
 import { z } from "zod";
 import { notAnId } from "@/lib/route-id";
-import { staffRequestIdSchema } from "@/lib/staff-reason";
-import { REQUEST_REUSED } from "@/lib/billing-lock-tools";
+import { staffReasonSchema, staffRequestIdSchema } from "@/lib/staff-reason";
+import { REQUEST_REUSED, SHOP_PAUSED } from "@/lib/billing-lock-tools";
 
 const bodySchema = z.object({
   days: z.number().int().positive().max(365),
+  // Why the days are free, kept on the staff log row and the shop's timeline,
+  // as every other free-time step does (round 20).
+  reason: staffReasonSchema,
   request_id: staffRequestIdSchema,
 });
 
@@ -27,7 +30,7 @@ const REFUSALS: Record<string, { status: number; error: string }> = {
   not_found: { status: 404, error: "Merchant not found" },
   no_subscription: { status: 404, error: "No subscription found for this merchant" },
   demo_store: { status: 409, error: "The demo store has no paid time to extend" },
-  paused: { status: 409, error: "This shop is paused. Lift the pause first" },
+  paused: SHOP_PAUSED,
   still_trial: { status: 409, error: "This shop is on trial. Extend the trial or convert it instead" },
   not_active: { status: 409, error: "This shop is not active. Reactivate it first" },
   request_reused: REQUEST_REUSED,
@@ -39,8 +42,8 @@ const REFUSALS: Record<string, { status: number; error: string }> = {
  *
  * admin_extend_subscription does it in one step: only an active shop, its
  * status kept (a paused, suspended, cancelled or trial shop, or the demo
- * store, is refused), and the staff log row written with the old and new
- * period end. It runs through admin_extend_subscription_once, so the same
+ * store, is refused), and the staff log row written with the reason and the
+ * old and new period end. It runs through admin_extend_subscription_once, so the same
  * request_id (a retry, a second tab) adds the days once and gets the first
  * answer back with `repeat`.
  */
@@ -68,6 +71,7 @@ export async function POST(
       _request_id: parsed.data.request_id,
       _tenant_id: id,
       _days: parsed.data.days,
+      _reason: parsed.data.reason,
       _admin_user_id: auth.user.id,
       _actor_email: auth.user.email ?? null,
     });

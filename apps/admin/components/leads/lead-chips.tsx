@@ -160,7 +160,7 @@ export function IndustryChip({
       >
         <Icon className={cn("text-white", sm ? "h-2.5 w-2.5" : "h-3 w-3")} />
       </span>
-      <span className="min-w-0 truncate name-dir">{industry.name_ar || industry.name}</span>
+      <span className="min-w-0 truncate name-dir" title={industry.name_ar || industry.name}>{industry.name_ar || industry.name}</span>
     </span>
   );
 }

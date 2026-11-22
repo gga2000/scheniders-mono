@@ -24,10 +24,37 @@ export const REQUEST_REUSED = {
   error: "This request was already used for another change. Reload the page and try again",
 } as const;
 
-/** A reason the database accepts: trimmed, 3 to 500 characters. */
+/**
+ * The shop is paused, so the database refuses the change until the pause is
+ * lifted. One sentence for every route that meets it (round 19: it was
+ * written five ways, with "store" and "shop" for the same thing).
+ */
+export const SHOP_PAUSED = { status: 409, error: "This shop is paused. Lift the pause first" } as const;
+
+/**
+ * The shop left its trial after the page was loaded, so the database refuses
+ * a trial step. One answer for extending a trial (shop page, Trials, bulk),
+ * a trial check and Start free time; round 20 found it said three ways, two
+ * of them as a 400 for a page that was only out of date.
+ */
+export const NOT_TRIAL = { status: 409, error: "This shop is no longer on trial. Reload the page to see it" } as const;
+
+/** What a staff member is told when a reason is too short: one sentence, said only from here. */
+export const STAFF_REASON_TOO_SHORT = `Write a reason with at least ${STAFF_REASON_MIN} letters.`;
+
+/**
+ * The letters in a reason, in any script. "..." has none, so it is no
+ * reason; "متجر" has four. The database counts the same letters
+ * (admin_billing_reason). Round 18: any character counted, so "..." passed.
+ */
+export function staffReasonLetters(reason: string): number {
+  return reason.match(/\p{L}/gu)?.length ?? 0;
+}
+
+/** A reason the database accepts: at least 3 letters, at most 500 characters once trimmed. */
 export function isStaffReason(reason: string): boolean {
-  const length = reason.trim().length;
-  return length >= STAFF_REASON_MIN && length <= STAFF_REASON_MAX;
+  const trimmed = reason.trim();
+  return staffReasonLetters(trimmed) >= STAFF_REASON_MIN && trimmed.length <= STAFF_REASON_MAX;
 }
 
 export type StaffActor = { id: string; email?: string | null };
@@ -41,6 +68,11 @@ export type BillingLockSnapshot = {
   allowance: number;
   plan: string | null;
   price_iqd: number;
+  /**
+   * The shop's renewal is off (never the demo store's): no job charges the
+   * month, so money alone does not open the lock (20261119074502).
+   */
+  renewal_off: boolean;
 };
 
 type Refusal = { ok: false; status: 403 | 404 | 409; error: string };
@@ -49,7 +81,7 @@ const REFUSALS: Record<string, Omit<Refusal, "ok">> = {
   not_found: { status: 404, error: "Merchant not found" },
   request_reused: REQUEST_REUSED,
   not_locked: { status: 409, error: "This store is not locked" },
-  paused: { status: 409, error: "This store is paused. Lift the pause first, then unlock it" },
+  paused: SHOP_PAUSED,
   unpaid_lock: { status: 403, error: "A store locked for an unpaid month gets more orders from a super admin" },
 };
 
@@ -78,7 +110,8 @@ export async function readBillingLock(
     (data.since !== null && typeof data.since !== "string") ||
     (data.orders_left !== null && typeof data.orders_left !== "number") ||
     typeof data.allowance !== "number" ||
-    (data.plan !== null && typeof data.plan !== "string")
+    (data.plan !== null && typeof data.plan !== "string") ||
+    typeof data.renewal_off !== "boolean"
   ) {
     throw new Error("Unexpected billing_lock_snapshot response");
   }
@@ -90,6 +123,7 @@ export async function readBillingLock(
     allowance: data.allowance,
     plan: data.plan,
     price_iqd: Number(data.price_iqd ?? 0),
+    renewal_off: data.renewal_off,
   };
 }
 

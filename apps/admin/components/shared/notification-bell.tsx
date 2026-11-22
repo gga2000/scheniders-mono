@@ -93,8 +93,12 @@ export function NotificationBell() {
     { name: "the billing job", read: billingRead },
     { name: "the hourly jobs", read: hourlyRead },
   ]);
+  // The alert rows above the list, one list for the count and for the empty
+  // line: the hourly row once showed above "No notifications yet".
+  const alertRows = [interaktEmpty, pausedShops > 0, billingMissed, hourlyMissed, unchecked.names.length > 0].filter(Boolean).length;
   // Open Prime and top-up requests always count: they wait on the team, not on a read mark.
-  const unreadCount = notifications.filter((n) => isNewStep(n.created_at, readUpTo)).length + openPrime.length + openTopups.length + (interaktEmpty ? 1 : 0) + (pausedShops > 0 ? 1 : 0) + (billingMissed ? 1 : 0) + (hourlyMissed ? 1 : 0) + (unchecked.names.length > 0 ? 1 : 0);
+  const unreadCount = notifications.filter((n) => isNewStep(n.created_at, readUpTo)).length + openPrime.length + openTopups.length + alertRows;
+  const nothingToShow = notifications.length === 0 && openPrime.length === 0 && openTopups.length === 0 && alertRows === 0;
 
   const markAllRead = useCallback(() => {
     // The list is newest first.
@@ -211,7 +215,7 @@ export function NotificationBell() {
               ) : recent.isPending ? (
                 // Pending, not loading: the read may still wait for the page's own reads.
                 <div className="px-4 py-8 text-center text-sm text-foreground/70">Loading...</div>
-              ) : notifications.length === 0 && openPrime.length === 0 && openTopups.length === 0 && !interaktEmpty && pausedShops === 0 && !billingMissed && unchecked.names.length === 0 ? (
+              ) : nothingToShow ? (
                 <div className="px-4 py-8 text-center text-sm text-foreground/70">
                   No notifications yet
                 </div>
@@ -234,7 +238,7 @@ export function NotificationBell() {
                         </p>
                         {/* The shop by name: the raw detail values read as ids and "[object Object]". */}
                         {notif.business_name && (
-                          <p className="text-xs text-foreground/70 truncate name-dir mt-0.5">{notif.business_name}</p>
+                          <p className="text-xs text-foreground/70 truncate name-dir mt-0.5" title={notif.business_name}>{notif.business_name}</p>
                         )}
                         <p className="text-xs text-foreground/70 mt-1">
                           {formatWhen(notif.created_at)}

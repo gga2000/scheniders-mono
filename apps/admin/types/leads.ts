@@ -24,13 +24,14 @@ export type CommissionStatus = "pending" | "approved" | "paid";
 
 // ── Lead Status Config ──────────────────────────────────────────────────
 
-export const LEAD_STATUS_CONFIG: Record<LeadStatus, { label: string; color: string; bgColor: string }> = {
-  new: { label: "New", color: "#EFFF00", bgColor: "rgba(239,255,0,0.15)" },
-  contacted: { label: "Contacted", color: "#66FFAA", bgColor: "rgba(102,255,170,0.15)" },
-  interested: { label: "Interested", color: "#60A5FA", bgColor: "rgba(96,165,250,0.15)" },
-  store_built: { label: "Store Built", color: "#A78BFA", bgColor: "rgba(167,139,250,0.15)" },
-  converted: { label: "Converted", color: "#34D399", bgColor: "rgba(52,211,153,0.15)" },
-  lost: { label: "Lost", color: "#94A3B8", bgColor: "rgba(148,163,184,0.15)" },
+/** A lead stage's name. Its colours are LEAD_STATUS_UI, which reads in both themes. */
+export const LEAD_STATUS_CONFIG: Record<LeadStatus, { label: string }> = {
+  new: { label: "New" },
+  contacted: { label: "Contacted" },
+  interested: { label: "Interested" },
+  store_built: { label: "Store Built" },
+  converted: { label: "Converted" },
+  lost: { label: "Lost" },
 };
 
 /**
@@ -56,8 +57,9 @@ export function uiHue(ink: Ink): UiHue {
 }
 
 /**
- * Status colours for chips, dots and columns. `LEAD_STATUS_CONFIG.color` is
- * the neon accent and must never be text; use these.
+ * Status colours for chips, dots and columns. Round 3 (r3-15): the old neon
+ * accents were drawn as text on the lead page, "New" in #EFFF00 on a pale
+ * yellow at 1.1:1, so they are gone and every stage takes its colour here.
  */
 export const LEAD_STATUS_UI: Record<LeadStatus, UiHue> = {
   new: uiHue("amber"),
@@ -364,11 +366,26 @@ export interface EmployeeCommission {
   tenant?: { business_name: string; slug: string } | null;
 }
 
+/** The Lucide icon an achievement shows; components/team/team-achievement-wall.tsx draws it. */
+export type AchievementIcon =
+  | "Target"
+  | "Crosshair"
+  | "Zap"
+  | "Trophy"
+  | "Award"
+  | "Store"
+  | "Building2"
+  | "Flame"
+  | "Rocket"
+  | "Bell"
+  | "Crown"
+  | "Users";
+
 export interface AchievementDefinition {
   key: string;
   name: string;
   description: string;
-  icon: string;
+  icon: AchievementIcon;
   color: string;
 }
 

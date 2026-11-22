@@ -178,9 +178,16 @@ const STORE_PATH_HEADER = "x-store-path";
 /**
  * Fermi's own landing page (C2), a static document in public/landing. The
  * root domain's home serves it; its images, fonts and icons live under a
- * versioned folder (/landing/v4/) so they can be cached for good.
+ * versioned folders (/landing/v4/, /landing/v5/) so they can be cached for good.
  */
 const LANDING_PAGE = "/landing/index.html";
+
+/**
+ * Fermi's full features page, a static document in public/features served
+ * at the root domain's /features. Its images and link preview live under a
+ * versioned folder (/features/v1/) so they can be cached for good.
+ */
+const FEATURES_PAGE = "/features/index.html";
 
 /** "1" when the hub's live preview asked for a page view that tracks nothing. */
 function quietFlag(request: NextRequest): string {
@@ -269,10 +276,14 @@ export function proxy(request: NextRequest) {
         return response;
       }
     }
-    // The root domain's home is Fermi's landing page; /pricing is its
-    // pricing section.
+    // The root domain's home is Fermi's landing page, /features its full
+    // features page, and /pricing the landing page's pricing section.
     if (url.pathname === "/") {
       url.pathname = LANDING_PAGE;
+      return NextResponse.rewrite(url);
+    }
+    if (url.pathname === "/features") {
+      url.pathname = FEATURES_PAGE;
       return NextResponse.rewrite(url);
     }
     if (url.pathname === "/pricing") {

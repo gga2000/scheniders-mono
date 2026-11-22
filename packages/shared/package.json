@@ -24,7 +24,11 @@
     "./store-address": "./src/store-address.ts",
     "./plans": "./src/plans.ts",
     "./support-hours": "./src/support-hours.ts",
-    "./signup-whatsapp": "./src/signup-whatsapp.ts"
+    "./signup-whatsapp": "./src/signup-whatsapp.ts",
+    "./trial-report": "./src/trial-report.ts",
+    "./ssrf": "./src/ssrf.ts",
+    "./public-fetch": "./src/public-fetch.ts",
+    "./refund-words": "./src/refund-words.ts"
   },
   "scripts": {
     "test": "vitest run"

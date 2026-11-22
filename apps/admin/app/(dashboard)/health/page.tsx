@@ -16,6 +16,7 @@ import { shopFormHref } from "@/lib/shop-actions";
 import { shopsAtRiskLine } from "@/lib/merchant-health";
 import { useCan } from "@/hooks/use-admin-auth";
 import { adminFetch } from "@/lib/admin-fetch";
+import { planLabel } from "@/types/admin";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -62,16 +63,16 @@ interface HealthData {
 // ---------------------------------------------------------------------------
 
 
+/*
+ * Every shop on this list scored 3 or more (app/api/health/route.ts), so none
+ * is painted green as if it were safe: up to 6 amber, 7 and up red.
+ */
 function getRiskBarColor(score: number): string {
-  if (score <= 3) return "bg-green-500";
-  if (score <= 6) return "bg-amber-500";
-  return "bg-red-500";
+  return score <= 6 ? "bg-amber-500" : "bg-red-500";
 }
 
 function getRiskBarBg(score: number): string {
-  if (score <= 3) return "bg-green-500/15";
-  if (score <= 6) return "bg-amber-500/15";
-  return "bg-red-500/15";
+  return score <= 6 ? "bg-amber-500/15" : "bg-red-500/15";
 }
 
 // ---------------------------------------------------------------------------
@@ -120,8 +121,18 @@ export default function HealthPage() {
         <h1 className="text-[22px] font-semibold text-foreground">Shops at risk</h1>
       </div>
 
-      {/* Platform Status Bar */}
-      {!isLoading && (
+      {/* Platform Status Bar. While the read runs, a neutral bar of the same
+          height holds its place, so the numbers under it do not drop 70 px when
+          it lands (round 19). */}
+      {isLoading ? (
+        <div
+          role="status"
+          className="rounded-2xl px-4 py-3 flex items-center gap-3 text-sm font-semibold border border-[var(--card-border)] text-foreground/70"
+        >
+          <Loader2 className="w-4 h-4 shrink-0 animate-spin" />
+          Checking shops...
+        </div>
+      ) : (
         <div
           className={`rounded-2xl px-4 py-3 flex items-center gap-3 text-sm font-semibold ${
             hasIssues
@@ -148,7 +159,7 @@ export default function HealthPage() {
         <NumberCell
           label="Active shops, now"
           value={health ? formatCount(health.activeTenants) : "..."}
-          note={health ? `${activePercent}% of ${formatCount(health.totalTenants)} shops` : undefined}
+          note={health ? `${activePercent}% of ${formatCount(health.totalTenants)} shops` : "..."}
         />
         <NumberCell label="Orders, last 24 hours" value={health ? formatCount(health.ordersLast24h) : "..."} />
         <NumberCell
@@ -159,7 +170,7 @@ export default function HealthPage() {
         <NumberCell
           label="New shops, this month"
           value={growth ? formatCount(growth.thisMonth) : "..."}
-          note={growth ? `${formatCount(growth.lastMonth)} last month` : undefined}
+          note={growth ? `${formatCount(growth.lastMonth)} last month` : "..."}
         />
       </NumberStrip>
 
@@ -199,11 +210,11 @@ export default function HealthPage() {
                   <Link
                     href={`/merchants/${ri.tenant_id}`}
                     className="font-semibold text-foreground hover:underline truncate name-dir block"
-                  >
+                   title={ri.business_name}>
                     {ri.business_name}
                   </Link>
-                  <span className="px-2 py-0.5 rounded-full text-xs font-semibold capitalize bg-foreground/5 text-foreground/70 mt-1 inline-block">
-                    {ri.plan}
+                  <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-foreground/5 text-foreground/70 mt-1 inline-block">
+                    {planLabel(ri.plan)}
                   </span>
                 </div>
 
@@ -225,7 +236,7 @@ export default function HealthPage() {
                       />
                     </div>
                     <span className="text-xs font-bold text-foreground/70 tabular-nums shrink-0">
-                      {ri.risk_score}/10
+                      Risk {ri.risk_score} of 10
                     </span>
                   </div>
                 </div>
@@ -259,7 +270,7 @@ export default function HealthPage() {
         <div className="px-4 py-3 border-b border-[var(--card-border)] flex items-center gap-2">
           <Wallet className="w-4 h-4 text-foreground/70" />
           <h2 className="text-sm font-semibold text-foreground">
-            Low Balance Alerts
+            Wallets under their alert amount
           </h2>
           {!isLoading && (
             <span className="ml-auto text-xs text-foreground/70">
@@ -278,7 +289,7 @@ export default function HealthPage() {
             <CheckCircle2 className="w-10 h-10 mb-2" />
             <p className="text-sm font-medium">All wallets healthy</p>
             <p className="text-xs mt-1">
-              No wallets below their threshold
+              No wallet is under its alert amount
             </p>
           </div>
         ) : (
@@ -293,10 +304,10 @@ export default function HealthPage() {
                     Balance
                   </th>
                   <th className="p-3 text-right text-xs font-semibold text-foreground/70 uppercase tracking-wider">
-                    Threshold
+                    Alert amount
                   </th>
                   <th className="p-3 text-right text-xs font-semibold text-foreground/70 uppercase tracking-wider">
-                    Deficit
+                    Short by
                   </th>
                   <th className="p-3 text-center text-xs font-semibold text-foreground/70 uppercase tracking-wider">
                     Action
@@ -326,7 +337,7 @@ export default function HealthPage() {
                         {formatIQD(w.threshold_iqd)}
                       </td>
                       <td className="p-3 text-right font-semibold text-[var(--ink-red)] tabular-nums">
-                        -{formatIQD(deficit)}
+                        {formatIQD(deficit)}
                       </td>
                       <td className="p-3 text-center">
                         {/* The shop page's Add money form exists only for a login that may top up. */}

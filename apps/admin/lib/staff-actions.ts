@@ -38,6 +38,8 @@ const TEAM_WORDS: Record<string, string> = {
   delete_lead: "Deleted a lead",
   reassign_lead: "Moved a lead to another owner",
   import_leads: "Imported leads",
+  import_products: "Imported products",
+  import_product_images: "Added imported product images",
   bulk_leads: "Changed several leads at once",
   export_data: "Downloaded a list",
   approve_topup_request: "Approved a payment",
@@ -198,7 +200,7 @@ export function staffActionText(action: string, details: Record<string, unknown>
 const SAID_BY_CHANGE_TITLE: Record<string, readonly string[]> = {
   extend_trial: ["days"],
   extend_subscription: ["days"],
-  convert_trial: ["days", "duration_days"],
+  convert_trial: ["days", "duration_days", "plan"],
   add_lock_orders: ["orders"],
   force_unlock: ["days"],
   status_change: ["status", "previous_status"],
@@ -207,6 +209,7 @@ const SAID_BY_CHANGE_TITLE: Record<string, readonly string[]> = {
   auto_renew_toggle: ["auto_renew"],
   pause_tenant: ["duration_days"],
   unpause_tenant: ["ended"],
+  support_task_logged: ["outcome"],
 };
 
 /** What staffActionText already says about the row, by the keys it read. */
@@ -229,12 +232,15 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/;
 
 /**
- * How a trial gift or a status change was made (`source`): one shop at a time
+ * How a trial gift, a status change or a renewal was made (`source`): one shop at a time
  * is the usual way and says nothing; the Trials bulk bar does several.
  */
 const SOURCE_WORDS: ReadonlyMap<string, string | null> = new Map([
   ["single", null],
   ["bulk", "several shops at once"],
+  // The shop paid its locked month on its lock screen, which turned renewal
+  // back on (pay_billing_lock); the row's reason already says so.
+  ["shop_paid", null],
 ]);
 
 /** A plain value in words: a time on the console's clock, not the database's. */

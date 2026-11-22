@@ -15,10 +15,12 @@ import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
 import { LoadError } from "@/components/shared/load-error";
 import { okOrLoadFailure } from "@/lib/load-failure";
 import { createRequestIds } from "@/lib/request-ids";
-import { isStaffReason, STAFF_REASON_MAX } from "@/lib/billing-lock-tools";
+import { STAFF_REASON_MAX } from "@/lib/billing-lock-tools";
+import { quickTopUpPlan } from "@/lib/quick-top-up";
 import { formatCount, formatIQD, formatWhen } from "@/lib/format";
 import { useAdminAuth, useCan } from "@/hooks/use-admin-auth";
 import { adminFetch } from "@/lib/admin-fetch";
+import { planLabel } from "@/types/admin";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -131,16 +133,24 @@ export default function BillingPage() {
     },
   });
 
+  // The lines under the form answer the last press. A change to the form
+  // clears them, so a refusal or a success is never read as being about the
+  // next shop; the form is held while a top-up runs (round 17).
+  function changeTopup(apply: () => void) {
+    topupMutation.reset();
+    apply();
+  }
+
   function handleTopup(e: React.FormEvent) {
     e.preventDefault();
     const description = topupDescription.trim();
-    if (!topupTenantId || !topupAmount || topupAmount <= 0 || !isStaffReason(description)) return;
+    if (topupPlan.kind !== "ready") return;
     topupMutation.mutate({
       tenant_id: topupTenantId,
-      amount: topupAmount,
+      amount: topupPlan.amount,
       description,
-      // Same shop, amount and reason asked again (a retry) reuses the id.
-      request_id: requestIds.idFor(`${topupTenantId}:${topupAmount}:${description}`),
+      // Same shop and amount asked again (a retry, the reason reworded) reuses the id.
+      request_id: requestIds.idFor(`${topupTenantId}:${topupPlan.amount}`),
     });
   }
 
@@ -156,6 +166,10 @@ export default function BillingPage() {
   const sortedWallets = [...wallets].sort(
     (a, b) => b.balance_iqd - a.balance_iqd
   );
+  // Named before the press: which shop, how much, its wallet now (audit W-03).
+  const topupShop = wallets.find((w) => w.tenant_id === topupTenantId);
+  const topupPlan = quickTopUpPlan(topupShop, topupAmount, topupDescription);
+  const toppedUpShop = wallets.find((w) => w.tenant_id === topupMutation.variables?.tenant_id);
 
   return (
     <div className="p-4 md:p-6 space-y-6">
@@ -200,8 +214,9 @@ export default function BillingPage() {
               </label>
               <select
                 value={topupTenantId}
-                onChange={(e) => setTopupTenantId(e.target.value)}
-                className="w-full rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-foreground/20"
+                onChange={(e) => changeTopup(() => setTopupTenantId(e.target.value))}
+                disabled={topupMutation.isPending}
+                className="w-full rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-foreground/20 disabled:opacity-60"
               >
                 <option value="">Select merchant...</option>
                 {sortedWallets.map((w) => (
@@ -222,8 +237,9 @@ export default function BillingPage() {
                   <button
                     key={preset}
                     type="button"
-                    onClick={() => setTopupAmount(preset)}
-                    className={`px-2 py-0.5 rounded-lg text-xs font-semibold border transition-all ${
+                    onClick={() => changeTopup(() => setTopupAmount(preset))}
+                    disabled={topupMutation.isPending}
+                    className={`px-2 py-0.5 rounded-lg text-xs font-semibold border transition-all disabled:opacity-60 ${
                       topupAmount === preset
                         ? "bg-foreground text-background border-foreground"
                         : "bg-[var(--card-bg)] text-foreground/70 border-[var(--card-border)] hover:border-foreground/30"
@@ -237,11 +253,12 @@ export default function BillingPage() {
                 type="number"
                 value={topupAmount}
                 onChange={(e) =>
-                  setTopupAmount(e.target.value ? Number(e.target.value) : "")
+                  changeTopup(() => setTopupAmount(e.target.value ? Number(e.target.value) : ""))
                 }
+                disabled={topupMutation.isPending}
                 placeholder="Custom amount"
                 min={1}
-                className="w-full rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-foreground/20"
+                className="w-full rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-foreground/20 disabled:opacity-60"
               />
             </div>
 
@@ -253,23 +270,18 @@ export default function BillingPage() {
               <input
                 type="text"
                 value={topupDescription}
-                onChange={(e) => setTopupDescription(e.target.value)}
+                onChange={(e) => changeTopup(() => setTopupDescription(e.target.value))}
+                disabled={topupMutation.isPending}
                 placeholder="e.g. Qi transfer, receipt 12"
                 maxLength={STAFF_REASON_MAX}
-                className="w-full rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-foreground/20"
+                className="w-full rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-foreground/20 disabled:opacity-60"
               />
             </div>
 
             {/* Submit */}
             <button
               type="submit"
-              disabled={
-                !topupTenantId ||
-                !topupAmount ||
-                topupAmount <= 0 ||
-                !isStaffReason(topupDescription) ||
-                topupMutation.isPending
-              }
+              disabled={topupPlan.kind !== "ready" || topupMutation.isPending}
               className="px-5 py-2 rounded-xl bg-foreground text-background text-sm font-semibold hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all whitespace-nowrap flex items-center gap-2"
             >
               {topupMutation.isPending ? (
@@ -277,9 +289,16 @@ export default function BillingPage() {
               ) : (
                 <ArrowUpRight className="w-4 h-4" />
               )}
-              Top Up
+              {topupPlan.kind === "ready" ? topupPlan.button : "Top Up"}
             </button>
           </form>
+
+          {topupPlan.kind === "ready" && (
+            <p className="text-xs text-foreground/75 mt-3">{topupPlan.sentence}</p>
+          )}
+          {topupPlan.kind === "blocked" && (
+            <p className="text-xs text-[var(--ink-red)] mt-3">{topupPlan.words}</p>
+          )}
 
           {topupMutation.isError && (
             <p className="text-xs text-[var(--ink-red)] mt-2">
@@ -288,8 +307,9 @@ export default function BillingPage() {
           )}
           {topupMutation.isSuccess && (
             <p className="text-xs text-[var(--ink-green)] mt-2">
-              Top-up successful! New balance:{" "}
-              {formatIQD(topupMutation.data?.newBalance ?? 0)}
+              Added {formatIQD(topupMutation.variables?.amount ?? 0)}
+              {toppedUpShop ? ` to ${toppedUpShop.business_name}` : ""}. Wallet now{" "}
+              {formatIQD(topupMutation.data?.newBalance ?? 0)}.
             </p>
           )}
         </div>
@@ -352,8 +372,8 @@ export default function BillingPage() {
                           </Link>
                         </td>
                         <td className="p-3">
-                          <span className="text-xs font-semibold capitalize">
-                            {w.plan}
+                          <span className="text-xs font-semibold">
+                            {planLabel(w.plan)}
                           </span>
                         </td>
                         <td className="p-3 text-right font-medium tabular-nums">
@@ -423,7 +443,7 @@ export default function BillingPage() {
                   </div>
 
                   {/* Business name */}
-                  <span className="text-xs text-foreground/70 truncate name-dir flex-1 min-w-0">
+                  <span className="text-xs text-foreground/70 truncate name-dir flex-1 min-w-0" title={tx.tenants?.business_name ?? "Unknown"}>
                     {tx.tenants?.business_name ?? "Unknown"}
                   </span>
 

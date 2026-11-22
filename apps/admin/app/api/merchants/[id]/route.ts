@@ -17,9 +17,9 @@ const patchSchema = z
     status: z.enum(["active", "trial", "limited", "suspended", "cancelled"]).optional(),
     plan: z.enum(PLAN_TIERS).optional(),
     auto_renew: z.boolean().optional(),
-    // Staff's words, kept on the staff log rows. The shop page asks for them
-    // on a hold and a plan change; the Merchants card menus (the owner's page)
-    // do not yet, so they stay optional there.
+    // Staff's words, kept on the staff log rows. The shop page and the
+    // Merchants card plan chip ask for them; the card's status menu (the
+    // owner's page) does not yet, so a status change may come without one.
     reason: staffReasonSchema.optional(),
   })
   .refine((d) => d.status || d.plan || typeof d.auto_renew === "boolean", {
@@ -29,6 +29,12 @@ const patchSchema = z
   .refine((d) => d.auto_renew !== false || d.reason, {
     message: "Say why renewal stops.",
     path: ["reason"],
+  })
+  // A plan decides what the shop pays each month. Every form that moves one
+  // asks why (the shop page, the card's plan chip, bulk Change Plan).
+  .refine((d) => !d.plan || d.reason, {
+    message: "Say why the plan changes.",
+    path: ["reason"],
   });
 
 /**
@@ -37,6 +43,31 @@ const patchSchema = z
  */
 const TEAM_COLUMNS =
   "id, user_id, role, status, invited_at, joined_at, user_profiles!tenant_members_user_id_fkey(email, display_name, avatar_url)";
+
+const paidMonthsSchema = z.array(z.object({ paid_at: z.string(), month_end: z.string() }));
+
+/**
+ * The shop's charged plan months, by the Paying page's one rule
+ * (paid_plan_months): when it was first charged, and when its latest charged
+ * month ends. A running subscription can be free time (a converted lead, free
+ * days, a free unlock), so the page says "Paying" only while a charged month
+ * covers now (round 18). month_end is the month's own end, the day the Paying
+ * page shows; paid_until adds the wait day for the count, which the status
+ * line says in its own words (20261119073725_paid_month_end_and_wait_day).
+ */
+async function readPaidPlan(
+  supabase: ReturnType<typeof createAdminClient>,
+  tenantId: string,
+): Promise<{ first_paid_at: string | null; month_end: string | null }> {
+  const { data, error } = await supabase.rpc("paid_plan_months").eq("tenant_id", tenantId);
+  if (error) throw error;
+  const months = paidMonthsSchema.parse(data);
+  const at = (iso: string) => Date.parse(iso);
+  return {
+    first_paid_at: months.reduce<string | null>((first, m) => (first === null || at(m.paid_at) < at(first) ? m.paid_at : first), null),
+    month_end: months.reduce<string | null>((last, m) => (last === null || at(m.month_end) > at(last) ? m.month_end : last), null),
+  };
+}
 
 /** The staff steps that put a shop on hold, or pause it. */
 const STOP_ACTIONS: Record<string, readonly string[]> = {
@@ -106,6 +137,7 @@ export async function GET(
       orderCountResult,
       planLimitsResult,
       billingLock,
+      paidPlan,
     ] = await Promise.all([
       // The health parts, as the list reads them; the score is their sum (lib/shop-health-score).
       supabase
@@ -142,6 +174,7 @@ export async function GET(
       supabase.from("plan_limits").select("*"),
       // The lock the shop sees (Fermi A1), for the staff tools card.
       readBillingLock(supabase, id),
+      readPaidPlan(supabase, id),
     ]);
 
     if (tenantResult.error) {
@@ -182,6 +215,7 @@ export async function GET(
       orderCount: orderCountResult.count ?? 0,
       planLimits,
       billingLock,
+      paidPlan,
       // A free unlock grants paid time without a payment: super admins only.
       canForceUnlock: hasPermission(auth.role, "manage_subscription"),
       stoppedBy,
