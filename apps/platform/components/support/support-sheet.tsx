@@ -12,6 +12,7 @@ import {
     FileText,
     LifeBuoy,
     Loader2,
+    MessageCircle,
     Mic,
     Package,
     RotateCcw,
@@ -275,6 +276,17 @@ export function SupportSheet() {
                                     </p>
                                 )}
                             </div>
+                            {thread?.whatsapp && (
+                                <a
+                                    href={thread.whatsapp}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-emerald-500/40 px-3 text-xs font-semibold text-emerald-700 transition-colors hover:bg-emerald-500/10 dark:text-emerald-400"
+                                >
+                                    <MessageCircle className="h-3.5 w-3.5" />
+                                    {t("support.whatsapp")}
+                                </a>
+                            )}
                             <button
                                 type="button"
                                 onClick={close}

@@ -7374,6 +7374,7 @@ export const en: Record<string, string> = {
     "support.visits.action.wroteFirst": "Wrote to you first",
     "support.visits.action.owner": "Became your support person",
     "support.close": "Close",
+    "support.whatsapp": "WhatsApp",
     "support.empty.title": "How can we help?",
     "support.empty.body": "Write your problem or question. We send the page you are on with your message so we understand it fast.",
     "support.placeholder": "Write your message",

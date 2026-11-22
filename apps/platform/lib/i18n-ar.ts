@@ -8222,6 +8222,7 @@ export const ar: Record<string, string> = {
     "support.visits.action.wroteFirst": "راسلك أولاً",
     "support.visits.action.owner": "أصبح مسؤول حسابك",
     "support.close": "إغلاق",
+    "support.whatsapp": "واتساب",
     "support.empty.title": "كيف نساعدك؟",
     "support.empty.body": "اكتب مشكلتك أو سؤالك. نرسل مع رسالتك الصفحة التي أنت فيها حتى نفهم المشكلة بسرعة.",
     "support.placeholder": "اكتب رسالتك",

@@ -122,6 +122,8 @@ export interface SupportThread {
     contactPhone: string | null;
     /** What support has told every merchant right now ("Prime is slow today"), if anything. */
     notice: SupportNotice | null;
+    /** A wa.me link to our support WhatsApp that names the shop, or null while no number is set. */
+    whatsapp: string | null;
     /** A staff member opened the conversation after the merchant's last message, before replying. */
     seen: SupportSeen | null;
     /** The merchant just said No on the latest case and has not said why yet. */
