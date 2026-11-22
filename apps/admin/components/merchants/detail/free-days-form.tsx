@@ -6,7 +6,7 @@ import { formatDayTime } from "@/lib/format";
 import { endAfterDays, shopActionKey, type FreeDaysKind } from "@/lib/shop-actions";
 import { isStaffReason } from "@/lib/billing-lock-tools";
 import { RENEWAL_OFF_THEN_LOCKS } from "@/lib/billing-lock-label";
-import type { RequestIds } from "@/lib/request-ids";
+import { requestKey, shopKey, type RequestIds } from "@/lib/request-ids";
 import { MAX_TRIAL_EXTENSION_DAYS } from "@/lib/trial-extension";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
 import { Choice, ConfirmButton, ErrorLine, FieldInput, PanelFields, PanelTitle, postJson, useWriteFailed, WillHappen } from "./action-ui";
@@ -51,7 +51,7 @@ export function FreeDaysForm({ shopId, shopName, kind, endsAt, locked, renewalOf
     mutationFn: (value: number) => {
       // Keyed by what is given, not the words: a reopened panel with the reason
       // typed anew sends the same ask with the same id, so the days come once.
-      const request_id = requestIds.idFor(`${shopId}:${kind}:${value}`);
+      const request_id = requestIds.idFor(requestKey(shopKey(shopId), kind, value));
       const url = kind === "trial" ? "extend-trial" : "extend-subscription";
       return postJson(`/api/merchants/${shopId}/${url}`, { days: value, reason: why.trim(), request_id });
     },

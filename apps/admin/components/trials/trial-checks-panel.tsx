@@ -20,8 +20,9 @@ import {
 } from "@/lib/trial-checks";
 import { isPausedTrial } from "@/lib/effective-status";
 import { formatDayTime } from "@/lib/format";
-import { createRequestIds } from "@/lib/request-ids";
+import { keptRequestIds, requestKey, shopKey } from "@/lib/request-ids";
 import { adminFetch } from "@/lib/admin-fetch";
+import { failureOf, sendJson } from "@/components/merchants/detail/action-ui";
 
 const GIVE_BACK_DAYS = [3, 7];
 
@@ -48,29 +49,23 @@ function DecideActions({ check }: { check: TrialCheck }) {
   const reasonOk = isStaffReason(reason);
   const queryClient = useQueryClient();
   const onTrial = check.store?.status === "trial";
-  // One id per ask: a retry after a lost answer or a double click gives the days once.
+  // One id per ask, kept in this browser: a retry after a lost answer, a
+  // double click or a reload gives the days once (round 21, structure new 7).
   // The decision the row showed goes too: if someone decided it since, the server refuses.
-  const [requestIds] = useState(createRequestIds);
+  const [requestIds] = useState(() => keptRequestIds("trial-check"));
 
   const mutation = useMutation({
     mutationFn: async (ask: DecisionAsk) => {
-      const days = ask.decision === "allow_trial" ? ask.days : "";
+      const days = ask.decision === "allow_trial" ? [ask.days] : [];
       const input: TrialCheckDecisionInput = {
         ...ask,
         reason: reason.trim(),
-        request_id: requestIds.idFor(`${check.tenant_id}:${ask.decision}:${days}`),
+        request_id: requestIds.idFor(requestKey(shopKey(check.tenant_id), ask.decision, ...days)),
         seen_decided_at: check.decided_at,
       };
-      const res = await adminFetch(`/api/trial-checks/${check.tenant_id}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(input),
-      });
-      if (!res.ok) {
-        const data: { error?: string } = await res.json();
-        throw new Error(data.error || "Failed to save the decision");
-      }
-      return res.json();
+      const answer = await sendJson(`/api/trial-checks/${check.tenant_id}`, input);
+      if (!answer.ok) throw failureOf(answer.status, answer.data, "Failed to save the decision");
+      return answer.data;
     },
     onSuccess: () => {
       requestIds.done();

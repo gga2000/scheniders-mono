@@ -18,7 +18,10 @@ vi.mock("@/hooks/use-admin-auth", () => ({ useCan: () => () => true, useAdminAut
 vi.mock("@/components/shared/export-button", () => ({ ExportButton: () => null }));
 
 const { default: BillingPage } = await import("./page");
-const { keptRequestIds } = await import("@/lib/request-ids");
+const { keptRequestIds, requestKey, shopKey } = await import("@/lib/request-ids");
+
+const KUT = "6d4e6d9b-eaf5-42f9-abd1-a8afee593d9d";
+const DEMO = "0b9f1c2e-3a4d-4e5f-8a6b-7c8d9e0f1a2b";
 
 const wallet = (tenant_id: string, business_name: string, balance_iqd: number) => ({
   tenant_id,
@@ -31,7 +34,7 @@ const wallet = (tenant_id: string, business_name: string, balance_iqd: number) =
   total_topped_up_iqd: 0,
 });
 const BILLING = {
-  wallets: [wallet("t-kut", "Kut Perfumes", 43800), wallet("t-demo", "Demo Shop", 0)],
+  wallets: [wallet(KUT, "Kut Perfumes", 43800), wallet(DEMO, "Demo Shop", 0)],
   recentTransactions: [],
   summary: { totalBalance: 43800, totalCharged: 0, totalToppedUp: 0, lowBalanceCount: 1 },
 };
@@ -63,27 +66,27 @@ afterEach(() => {
 describe("Quick Top-Up after a press", () => {
   it("drops a refusal once the shop is changed, so it is not read as about the next shop", async () => {
     serve(() => Promise.resolve(json({ error: "This shop has no wallet yet." }, 404)));
-    const select = await fill("t-demo", "25000");
+    const select = await fill(DEMO, "25000");
     fireEvent.click(screen.getByRole("button", { name: "Add 25,000 IQD" }));
     expect(await screen.findByText("This shop has no wallet yet.")).toBeTruthy();
-    fireEvent.change(select, { target: { value: "t-kut" } });
+    fireEvent.change(select, { target: { value: KUT } });
     expect(screen.getByText("Adds 25,000 IQD to Kut Perfumes. Its wallet holds 43,800 IQD now.")).toBeTruthy();
     expect(screen.queryByText("This shop has no wallet yet.")).toBeNull();
   });
 
   it("drops the last success once a new top-up is started", async () => {
     serve(() => Promise.resolve(json({ newBalance: 93800 })));
-    await fill("t-kut", "50000");
+    await fill(KUT, "50000");
     fireEvent.click(screen.getByRole("button", { name: "Add 50,000 IQD" }));
     expect(await screen.findByText(/Added 50,000 IQD to Kut Perfumes\. Wallet now 93,800 IQD\./)).toBeTruthy();
-    fireEvent.change(screen.getByDisplayValue("Select merchant..."), { target: { value: "t-demo" } });
+    fireEvent.change(screen.getByDisplayValue("Select merchant..."), { target: { value: DEMO } });
     expect(screen.queryByText(/Added 50,000 IQD/)).toBeNull();
   });
 
   it("holds the form while a top-up runs, so nothing typed then is lost", async () => {
     let answer: (res: Response) => void = () => {};
     serve(() => new Promise<Response>((resolve) => (answer = resolve)));
-    const select = await fill("t-kut", "50000");
+    const select = await fill(KUT, "50000");
     fireEvent.click(screen.getByRole("button", { name: "Add 50,000 IQD" }));
     await waitFor(() => expect(select.disabled).toBe(true));
     expect((screen.getByPlaceholderText("Custom amount") as HTMLInputElement).disabled).toBe(true);
@@ -105,7 +108,7 @@ describe("Quick Top-Up when the answer is lost or repeated", () => {
 
   it("says the answer was lost, not a parser's words, on a 504 with a text body", async () => {
     serve(() => Promise.resolve(new Response("An error occurred with your deployment", { status: 504 })));
-    await fill("t-kut", "50000");
+    await fill(KUT, "50000");
     fireEvent.click(screen.getByRole("button", { name: "Add 50,000 IQD" }));
     expect(await screen.findByText(ANSWER_LOST)).toBeTruthy();
     expect(screen.queryByText(/JSON/)).toBeNull();
@@ -113,25 +116,25 @@ describe("Quick Top-Up when the answer is lost or repeated", () => {
 
   it("says the answer was lost when the connection drops", async () => {
     serve(() => Promise.reject(new TypeError("Failed to fetch")));
-    await fill("t-kut", "50000");
+    await fill(KUT, "50000");
     fireEvent.click(screen.getByRole("button", { name: "Add 50,000 IQD" }));
     expect(await screen.findByText(ANSWER_LOST)).toBeTruthy();
   });
 
   it("keeps a lost top-up's id where the shop page's Add money finds it", async () => {
     serve(() => Promise.resolve(new Response("upstream timed out", { status: 504 })));
-    await fill("t-kut", "50000");
+    await fill(KUT, "50000");
     fireEvent.click(screen.getByRole("button", { name: "Add 50,000 IQD" }));
     await screen.findByText(ANSWER_LOST);
     const posted = send.mock.calls.find(([, init]) => init?.method === "POST");
     const sent = JSON.parse(String((posted?.[1] as RequestInit).body)).request_id;
     // Add money on Kut's page asks for the id of "Kut, 50,000" the same way.
-    expect(keptRequestIds("topup").idFor("t-kut:50000")).toBe(sent);
+    expect(keptRequestIds("topup").idFor(requestKey(shopKey(KUT), 50000))).toBe(sent);
   });
 
   it("says a repeat was not added again", async () => {
     serve(() => Promise.resolve(json({ success: true, newBalance: 93800, duplicate: true })));
-    await fill("t-kut", "50000");
+    await fill(KUT, "50000");
     fireEvent.click(screen.getByRole("button", { name: "Add 50,000 IQD" }));
     expect(
       await screen.findByText(

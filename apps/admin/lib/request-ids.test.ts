@@ -1,52 +1,75 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
-import { describe, it, expect } from "vitest";
-import { createRequestIds, KEPT_FOR_MS, keptRequestIds, type KeptStorage } from "./request-ids";
+import { describe, it, expect, expectTypeOf } from "vitest";
+import {
+  KEPT_FOR_MS,
+  keptRequestIds,
+  requestKey,
+  shopKey,
+  shopsKey,
+  type KeptStorage,
+  type RequestKeyPart,
+} from "./request-ids";
+
+const SHOP_A = "6d4e6d9b-eaf5-42f9-abd1-a8afee593d9d";
+const SHOP_B = "0b9f1c2e-3a4d-4e5f-8a6b-7c8d9e0f1a2b";
+const A = shopKey(SHOP_A);
+const B = shopKey(SHOP_B);
+
+/** A browser's localStorage, shared by every page and tab that reads it. */
+function browser(): KeptStorage {
+  const items = new Map<string, string>();
+  return { getItem: (key) => items.get(key) ?? null, setItem: (key, value) => void items.set(key, value) };
+}
 
 /*
  * A staff top-up carries an id the server uses to drop a repeat. The id must
  * stay the same for a retry of the same request and change for a new one, or
  * a retry credits twice / a wanted second top-up is dropped.
  */
-describe("createRequestIds", () => {
-  it("gives a retry of the same payload the same id", () => {
-    const ids = createRequestIds();
-    const first = ids.idFor("shop-a:5000:receipt 12");
-    expect(ids.idFor("shop-a:5000:receipt 12")).toBe(first);
+describe("an ask's id", () => {
+  it("is the same for a retry of the same ask", () => {
+    const ids = keptRequestIds("topup", { storage: browser() });
+    const first = ids.idFor(requestKey(A, 5000));
+    expect(ids.idFor(requestKey(A, 5000))).toBe(first);
     expect(first).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
   });
 
-  it("gives a different payload a new id", () => {
-    const ids = createRequestIds();
-    const first = ids.idFor("shop-a:5000:");
-    expect(ids.idFor("shop-a:6000:")).not.toBe(first);
-    expect(ids.idFor("shop-b:5000:")).not.toBe(first);
+  it("is new for another amount or another shop", () => {
+    const ids = keptRequestIds("topup", { storage: browser() });
+    const first = ids.idFor(requestKey(A, 5000));
+    expect(ids.idFor(requestKey(A, 6000))).not.toBe(first);
+    expect(ids.idFor(requestKey(B, 5000))).not.toBe(first);
+  });
+});
+
+/*
+ * Round 21 (structure new 7): the guard test read variable names in the key
+ * text and missed a key built from a name it did not list. The key's parts are
+ * now typed: a shop's checked id, a number, or a step's fixed word. Words
+ * staff type cannot be one.
+ */
+describe("requestKey", () => {
+  it("takes no free text: a string is not a key part", () => {
+    expectTypeOf<string>().not.toMatchTypeOf<RequestKeyPart>();
+    expectTypeOf<number>().toMatchTypeOf<RequestKeyPart>();
   });
 
-  it("gives the same payload a new id once the request is done", () => {
-    const ids = createRequestIds();
-    const first = ids.idFor("shop-a:5000:");
-    ids.done();
-    expect(ids.idFor("shop-a:5000:")).not.toBe(first);
+  it("refuses a reason passed off as a shop", () => {
+    expect(() => shopKey("Qi transfer, receipt 12")).toThrow("This is not a shop's id.");
+    expect(() => shopsKey([SHOP_A, "refund for order 9"])).toThrow("This is not a shop's id.");
   });
 
-  it("keeps each ask's id until a success, so a retry after another ask keeps its own", () => {
-    // Round 20: only the last ask was kept. 50,000 lost, then 10,000, then
-    // 50,000 again went out with a new id and could be credited twice.
-    const ids = createRequestIds();
-    const fifty = ids.idFor("shop-a:50000");
-    const ten = ids.idFor("shop-a:10000");
-    expect(ten).not.toBe(fifty);
-    expect(ids.idFor("shop-a:50000")).toBe(fifty);
-    ids.done();
-    expect(ids.idFor("shop-a:50000")).not.toBe(fifty);
-    expect(ids.idFor("shop-a:10000")).not.toBe(ten);
+  it("makes the same text as the keys before it, so ids kept in a browser still match", () => {
+    expect(requestKey(A, 50000)).toBe(`${SHOP_A}:50000`);
+    expect(requestKey(A, "orders", 50)).toBe(`${SHOP_A}:orders:50`);
+    expect(requestKey("top-up", 10000, shopsKey([SHOP_A, SHOP_B]))).toBe(
+      `top-up:10000:${[SHOP_A, SHOP_B].sort().join(",")}`,
+    );
   });
 
-  it("keeps two forms apart", () => {
-    const a = createRequestIds();
-    const b = createRequestIds();
-    expect(a.idFor("shop-a:5000:")).not.toBe(b.idFor("shop-a:5000:"));
+  it("reads a pick of shops in one order", () => {
+    expect(shopsKey([SHOP_B, SHOP_A])).toBe(shopsKey([SHOP_A, SHOP_B]));
   });
 });
 
@@ -57,54 +80,48 @@ describe("createRequestIds", () => {
  * the server's words promised "once at most".
  */
 describe("keptRequestIds", () => {
-  /** A browser's localStorage, shared by every page and tab that reads it. */
-  function browser(): KeptStorage {
-    const items = new Map<string, string>();
-    return { getItem: (key) => items.get(key) ?? null, setItem: (key, value) => void items.set(key, value) };
-  }
-
   it("keeps an id across pages, reloads and tabs of one browser", () => {
     const storage = browser();
     const billing = keptRequestIds("topup", { storage });
-    const id = billing.idFor("shop-a:50000");
+    const id = billing.idFor(requestKey(A, 50000));
     // The shop page's Add money, or Billing after a reload: a new handle, the same browser.
-    expect(keptRequestIds("topup", { storage }).idFor("shop-a:50000")).toBe(id);
+    expect(keptRequestIds("topup", { storage }).idFor(requestKey(A, 50000))).toBe(id);
   });
 
   it("keeps kinds apart", () => {
     const storage = browser();
-    const topUp = keptRequestIds("topup", { storage }).idFor("shop-a:7");
-    expect(keptRequestIds("free-days", { storage }).idFor("shop-a:7")).not.toBe(topUp);
+    const topUp = keptRequestIds("topup", { storage }).idFor(requestKey(A, 7));
+    expect(keptRequestIds("free-days", { storage }).idFor(requestKey(A, 7))).not.toBe(topUp);
   });
 
   it("ends only the ask that went through", () => {
     const storage = browser();
     const ids = keptRequestIds("topup", { storage });
-    const fifty = ids.idFor("shop-a:50000"); // its answer was lost
-    const ten = ids.idFor("shop-a:10000");
+    const fifty = ids.idFor(requestKey(A, 50000)); // its answer was lost
+    const ten = ids.idFor(requestKey(A, 10000));
     ids.done(); // 10,000 went through
-    expect(ids.idFor("shop-a:50000")).toBe(fifty);
-    expect(ids.idFor("shop-a:10000")).not.toBe(ten);
+    expect(ids.idFor(requestKey(A, 50000))).toBe(fifty);
+    expect(ids.idFor(requestKey(A, 10000))).not.toBe(ten);
   });
 
   it("ends an ask from another handle once it goes through there", () => {
     const storage = browser();
-    const id = keptRequestIds("topup", { storage }).idFor("shop-a:50000");
+    const id = keptRequestIds("topup", { storage }).idFor(requestKey(A, 50000));
     const shopPage = keptRequestIds("topup", { storage });
-    expect(shopPage.idFor("shop-a:50000")).toBe(id);
+    expect(shopPage.idFor(requestKey(A, 50000))).toBe(id);
     shopPage.done();
-    expect(keptRequestIds("topup", { storage }).idFor("shop-a:50000")).not.toBe(id);
+    expect(keptRequestIds("topup", { storage }).idFor(requestKey(A, 50000))).not.toBe(id);
   });
 
   it("forgets an ask after an hour, so a wanted top-up later is a new one", () => {
     const storage = browser();
     let at = 1_000_000;
     const now = () => at;
-    const id = keptRequestIds("topup", { storage, now }).idFor("shop-a:50000");
+    const id = keptRequestIds("topup", { storage, now }).idFor(requestKey(A, 50000));
     at += KEPT_FOR_MS - 1;
-    expect(keptRequestIds("topup", { storage, now }).idFor("shop-a:50000")).toBe(id);
+    expect(keptRequestIds("topup", { storage, now }).idFor(requestKey(A, 50000))).toBe(id);
     at += KEPT_FOR_MS;
-    expect(keptRequestIds("topup", { storage, now }).idFor("shop-a:50000")).not.toBe(id);
+    expect(keptRequestIds("topup", { storage, now }).idFor(requestKey(A, 50000))).not.toBe(id);
   });
 
   it("keeps ids in the tab when the browser refuses its storage", () => {
@@ -116,26 +133,25 @@ describe("keptRequestIds", () => {
         throw new Error("SecurityError");
       },
     };
-    const first = keptRequestIds("lock", { storage: refusing }).idFor("shop-b:orders:50");
-    expect(keptRequestIds("lock", { storage: refusing }).idFor("shop-b:orders:50")).toBe(first);
+    const first = keptRequestIds("lock", { storage: refusing }).idFor(requestKey(B, "orders", 50));
+    expect(keptRequestIds("lock", { storage: refusing }).idFor(requestKey(B, "orders", 50))).toBe(first);
   });
 
   it("starts afresh when the stored text is not its own", () => {
     const storage = browser();
     storage.setItem("adminRequestIds", "not json");
-    expect(keptRequestIds("bulk", { storage }).idFor("top-up:10000:a,b")).toMatch(/^[0-9a-f-]{36}$/);
+    expect(keptRequestIds("bulk", { storage }).idFor(requestKey("top-up", 10000, shopsKey([SHOP_A, SHOP_B])))).toMatch(/^[0-9a-f-]{36}$/);
   });
 });
 
 /*
  * Round 20: the ids were keyed by the reason's words. A form opened again
  * starts empty, so a retry typed in other words got a new id and a wallet
- * could be credited twice. Every key is what moves (shop, amount, days), never
- * the free text staff type.
+ * could be credited twice. Every key is built by requestKey, whose parts the
+ * types hold to what moves (round 21, structure new 7). A cast to a key type
+ * would step around them, so none is allowed outside the module.
  */
 const ADMIN_DIR = path.resolve(__dirname, "..");
-// "extensionReason" and "topUpDescription" count too.
-const FREE_TEXT = /reason|description|\bwhy\b|\bhow\b|\bnote\b/i;
 
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
@@ -146,23 +162,22 @@ function sourceFiles(dir: string): string[] {
 }
 
 describe("every request id key", () => {
-  it("is what moves, never the words staff type", () => {
-    const keys: string[] = [];
-    const found: string[] = [];
+  it("is built by requestKey, and nothing casts its way around it", () => {
+    let calls = 0;
+    const loose: string[] = [];
     for (const dir of ["app", "components", "hooks", "lib"]) {
       for (const file of sourceFiles(path.join(ADMIN_DIR, dir))) {
+        const name = path.relative(ADMIN_DIR, file).split(path.sep).join("/");
         const text = readFileSync(file, "utf8");
-        for (let at = text.indexOf(".idFor("); at >= 0; at = text.indexOf(".idFor(", at + 1)) {
-          // A key is a template literal, on one line or several: read to its closing backtick.
-          const rest = text.slice(at, at + 400);
-          const end = rest.search(/`\s*,?\s*\)/);
-          const key = (end > 0 ? rest.slice(0, end + 1) : rest.split("\n")[0]).replace(/\s+/g, " ");
-          keys.push(key);
-          if (FREE_TEXT.test(key)) found.push(`${path.relative(ADMIN_DIR, file).split(path.sep).join("/")}: ${key}`);
+        for (const call of text.matchAll(/\.idFor\(\s*([^)\s]*)/g)) {
+          if (name === "lib/request-ids.ts") continue;
+          calls += 1;
+          if (!call[1].startsWith("requestKey(")) loose.push(`${name}: .idFor(${call[1]}`);
         }
+        if (name !== "lib/request-ids.ts" && /as\s+(RequestKey|ShopKey)\b/.test(text)) loose.push(`${name}: casts to a key type`);
       }
     }
-    expect(keys.length).toBeGreaterThanOrEqual(9);
-    expect(found).toEqual([]);
+    expect(calls).toBeGreaterThanOrEqual(9);
+    expect(loose).toEqual([]);
   });
 });

@@ -11,7 +11,7 @@ import {
   type BillingLockSnapshot,
 } from "@/lib/billing-lock-tools";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
-import { keptRequestIds } from "@/lib/request-ids";
+import { keptRequestIds, requestKey, shopKey } from "@/lib/request-ids";
 import { formatDay } from "@/lib/format";
 import { LOCK_REASON_WORDS, lockOpensWords, RENEWAL_OFF_THEN_LOCKS } from "@/lib/billing-lock-label";
 import { shopActionKey } from "@/lib/shop-actions";
@@ -64,7 +64,7 @@ export function BillingLockCard({ merchantId, lock, canForceUnlock, shopPaused }
           ? `/api/merchants/${merchantId}/lock-orders`
           : `/api/merchants/${merchantId}/force-unlock`;
       const amount = action.kind === "orders" ? action.orders : action.days;
-      const request_id = requestIds.idFor(`${merchantId}:${action.kind}:${amount}`);
+      const request_id = requestIds.idFor(requestKey(shopKey(merchantId), action.kind, amount));
       const body =
         action.kind === "orders"
           ? { orders: action.orders, reason: reason.trim(), request_id }

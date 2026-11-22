@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { PLAN_LABELS, PLAN_TIERS, type PlanTier } from "@/types/admin";
 import { X, Loader2, AlertTriangle, CheckCircle } from "lucide-react";
-import { keptRequestIds } from "@/lib/request-ids";
+import { keptRequestIds, requestKey, shopsKey } from "@/lib/request-ids";
 import { isStaffReason } from "@/lib/billing-lock-tools";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
 import { isBulkFailureList, notDoneLines, tooManyShops, type BulkFailure } from "@/lib/bulk-not-done";
@@ -260,7 +260,7 @@ export function BulkActionDialog({
           reason: extensionReason.trim(),
           // The same days for the same shops again (a retry, the reason typed
           // anew) reuse the id, so no shop is extended twice.
-          request_id: requestIds.idFor(`extend:${extensionDays}:${[...selectedIds].sort().join(",")}`),
+          request_id: requestIds.idFor(requestKey("extend", extensionDays, shopsKey([...selectedIds]))),
         };
         break;
       case "top-up": {
@@ -273,7 +273,7 @@ export function BulkActionDialog({
           description,
           // The same amount for the same shops again (a retry, the note typed
           // anew) reuses the id, so a wallet already credited is not credited twice.
-          request_id: requestIds.idFor(`top-up:${amount}:${[...selectedIds].sort().join(",")}`),
+          request_id: requestIds.idFor(requestKey("top-up", amount, shopsKey([...selectedIds]))),
         };
         break;
       }

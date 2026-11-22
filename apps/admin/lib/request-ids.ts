@@ -16,37 +16,71 @@ import { z } from "zod";
  * words must not turn a retry into a second top-up (round 20).
  */
 export interface RequestIds {
-  idFor(key: string): string;
+  idFor(key: RequestKey): string;
   /** The ask last handed an id went through: its next press is a new ask. */
   done(): void;
 }
 
+declare const shopKeyBrand: unique symbol;
+/** A shop's id, checked to be one. */
+export type ShopKey = string & { readonly [shopKeyBrand]: true };
+
+declare const requestKeyBrand: unique symbol;
+/** What an ask's id is keyed by. Only requestKey makes one. */
+export type RequestKey = string & { readonly [requestKeyBrand]: true };
+
+/** The fixed words that name a step inside a key. */
+export type RequestStep =
+  | "trial"
+  | "month"
+  | "orders"
+  | "unlock"
+  | "extend"
+  | "top-up"
+  | "allow_trial"
+  | "end_trial"
+  | "checked";
+
+/** What may key an id: shops, numbers (an amount, days) and a step's fixed word. */
+export type RequestKeyPart = ShopKey | RequestStep | number;
+
+const SHOP_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function checkedShop(id: string): string {
+  if (!SHOP_ID.test(id)) throw new Error("This is not a shop's id.");
+  return id;
+}
+
+/** One shop as a key part. Any other text, a reason or a note, is refused. */
+export function shopKey(id: string): ShopKey {
+  return checkedShop(id) as ShopKey;
+}
+
+/** Many shops as one key part, in one order: the same pick in another order is the same ask. */
+export function shopsKey(ids: readonly string[]): ShopKey {
+  return ids.map(checkedShop).sort().join(",") as ShopKey;
+}
+
 /**
- * Ids held by one form while it stays drawn: `const [requestIds] =
- * useState(createRequestIds)`. A success ends them all.
+ * The key of one ask: what moves (the shops, the amount, the days) and the
+ * step's fixed word. It cannot hold the words staff type: a form opened again
+ * starts empty, and a reason typed anew must not turn a retry into a second
+ * top-up (round 20). The types say so, where the guard test once read
+ * variable names (round 21, structure new 7). The same parts make the same
+ * text as the keys before them, so ids kept in a browser still match.
  */
-export function createRequestIds(): RequestIds {
-  const ids = new Map<string, string>();
-  return {
-    idFor(key: string): string {
-      const known = ids.get(key);
-      if (known) return known;
-      const id = crypto.randomUUID();
-      ids.set(key, id);
-      return id;
-    },
-    done(): void {
-      ids.clear();
-    },
-  };
+export function requestKey(...parts: RequestKeyPart[]): RequestKey {
+  return parts.join(":") as RequestKey;
 }
 
 /**
  * The kinds of ask whose ids outlive the page. Top-ups share one kind, so Quick
  * Top-Up on Billing and Add money on the shop page send one id for one shop and
  * amount: the server credits it once, whichever screen staff retry from.
+ * Free trial days likewise: Extend on Trials and the shop page's free trial
+ * days key the same ask the same way.
  */
-export type RequestKind = "topup" | "free-days" | "convert" | "lock" | "bulk";
+export type RequestKind = "topup" | "free-days" | "convert" | "lock" | "bulk" | "trial-check";
 
 /**
  * How long an ask with no success keeps its id. A retry after a lost answer
@@ -111,7 +145,7 @@ export function keptRequestIds(
 ): RequestIds {
   let last: string | null = null;
   return {
-    idFor(key: string): string {
+    idFor(key: RequestKey): string {
       const name = `${kind}:${key}`;
       last = name;
       const kept = readKept(storage, now());

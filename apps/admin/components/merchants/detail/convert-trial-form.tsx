@@ -5,7 +5,7 @@ import { useMutation } from "@tanstack/react-query";
 import { formatDay } from "@/lib/format";
 import { CONVERT_ACTION, endAfterDays, shopActionKey } from "@/lib/shop-actions";
 import { isStaffReason } from "@/lib/billing-lock-tools";
-import type { RequestIds } from "@/lib/request-ids";
+import { requestKey, shopKey, type RequestIds } from "@/lib/request-ids";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
 import { Choice, ConfirmButton, ErrorLine, PanelFields, PanelTitle, postJson, useWriteFailed, WillHappen } from "./action-ui";
 
@@ -45,7 +45,7 @@ export function ConvertTrialForm({ shopId, shopName, requestIds, locked, renewal
     mutationFn: () => {
       const reason = why.trim();
       // Keyed by what is given, not the words, as the other panels are.
-      const request_id = requestIds.idFor(`${shopId}:${days}`);
+      const request_id = requestIds.idFor(requestKey(shopKey(shopId), days));
       return postJson(`/api/merchants/${shopId}/convert-trial`, { period_days: days, reason, request_id });
     },
     onSuccess: () => {

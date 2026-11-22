@@ -19,6 +19,9 @@ afterEach(() => {
   localStorage.clear();
 });
 
+/** A shop id as the database makes them: the request key takes no other. */
+const SHOP_ID = "6d4e6d9b-eaf5-42f9-abd1-a8afee593d9d";
+
 const LOCK: BillingLockSnapshot = {
   locked: true,
   reason: "unpaid",
@@ -35,7 +38,7 @@ const render = (canForceUnlock: boolean, lock: BillingLockSnapshot = LOCK, shopP
     createElement(
       QueryClientProvider,
       { client: new QueryClient() },
-      createElement(BillingLockCard, { merchantId: "t1", lock, canForceUnlock, shopPaused }),
+      createElement(BillingLockCard, { merchantId: SHOP_ID, lock, canForceUnlock, shopPaused }),
     ),
   );
 
@@ -123,7 +126,7 @@ describe("BillingLockCard while a write on the shop runs", () => {
 
   /** A write on this shop from another panel, held open until the test ends. */
   function OtherWrite() {
-    const write = useMutation({ mutationKey: shopActionKey("t1"), mutationFn: () => new Promise<never>(() => {}) });
+    const write = useMutation({ mutationKey: shopActionKey(SHOP_ID), mutationFn: () => new Promise<never>(() => {}) });
     return createElement("button", { type: "button", onClick: () => write.mutate() }, "Other write");
   }
 
@@ -132,7 +135,7 @@ describe("BillingLockCard while a write on the shop runs", () => {
       createElement(
         QueryClientProvider,
         { client: new QueryClient() },
-        createElement(BillingLockCard, { merchantId: "t1", lock: LOCK, canForceUnlock: true, shopPaused: false }),
+        createElement(BillingLockCard, { merchantId: SHOP_ID, lock: LOCK, canForceUnlock: true, shopPaused: false }),
         createElement(OtherWrite),
       ),
     );
