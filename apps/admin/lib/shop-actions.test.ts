@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { RENEWAL_STOP_WORDS } from "./billing-lock-label";
 import { hasPermission } from "@/lib/admin-permissions";
 import {
   endAfterDays,
@@ -7,6 +8,7 @@ import {
   moreActions,
   reactivateComeback,
   reactivateWords,
+  renewalOffWords,
   renewalOnWords,
   renewalWords,
   shopFormFrom,
@@ -240,6 +242,39 @@ describe("what turning renewal on says", () => {
     expect(renewalOnWords(facts({ ...locked, demo: true, walletIqd: 50000 }), now)).toBe(
       "Renewal turns on. The demo store is never charged.",
     );
+  });
+
+  /*
+   * Round 22 (UX new 4, r19 new 4): Stop renewing said "This month runs to its
+   * end. Then … the shop locks" on the demo store, which renews at no charge
+   * whatever the switch says, and on a trial locked since its end.
+   */
+  describe("stopping it", () => {
+    it("tells the demo store's staff it changes nothing", () => {
+      expect(renewalOffWords(facts({ demo: true }), now)).toBe(
+        "The demo store still renews each month at no charge: this switch changes nothing there.",
+      );
+      expect(renewalOffWords(facts({ ...locked, demo: true }), now)).not.toContain("locks");
+    });
+
+    it("says a locked shop stays locked, uncharged, and what opens it", () => {
+      expect(renewalOffWords(facts({ ...locked, onTrial: true, status: "trial" }), now)).toBe(
+        "The shop stays locked, and no job charges it. It opens when the shop pays 9,000 IQD on its lock screen, or staff turn renewal on and the wallet pays it.",
+      );
+    });
+
+    it("says a trial's end is not charged", () => {
+      expect(renewalOffWords(facts({ onTrial: true, status: "trial" }), now)).toBe(
+        "When the trial ends it is not charged, and the shop locks until the shop pays the month on its lock screen, or staff turn renewal on and the wallet pays it.",
+      );
+    });
+
+    it("says a month that has ended is not charged, and otherwise the month runs to its end", () => {
+      expect(renewalOffWords(facts({ periodEnd: "2026-11-21T08:00:00Z" }), now)).toBe(
+        "This month ended Sat 21 Nov. It is not charged, and the shop locks until the shop pays the month on its lock screen, or staff turn renewal on and the wallet pays it.",
+      );
+      expect(renewalOffWords(facts(), now)).toBe(RENEWAL_STOP_WORDS);
+    });
   });
 });
 
