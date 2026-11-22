@@ -29,7 +29,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { resolveI18n } from "@scheniders/shared";
+import { normalizeIraqiMobile, resolveI18n } from "@scheniders/shared";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { BUSINESS_TYPES, isBusinessTypeId, type BusinessTypeId } from "@/lib/business-types";
 import { supabase } from "@/lib/supabase";
@@ -67,8 +67,10 @@ function SignupForm() {
 
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
-    const [businessName, setBusinessName] = useState("");
-    const [contactPhone, setContactPhone] = useState("");
+    // usefermi.com's sign-up sheet hands over what the owner already typed there
+    // (?name=, ?phone=, ?slug=, ?sells=), so they are not asked twice.
+    const [businessName, setBusinessName] = useState(() => (searchParams.get("name") ?? "").trim().slice(0, 120));
+    const [contactPhone, setContactPhone] = useState(() => normalizeIraqiMobile(searchParams.get("phone")) ?? "");
     const [city, setCity] = useState("");
     // «شنو تبيع؟», in the order ticked: the first picks the store's content pack.
     const [sells, setSells] = useState<BusinessTypeId[]>(() => sellsFromLink(searchParams.get("sells")));
@@ -83,7 +85,7 @@ function SignupForm() {
     const phoneCode = useSignupPhoneCodeSwitch();
     const [phoneProof, setPhoneProof] = useState<string | null>(null);
     // The store's address, offered from its name and the merchant's to change (B11).
-    const storeAddress = useStoreAddress(businessName);
+    const storeAddress = useStoreAddress(businessName, searchParams.get("slug"));
 
     /**
      * The account is created unconfirmed, so it cannot sign in until its owner

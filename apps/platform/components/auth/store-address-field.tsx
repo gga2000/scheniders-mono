@@ -47,9 +47,14 @@ export interface StoreAddress {
 /** How long typing pauses before the address is checked. */
 const CHECK_DELAY_MS = 350;
 
-export function useStoreAddress(businessName: string): StoreAddress {
+export function useStoreAddress(businessName: string, initialAddress?: string | null): StoreAddress {
     // null until the merchant types in the field: the address follows the name.
-    const [typed, setTyped] = useState<string | null>(null);
+    // An address chosen on usefermi.com (`?slug=`) counts as typed, so the
+    // address the owner was shown there is the one they get.
+    const [typed, setTyped] = useState<string | null>(() => {
+        const handed = normalizeSlug(initialAddress ?? "");
+        return handed === "" ? null : handed;
+    });
     const [verdict, setVerdict] = useState<Verdict | null>(null);
     // An address offered from the name that was taken, and the free one it moved to.
     const [moved, setMoved] = useState<{ from: string; to: string } | null>(null);
