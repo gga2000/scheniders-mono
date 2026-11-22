@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { AnswerLost, postJson, useStillDrawn } from "@/components/merchants/detail/action-ui";
-import { useLeaveGuard } from "@/hooks/use-leave-guard";
+import { holdLeaveGuard, useLinkLeaveQuestion } from "@/hooks/use-leave-guard";
 import { planImport, type ColumnMapping } from "@/lib/product-import";
 import { checkRows, importOutcome, runProductImport, type Answer, type ImportProgress, type ReadAnswer } from "@/lib/product-import-run";
 import { ImportCheckStep } from "./import-check-step";
@@ -25,6 +25,10 @@ async function answer(url: string, body: unknown): Promise<Answer> {
   }
 }
 
+/** Asked before a link moves staff off the page while an import runs. */
+const LEAVE_QUESTION =
+  "Products are still being imported. Leave this page? The import keeps going, and a message says how it ended.";
+
 /**
  * The product import for the setup service (Fermi B12 item 7): the
  * merchant's file, its columns, then the check and the import, in three
@@ -37,9 +41,11 @@ export function ProductImportFlow({ shopId, shopName }: { shopId: string; shopNa
   const [progress, setProgress] = useState<ImportProgress | null>(null);
 
   const running = progress !== null && progress.phase !== "done";
-  useLeaveGuard(running);
   // Leaving by the sidebar keeps the run going (nothing doubles); how it
-  // ended is then said where staff are, as a toast.
+  // ended is then said where staff are, as a toast. Staff are asked first,
+  // and a reload or a closed tab asks for as long as the run goes on, from
+  // any page (startImport).
+  useLinkLeaveQuestion(running ? LEAVE_QUESTION : null);
   const stillDrawn = useStillDrawn();
 
   const plan = useMemo(() => {
@@ -55,6 +61,9 @@ export function ProductImportFlow({ shopId, shopName }: { shopId: string; shopNa
 
   async function startImport() {
     if (!plan || !read || locked) return;
+    // Let go of the guard in the same step that shows the run as done, so
+    // the words "done" never sit beside a question about leaving.
+    const release = holdLeaveGuard();
     const done = await runProductImport({
       fileName: read.fileName,
       products: plan.products,
@@ -63,8 +72,11 @@ export function ProductImportFlow({ shopId, shopName }: { shopId: string; shopNa
         importBatch: (body) => answer(`/api/merchants/${shopId}/product-import`, body),
         saveImages: (body) => answer(`/api/merchants/${shopId}/product-import/images`, body),
       },
-      onProgress: setProgress,
-    });
+      onProgress: (next) => {
+        if (next.phase === "done") release();
+        setProgress(next);
+      },
+    }).finally(release);
     if (!stillDrawn()) {
       const outcome = importOutcome(shopName, done);
       (outcome.ok ? toast.success : toast.error)(outcome.title, outcome.description ? { description: outcome.description } : undefined);

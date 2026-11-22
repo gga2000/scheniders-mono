@@ -363,14 +363,22 @@ function readZip(bytes: Uint8Array, limit: number): ZipRead {
 const FIRST_PARTS = ["xl/workbook.xml", LINKS_PART, "xl/styles.xml", "xl/sharedStrings.xml"];
 
 /**
- * Whether the links part has its Relationships element. The reader keeps the
- * links only from that element's tag: without it (an empty part, only a
- * header or a comment) it still writes each sheet to a temporary file
+ * The start of a links part as Excel saves it: the XML header, then the
+ * Relationships element itself, with only spaces and comments between.
+ */
+const LINKS_START = /^\uFEFF?(?:<\?xml\s[^?]*\?>)?(?:\s|<!--(?:[^-]|-[^-])*-->)*<Relationships[\s/>]/;
+
+/**
+ * Whether the links part opens with its Relationships element. The reader
+ * keeps the links only from that element's tag: without it (an empty part,
+ * only a header or a comment) it still writes each sheet to a temporary file
  * (audit round 22), so such a part is refused, as Excel never saves one.
- * Comments are dropped first, so a tag inside one does not count.
+ * The element must be the part's first: the same text inside a comment, an
+ * instruction (<?...?>) or a DOCTYPE is no element (audit round 23), and
+ * Excel writes neither of the last two.
  */
 export function hasLinksRoot(text: string): boolean {
-  return /<Relationships[\s/>]/.test(text.replace(/<!--[\s\S]*?-->/g, ""));
+  return LINKS_START.test(text);
 }
 
 /** A stored zip entry of shared strings with none in it, for a workbook whose cells all hold their own text. */
