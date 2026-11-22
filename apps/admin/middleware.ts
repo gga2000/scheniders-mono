@@ -155,6 +155,26 @@ async function checkAccess(request: NextRequest) {
     );
   };
 
+  // The session's own token, checked locally (lib/staff-sign-in.ts), names the
+  // staff member, so their staff row is read while the auth server answers for
+  // the session: one round trip to Supabase instead of two on every page and
+  // API request. Reading the token first refreshes an expired session, as the
+  // auth server's check did before. The row is read under the session's own
+  // token and counts only once the auth server has answered for that same user.
+  const tokenCheck = await verifyStaffToken(supabase.auth).then(
+    (session) => ({
+      failed: false as const,
+      checked: session && {
+        session,
+        // Promise.resolve sends the read now: a query is only sent once awaited.
+        staffRow: Promise.resolve(
+          supabase.from("admin_users").select("user_id, admin_role, is_active").eq("user_id", session.userId).maybeSingle(),
+        ),
+      },
+    }),
+    (error: unknown) => ({ failed: true as const, error }),
+  );
+
   const {
     data: { user },
     error: userError,
@@ -172,20 +192,16 @@ async function checkAccess(request: NextRequest) {
     return toLogin();
   }
 
-  // The auth server has just answered for this session; its token is now read
-  // locally (lib/staff-sign-in.ts) for when it signed in. A sign-in past the
-  // staff age limit is ended for good, here and on the auth server, and staff
-  // sign in again; the login page shows why.
-  let session: Awaited<ReturnType<typeof verifyStaffToken>>;
-  try {
-    session = await verifyStaffToken(supabase.auth);
-  } catch (error) {
-    return checkFailed("sign-in", error);
-  }
-  if (!session) {
+  // The auth server has answered for this session; its token says when it
+  // signed in. A sign-in past the staff age limit is ended for good, here and
+  // on the auth server, and staff sign in again; the login page shows why.
+  if (tokenCheck.failed) return checkFailed("sign-in", tokenCheck.error);
+  const { checked } = tokenCheck;
+  if (!checked) {
     if (isApi) return signedOut();
     return isLoginPage ? supabaseResponse : toLogin();
   }
+  const { session } = checked;
   if (signInEnded(session.signedInAt)) {
     const { error: signOutError } = await supabase.auth.signOut({ scope: "local" });
     if (signOutError) console.error("[middleware] Ending an old sign-in failed", { path, message: errorMessage(signOutError) });
@@ -215,20 +231,20 @@ async function checkAccess(request: NextRequest) {
     if (sentSession?.sessionId !== session.sessionId) return signedOut(SIGNED_OUT);
   }
 
-  // Authenticated — verify admin-console access via the dedicated `admin_users`
-  // table (decoupled from the main app's user_profiles.role). The
+  // Authenticated — admin-console access comes from the dedicated `admin_users`
+  // table (decoupled from the main app's user_profiles.role), read above. The
   // `admin_users_read_own` RLS policy lets the user read their own row via the
-  // anon-authed client. No row is "no access"; a failed read is not.
-  const { data: adminRow, error: adminError, status: adminStatus } = await supabase
-    .from("admin_users")
-    .select("admin_role, is_active")
-    .eq("user_id", user.id)
-    .maybeSingle();
+  // anon-authed client. No row is "no access"; a failed read is not. A row of
+  // anyone but the user the auth server named is no access.
+  const { data: adminRow, error: adminError, status: adminStatus } = await checked.staffRow;
 
   if (adminError) return checkFailed("staff row", adminError, adminStatus);
 
   const isAdmin =
-    !!adminRow?.admin_role && adminRow.is_active === true && ALLOWED_ROLES.has(adminRow.admin_role);
+    adminRow?.user_id === user.id &&
+    !!adminRow.admin_role &&
+    adminRow.is_active === true &&
+    ALLOWED_ROLES.has(adminRow.admin_role);
 
   if (!isAdmin) {
     if (isApi) {
