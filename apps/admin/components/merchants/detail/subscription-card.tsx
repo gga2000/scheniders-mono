@@ -9,6 +9,7 @@ import { hasPermission } from "@/lib/admin-permissions";
 import type { MerchantDetail } from "@/hooks/use-merchant-detail";
 import { formatDay, formatDayTime, formatUntilDay } from "@/lib/format";
 import { isStaffReason } from "@/lib/billing-lock-tools";
+import { RENEWAL_STOP_WORDS } from "@/lib/billing-lock-label";
 import { effectiveStatus } from "@/lib/effective-status";
 import { renewalOnWords, renewalWords, shopActionKey } from "@/lib/shop-actions";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
@@ -160,7 +161,7 @@ export function SubscriptionCard({ merchantId, tenant, subscription, billingLock
                 </PanelFields>
                 <span className="mb-2 block text-[13px] leading-snug text-foreground/75">
                   {autoRenew
-                    ? "This month runs to its end. Then it is not charged, and the shop locks until it pays on its lock screen or staff turn renewal back on."
+                    ? RENEWAL_STOP_WORDS
                     : turnsOn}
                 </span>
                 <span className="flex gap-2">

@@ -8,6 +8,7 @@
  */
 import type { AdminAction } from "@/types/admin";
 import { formatDay, formatIQD } from "@/lib/format";
+import { renewalOffOpens } from "@/lib/billing-lock-label";
 
 export interface ShopFacts {
   /** The tenant's status as the record read returns it: trial, active, limited, suspended, cancelled. */
@@ -113,7 +114,7 @@ export function reactivateWords(comeback: Comeback, trialEndsAt: string | null, 
     case "active_renewal_off":
       return "The shop is active again now. Renewal is off, so when its month ends it is not charged and the shop locks.";
     case "active_unpaid_renewal_off":
-      return "The shop is active again now, but its last month is not paid and renewal is off, so it stays locked until it pays on its lock screen or staff turn renewal on.";
+      return `The shop is active again now, but its last month is not paid and renewal is off, so it stays locked until ${renewalOffOpens()}.`;
     case "trial": {
       const ended = trialEndsAt !== null && Date.parse(trialEndsAt) <= now.getTime();
       return ended

@@ -10,7 +10,7 @@
 import type { MerchantDetail } from "@/hooks/use-merchant-detail";
 import { formatDay, formatDayTime, formatIQD } from "@/lib/format";
 import { isSubscriptionRunning } from "@/lib/shop-actions";
-import { LOCK_REASON_WORDS, lockOpensWords } from "@/lib/billing-lock-label";
+import { LOCK_REASON_WORDS, lockOpensWords, renewalOffOpens } from "@/lib/billing-lock-label";
 
 export type ShopTone = "paying" | "trial" | "locked" | "paused" | "hold" | "ended" | "internal";
 
@@ -24,7 +24,8 @@ export interface ShopStatusLine {
   next: string | null;
 }
 
-type Detail = Pick<MerchantDetail, "tenant" | "wallet" | "subscription" | "billingLock" | "stoppedBy" | "paidPlan">;
+type Detail = Pick<MerchantDetail, "tenant" | "wallet" | "subscription" | "billingLock" | "stoppedBy" | "paidPlan"> &
+  Partial<Pick<MerchantDetail, "canForceUnlock">>;
 
 /** "Wallet 4,000 IQD, short by 5,000 IQD." when the wallet cannot pay `price`. */
 function shortBy(balance: number, price: number): string {
@@ -65,7 +66,7 @@ export function shopStatusLine(detail: Detail, now: Date = new Date()): ShopStat
       sentence: `${reason}.${since}`,
       // A paused shop, or one whose renewal is off, does not open with money
       // alone; the shop pressing Pay still needs the month in its wallet.
-      next: `${lockOpensWords(billingLock.price_iqd, tenant.status === "limited", billingLock.renewal_off)}${shortBy(balance, billingLock.price_iqd)}`,
+      next: `${lockOpensWords(billingLock.price_iqd, tenant.status === "limited", billingLock.renewal_off, detail.canForceUnlock)}${shortBy(balance, billingLock.price_iqd)}`,
     };
   }
 
@@ -160,7 +161,7 @@ export function shopStatusLine(detail: Detail, now: Date = new Date()): ShopStat
       tone: "ended",
       label: "Not renewed",
       sentence: `${periodCharged ? "This month" : "Free time"} ended on ${formatDay(end, now)}. Renewal is off, so it is not charged.`,
-      next: `The shop locks with the next daily renewal, until it pays on its lock screen or staff turn renewal on.`,
+      next: `The shop locks with the next daily renewal, until ${renewalOffOpens(price > 0 ? price : null)}.`,
     };
   }
   if (ended && !periodCharged && subscription.status !== "past_due") {

@@ -67,10 +67,21 @@ describe("BillingLockCard", () => {
     // receipt or hourly run charges a month that ended with renewal off.
     const html = render(true, { ...LOCK, renewal_off: true });
     expect(html).toContain(
-      "Renewal is off, so money alone does not open it: it opens when the shop pays 25,000 IQD on its lock screen, or when staff turn renewal on and the wallet pays it.",
+      "Renewal is off, so money alone does not open it: it opens when the shop pays 25,000 IQD on its lock screen, or staff turn renewal on and the wallet pays it.",
     );
     expect(html).not.toContain("from the wallet opens it");
     expect(render(true, { ...LOCK, renewal_off: true }, true)).toContain("Paused, and renewal is off. Once the pause lifts, it opens when the shop pays");
+  });
+
+  // Round 21 (data new 1): the free unlock's note said renewal charges the wallet as usual when it
+  // ends. admin_force_unlock leaves renewal off, so the shop locks again, uncharged.
+  it("with renewal off, says the shop locks again when the free unlock ends", () => {
+    const html = render(true, { ...LOCK, renewal_off: true });
+    expect(html).toContain("Opens free time with no wallet charge. Renewal is off, so the shop locks again when that time ends.");
+    expect(html).toContain("A free unlock or free days also open it, with no charge, for that time only.");
+    expect(html).not.toContain("renewal charges the wallet as usual");
+    expect(render(true)).toContain("Opens free time with no wallet charge. When it ends, renewal charges the wallet as usual.");
+    expect(render(false, { ...LOCK, reason: "trial_ended", renewal_off: true })).not.toContain("A free unlock or free days");
   });
 
   it("offers the free unlock to super admins only", () => {

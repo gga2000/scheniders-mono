@@ -42,7 +42,7 @@ describe("Add money", () => {
 describe("Give free days", () => {
   it("gives a paying shop 30 days by default, says the new end and that nothing is charged, and asks why", () => {
     const html = render(
-      createElement(FreeDaysForm, { shopId: "t1", shopName: "Shop", requestIds: createRequestIds(), kind: "month", endsAt: "2026-11-19T09:00:00Z", locked: false, onDone: () => {} }),
+      createElement(FreeDaysForm, { shopId: "t1", shopName: "Shop", requestIds: createRequestIds(), kind: "month", endsAt: "2026-11-19T09:00:00Z", locked: false, renewalOff: false, onDone: () => {} }),
     );
     expect(html).toContain("This month then ends Sat 19 Dec, 12:00.");
     expect(html).toContain("Nothing is charged; the next charge moves to that day.");
@@ -52,9 +52,22 @@ describe("Give free days", () => {
     expect(confirmButton(html)).toContain(">Give 30 free days<");
   });
 
+  // Round 21 (data new 1): with renewal off it said "the next charge moves to that day", but no
+  // charge comes: the daily renewal after the new end locks the shop again. A locked shop opens now.
+  it("with renewal off, says the shop locks again when the days end, and that a locked shop opens now", () => {
+    const days = (locked: boolean, renewalOff: boolean) =>
+      render(
+        createElement(FreeDaysForm, { shopId: "t1", shopName: "Shop", requestIds: createRequestIds(), kind: "month", endsAt: "2026-11-19T09:00:00Z", locked, renewalOff, onDone: () => {} }),
+      );
+    expect(days(false, true)).toContain("Nothing is charged. Renewal is off, so the shop locks again when that time ends.");
+    expect(days(true, true)).toContain("The shop opens again now, with no charge. Renewal is off, so the shop locks again when that time ends.");
+    expect(days(true, false)).toContain("The shop opens again now, with no charge; the next charge moves to that day.");
+    expect(days(false, true)).not.toContain("next charge");
+  });
+
   it("waits for a reason before trial days, and says a locked trial opens again", () => {
     const html = render(
-      createElement(FreeDaysForm, { shopId: "t1", shopName: "Shop", requestIds: createRequestIds(), kind: "trial", endsAt: "2026-11-15T09:00:00Z", locked: true, onDone: () => {} }),
+      createElement(FreeDaysForm, { shopId: "t1", shopName: "Shop", requestIds: createRequestIds(), kind: "trial", endsAt: "2026-11-15T09:00:00Z", locked: true, renewalOff: false, onDone: () => {} }),
     );
     // The trial ended yesterday, so the 7 days count from now.
     expect(html).toContain("The trial then ends Mon 23 Nov, 12:00.");

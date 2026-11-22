@@ -162,6 +162,7 @@ export function ShopActions({
               kind={daysKind}
               endsAt={freeDaysFrom}
               locked={facts.locked}
+              renewalOff={renewalOff}
               requestIds={requestIds.days}
               onDone={done}
             />

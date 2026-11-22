@@ -32,21 +32,47 @@ export function lockSentence(lock: ListBillingLock, now: Date = new Date()): str
 }
 
 /**
+ * What opens a lock that renewal off made (20261119073654), in one clause that
+ * every surface uses (round 21, structure new 6): the shop paying on its lock
+ * screen (pay_billing_lock turns renewal back on and pays), or staff turning
+ * renewal on while the wallet holds the month (the next hourly lock run
+ * charges it). `priceIqd` names the month when the surface knows it.
+ */
+export function renewalOffOpens(priceIqd: number | null = null): string {
+  const month = priceIqd === null ? "the month" : formatIQD(priceIqd);
+  return `the shop pays ${month} on its lock screen, or staff turn renewal on and the wallet pays it`;
+}
+
+/** What stopping renewal does, said on the Renewal switch before it is pressed. */
+export const RENEWAL_STOP_WORDS = `This month runs to its end. Then it is not charged, and the shop locks until ${renewalOffOpens()}.`;
+
+/**
+ * Staff's free time with renewal off: a free unlock (admin_force_unlock) and
+ * free days this month (admin_extend_subscription) make the month active and
+ * leave renewal off, so the daily renewal after that time locks the shop
+ * again, uncharged.
+ */
+export const RENEWAL_OFF_THEN_LOCKS = "Renewal is off, so the shop locks again when that time ends.";
+
+/** The same, named on a lock beside "Renewal is off": what a staff member with the free-time tools may also do. */
+export const RENEWAL_OFF_FREE_TIME = "A free unlock or free days also open it, with no charge, for that time only.";
+
+/**
  * What opens a lock, in one sentence: the shop page's status line and its lock
  * card say it the same way. Paying the month from the wallet opens it, except
  * that a paused shop is not charged until the pause lifts (settle_billing_lock
  * answers on_hold), and a month that ended with renewal off is charged by no
- * job (not_renewed): money alone never opens it. The shop paying on its lock
- * screen turns renewal back on and pays (pay_billing_lock), or staff turn
- * renewal on and the wallet pays it (20261119073654_renewal_off_stops_charge).
+ * job (not_renewed): money alone never opens it. `staffFreeTime`: the viewer
+ * may give a free unlock or free days, which open it too (both are refused
+ * while the shop is paused).
  */
-export function lockOpensWords(priceIqd: number, paused: boolean, renewalOff: boolean): string {
+export function lockOpensWords(priceIqd: number, paused: boolean, renewalOff: boolean, staffFreeTime = false): string {
   const price = formatIQD(priceIqd);
   if (renewalOff) {
-    const opens = `it opens when the shop pays ${price} on its lock screen, or when staff turn renewal on and the wallet pays it.`;
-    return paused
-      ? `Paused, and renewal is off. Once the pause lifts, ${opens}`
-      : `Renewal is off, so money alone does not open it: ${opens}`;
+    const opens = `it opens when ${renewalOffOpens(priceIqd)}.`;
+    if (paused) return `Paused, and renewal is off. Once the pause lifts, ${opens}`;
+    const base = `Renewal is off, so money alone does not open it: ${opens}`;
+    return staffFreeTime ? `${base} ${RENEWAL_OFF_FREE_TIME}` : base;
   }
   return paused
     ? `Paused, so the lock stays until the pause lifts. Then paying ${price} from the wallet opens it.`

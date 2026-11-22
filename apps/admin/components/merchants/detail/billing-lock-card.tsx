@@ -13,7 +13,7 @@ import {
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
 import { keptRequestIds } from "@/lib/request-ids";
 import { formatDay } from "@/lib/format";
-import { LOCK_REASON_WORDS, lockOpensWords } from "@/lib/billing-lock-label";
+import { LOCK_REASON_WORDS, lockOpensWords, RENEWAL_OFF_THEN_LOCKS } from "@/lib/billing-lock-label";
 import { shopActionKey } from "@/lib/shop-actions";
 import { PanelFields, postJson, useRereadShop, useWriteFailed } from "./action-ui";
 
@@ -115,7 +115,7 @@ export function BillingLockCard({ merchantId, lock, canForceUnlock, shopPaused }
           </p>
           <p className="mt-1 text-[13px] text-foreground/70">
             {lock.since && <>Since {formatDay(lock.since)} · </>}
-            {lockOpensWords(lock.price_iqd, shopPaused, lock.renewal_off)}
+            {lockOpensWords(lock.price_iqd, shopPaused, lock.renewal_off, canForceUnlock)}
           </p>
         </div>
         <div className="shrink-0 text-right">
@@ -220,7 +220,8 @@ export function BillingLockCard({ merchantId, lock, canForceUnlock, shopPaused }
                   </button>
                 </div>
                 <p className="mt-1.5 text-[13px] text-foreground/70">
-                  Opens free time with no wallet charge. When it ends, renewal charges the wallet as usual.
+                  Opens free time with no wallet charge.{" "}
+                  {lock.renewal_off ? RENEWAL_OFF_THEN_LOCKS : "When it ends, renewal charges the wallet as usual."}
                 </p>
               </div>
             )}
