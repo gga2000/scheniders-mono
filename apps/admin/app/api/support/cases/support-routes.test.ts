@@ -1000,6 +1000,11 @@ describe("support view as merchant", () => {
   }
 
   const link = { data: { properties: { hashed_token: "hash-1" }, user: { id: VIEWER } }, error: null };
+  // The viewer's own address, read for its sign-in link (audit R4-N1: it may be a second address).
+  const viewerAccount = {
+    data: { user: { id: VIEWER, email: `support-viewer-${SUPPORT_ID}@usefermi.com` } },
+    error: null,
+  } as unknown as DbResult;
 
   it("turns away a caller with no session", async () => {
     expect((await start(null, { tenantId: TENANT })).status).toBe(401);
@@ -1016,6 +1021,7 @@ describe("support view as merchant", () => {
     dbQueue.push(
       { data: { display_name: "Noor", email: null }, error: null },
       { data: { user_id: VIEWER }, error: null },
+      viewerAccount,
       link as unknown as DbResult,
       { data: { session_id: "s1", expires_at: EXPIRES }, error: null },
     );
@@ -1066,6 +1072,7 @@ describe("support view as merchant", () => {
     dbQueue.push(
       { data: { display_name: "Noor", email: null }, error: null },
       { data: { user_id: VIEWER }, error: null },
+      viewerAccount,
       { data: { properties: { hashed_token: "hash-1" }, user: { id: "someone-else" } }, error: null } as unknown as DbResult,
     );
     expect((await start("support", { tenantId: TENANT })).status).toBe(500);
@@ -1076,6 +1083,7 @@ describe("support view as merchant", () => {
     dbQueue.push(
       { data: { display_name: "Noor", email: null }, error: null },
       { data: { user_id: VIEWER }, error: null },
+      viewerAccount,
       { data: { properties: null, user: null }, error: { message: "auth down" } } as unknown as DbResult,
     );
     expect((await start("support", { tenantId: TENANT })).status).toBe(500);
@@ -1090,6 +1098,7 @@ describe("support view as merchant", () => {
     dbQueue.push(
       { data: { display_name: "Noor", email: null }, error: null },
       { data: { user_id: VIEWER }, error: null },
+      viewerAccount,
       link as unknown as DbResult,
       { data: null, error: { code: "P0001", message } },
     );
