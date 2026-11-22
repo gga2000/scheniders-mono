@@ -66,6 +66,8 @@ export const MENU: readonly MenuSection[] = [
       { label: "Trials", href: "/trials" },
       { label: "Paying shops", href: "/paying" },
       { label: "Shops at risk", href: "/health" },
+      // Fermi B12 item 6: about the fees we are owed, so admins only, as its read (api/delivered-rate-watch).
+      { label: "Delivered rate", href: "/delivered-rate", needs: "manage_subscription" },
     ],
   },
   {
@@ -98,6 +100,8 @@ export const MENU: readonly MenuSection[] = [
     links: [
       { label: "Our fees", href: "/revenue" },
       { label: "Orders by hour", href: "/usage" },
+      // Fermi B12 item 5: new shops, trials, first orders, paying and churn by Baghdad week.
+      { label: "Weekly numbers", href: "/weekly-numbers" },
     ],
   },
 ];
