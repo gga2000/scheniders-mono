@@ -21,6 +21,7 @@ import type { ShopCheck } from "@/lib/support-shop-check";
 import type { SupportSpike } from "@/lib/support-spike";
 import { SHELL_READ, useAfterPageReads } from "@/hooks/use-after-page-reads";
 import { adminFetch } from "@/lib/admin-fetch";
+import { postJson } from "@/components/merchants/detail/action-ui";
 
 async function readJson<T>(res: Response): Promise<T> {
   const body: unknown = await res.json().catch(() => null);
@@ -180,14 +181,9 @@ export function useSupportLogTask() {
 export function useSupportLogShopCall() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (input: ShopCallInput) =>
-      readJson<{ success: true }>(
-        await adminFetch("/api/support/calls", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(input),
-        }),
-      ),
+    // A lost answer throws AnswerLost: the call may be saved, so the button
+    // must not invite a second one.
+    mutationFn: (input: ShopCallInput) => postJson("/api/support/calls", input),
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "support"] });
       queryClient.invalidateQueries({ queryKey: TRIAL_FOLLOW_UP_KEY });

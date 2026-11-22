@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Loader2, PhoneCall } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { AnswerLost } from "@/components/merchants/detail/action-ui";
 import { useSupportLogShopCall } from "@/hooks/use-support-cases";
 import { CALL_OUTCOMES, CALL_OUTCOME_LABELS, type CallOutcome } from "@/lib/support";
 
@@ -40,7 +41,12 @@ export function MarkContacted({ shopId, shopName }: { shopId: string; shopName: 
           setNote("");
           toast.success(`Call on ${shopName} saved`);
         },
-        onError: (error) => toast.error(error.message),
+        onError: (error) =>
+          toast.error(
+            error instanceof AnswerLost
+              ? `No answer came back, so the call on ${shopName} may be saved. Check Last call on its line before saving it again.`
+              : error.message,
+          ),
       },
     );
   };

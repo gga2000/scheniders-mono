@@ -44,7 +44,7 @@ export function TrialFollowUpLine({ row, shopName, canLogCall, now }: TrialFollo
               href={`https://wa.me/${phone}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-3 py-1 text-xs font-semibold text-white transition-opacity hover:opacity-90"
+              className="inline-flex items-center gap-1.5 rounded-full bg-emerald-700 px-3 py-1 text-xs font-semibold text-white transition-opacity hover:opacity-90"
             >
               <MessageCircle className="h-3.5 w-3.5" />
               WhatsApp owner
