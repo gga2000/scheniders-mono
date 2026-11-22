@@ -27,6 +27,7 @@ import { trialPayment } from "@/lib/shop-status-choice";
 import { planLabel, type TenantRestrictions } from "@/types/admin";
 import { CopyableText } from "@/components/shared/copyable-text";
 import { LoadError } from "@/components/shared/load-error";
+import { LoadFailedLine } from "@/components/shared/load-failed-line";
 import { loadFailureKind } from "@/lib/load-failure";
 import { inkOn } from "@/lib/ink-on";
 import { usePageHeader } from "@/store/use-page-header";
@@ -52,7 +53,7 @@ export default function MerchantDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { data, isLoading, isError, error, refetch, isFetching } = useMerchantDetail(id);
+  const { data, dataUpdatedAt, isLoading, isError, error, refetch, isFetching } = useMerchantDetail(id);
   const [activeTab, setActiveTab] = useState<Tab>(() => tabFrom(searchParams.get("tab")));
   // "Top Up Wallet" or "Extend Trial" from a card's menu, or "Top Up" on Shops at risk.
   const [startForm] = useState(() => shopFormFrom(searchParams.get("action")));
@@ -129,6 +130,18 @@ export default function MerchantDetailPage() {
         <ArrowLeft className="w-4 h-4" />
         Back to Merchants
       </Link>
+
+      {isError && (
+        <LoadFailedLine
+          what="this shop"
+          shownFrom={dataUpdatedAt}
+          kept="page"
+          error={error}
+          gone="This shop is no longer there."
+          onRetry={() => refetch()}
+          retrying={isFetching}
+        />
+      )}
 
       {/* Prospect Banner */}
       {tenant.is_prospect && (

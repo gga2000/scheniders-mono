@@ -66,10 +66,14 @@ export default function MerchantsPage() {
   const [showShortcuts, setShowShortcuts] = useState(false);
 
   const {
+    data,
+    dataUpdatedAt,
     merchants,
     total,
     isLoading,
     isError,
+    isRefetchError,
+    error,
     isFetching,
     refetch,
     hasNextPage,
@@ -230,7 +234,7 @@ export default function MerchantsPage() {
             <div className="flex flex-col leading-none">
               <div className="flex items-baseline gap-1.5">
                 <span className="text-2xl font-black text-foreground dark:text-white">
-                  {isLoading || isError ? "—" : total}
+                  {data ? total : "—"}
                 </span>
                 <span className="text-xs font-semibold text-foreground-muted">
                   {total === 1 ? "Merchant" : "Merchants"}
@@ -319,6 +323,17 @@ export default function MerchantsPage() {
         />
       </div>
 
+      {isRefetchError && merchants.length > 0 && (
+        <LoadFailedLine
+          what="the merchants"
+          shownFrom={dataUpdatedAt}
+          kept="list"
+          error={error}
+          onRetry={() => refetch()}
+          retrying={isFetching}
+        />
+      )}
+
       {lastActors.failed && viewMode === "cards" && merchants.length > 0 && (
         <LoadFailedLine
           what="who last acted on some shops"
@@ -342,7 +357,7 @@ export default function MerchantsPage() {
             <MerchantCardGridSkeleton count={8} />
           </motion.div>
         ) : isError && merchants.length === 0 ? (
-          <LoadError what="the merchants" onRetry={() => refetch()} retrying={isFetching} />
+          <LoadError what="the merchants" error={error} onRetry={() => refetch()} retrying={isFetching} />
         ) : merchants.length === 0 ? (
           <MerchantEmptyState
             hasFilters={hasActiveFilters}

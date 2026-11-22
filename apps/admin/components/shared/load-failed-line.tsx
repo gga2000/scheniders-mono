@@ -19,8 +19,18 @@ interface LoadFailedLineProps {
    * page that keeps its last numbers never passes them off as today's.
    */
   shownFrom?: number;
+  /** What is kept on screen under the line: numbers (the default), a list, or a whole page of facts. */
+  kept?: KeptKind;
   className?: string;
 }
+
+type KeptKind = "numbers" | "list" | "page";
+
+const KEPT_WORDS: Readonly<Record<KeptKind, string>> = {
+  numbers: "These numbers are from",
+  list: "This list is from",
+  page: "This page is from",
+};
 
 function failedWords(what: string, kind: LoadFailureKind, gone: string | undefined): string {
   if (kind === "forbidden") return `Your login cannot open ${what}.`;
@@ -33,9 +43,10 @@ function shownAt(at: number, now: Date): string {
   return formatDay(at, now) === formatDay(now, now) ? formatTime(at) : formatDayTime(at, now);
 }
 
-function refreshWords(what: string, kind: LoadFailureKind, at: string): string {
-  const age = `These numbers are from ${at}.`;
+function refreshWords(what: string, kind: LoadFailureKind, gone: string | undefined, kept: KeptKind, at: string): string {
+  const age = `${KEPT_WORDS[kept]} ${at}.`;
   if (kind === "forbidden") return `Your login cannot open ${what} any more. ${age}`;
+  if (kind === "missing") return `${gone ?? `Could not refresh ${what}: it is no longer there.`} ${age}`;
   return `Could not refresh ${what}. ${age}`;
 }
 
@@ -47,14 +58,23 @@ function refreshWords(what: string, kind: LoadFailureKind, at: string): string {
  * and not for a thing that is gone. With `shownFrom`, it sits above numbers
  * kept from an earlier read and says how old they are.
  */
-export function LoadFailedLine({ what, onRetry, retrying = false, error, gone, shownFrom, className }: LoadFailedLineProps) {
+export function LoadFailedLine({
+  what,
+  onRetry,
+  retrying = false,
+  error,
+  gone,
+  shownFrom,
+  kept = "numbers",
+  className,
+}: LoadFailedLineProps) {
   const kind = loadFailureKind(error);
   const final = kind === "forbidden" || kind === "missing";
   return (
     <p role="alert" className={cn("flex flex-wrap items-center gap-x-2 text-[13px] text-[var(--ink-red)]", className)}>
       {shownFrom === undefined
         ? failedWords(what, kind, gone)
-        : refreshWords(what, kind, shownAt(shownFrom, new Date()))}
+        : refreshWords(what, kind, gone, kept, shownAt(shownFrom, new Date()))}
       {!final && (
         <button
           type="button"

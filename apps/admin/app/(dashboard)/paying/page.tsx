@@ -80,7 +80,7 @@ type StaffPayRead = UseQueryResult<z.infer<typeof staffPayResponseSchema>>;
  * down when the shops arrived (round 18).
  */
 function StaffPay({ read }: { read: StaffPayRead }) {
-  const { data, error, isError, isFetching, refetch } = read;
+  const { data, dataUpdatedAt, error, isError, isFetching, refetch } = read;
 
   return (
     <section aria-label="Staff pay" className="pastel-card p-5 space-y-3" data-testid="staff-pay">
@@ -101,6 +101,15 @@ function StaffPay({ read }: { read: StaffPayRead }) {
         <Loader2 className="h-5 w-5 animate-spin text-foreground/70" />
       ) : (
         <>
+          {isError && (
+            <LoadFailedLine
+              what="the staff pay"
+              shownFrom={dataUpdatedAt}
+              error={error}
+              onRetry={() => refetch()}
+              retrying={isFetching}
+            />
+          )}
           <p className="text-[13px] text-foreground">
             {data.people.length === 1 ? "1 person" : `${formatCount(data.people.length)} people`}
             {data.people.length > 0 && (
@@ -161,7 +170,7 @@ export default function PayingShopsPage() {
     refetchInterval: 300_000,
     enabled: seesStaffPay,
   });
-  const { data, error, isLoading, isError, isFetching, refetch } = useQuery({
+  const { data, dataUpdatedAt, error, isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: ["admin", "paying-merchants"],
     queryFn: async () => {
       const res = okOrLoadFailure(await adminFetch("/api/paying-merchants"), "the paying shops");
@@ -184,6 +193,16 @@ export default function PayingShopsPage() {
           one more day while its renewal runs. The demo store, shops we built for a lead and our own store never count; a
           shop moved to Internal keeps the months it paid. Months end at midnight, Baghdad time.
         </p>
+        {isError && (
+          <LoadFailedLine
+            what="the paying shops"
+            shownFrom={dataUpdatedAt}
+            error={error}
+            onRetry={() => refetch()}
+            retrying={isFetching}
+            className="mt-2"
+          />
+        )}
       </div>
 
       {isLoading || !data ? (
