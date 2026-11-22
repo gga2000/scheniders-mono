@@ -76,3 +76,48 @@ describe("SupportConversation: an unsent reply or note", () => {
     expect(leaving()).toBe(true);
   });
 });
+
+/*
+ * Speed audit round 2: the open conversation refetches every 5 seconds and
+ * each answer signs a new link to the same picture. The picture took the new
+ * link each time, so the browser downloaded it again every 5 seconds.
+ */
+describe("SupportConversation: a picture or voice note from the merchant", () => {
+  function withLinks(shot: string, voice: string) {
+    return [
+      {
+        id: "m1",
+        case_id: "c1",
+        sender_kind: "merchant" as const,
+        sender_name: "Ali",
+        body: "شوف الشاشة",
+        context: { screenshot: "t1/a.jpg", voice: "t1/a.webm" },
+        created_at: "2026-11-18T00:00:00Z",
+        screenshot_url: shot,
+        voice_url: voice,
+      },
+    ];
+  }
+
+  it("keeps the first link across refetches and takes the newest only when the kept one fails", () => {
+    Element.prototype.scrollIntoView = () => {};
+    const view = render(
+      createElement(SupportConversation, { supportCase, messages: withLinks("https://s/shot?token=1", "https://s/voice?token=1"), notes: [] }),
+    );
+    view.rerender(
+      createElement(SupportConversation, { supportCase, messages: withLinks("https://s/shot?token=2", "https://s/voice?token=2"), notes: [] }),
+    );
+
+    const picture = screen.getByAltText("Picture of the merchant's screen");
+    const voice = screen.getByLabelText("Voice note from the merchant");
+    expect(picture.getAttribute("src")).toBe("https://s/shot?token=1");
+    expect(voice.getAttribute("src")).toBe("https://s/voice?token=1");
+    // Opening it full size uses the newest link, which always works.
+    expect(picture.closest("a")?.getAttribute("href")).toBe("https://s/shot?token=2");
+
+    fireEvent.error(picture);
+    fireEvent.error(voice);
+    expect(picture.getAttribute("src")).toBe("https://s/shot?token=2");
+    expect(voice.getAttribute("src")).toBe("https://s/voice?token=2");
+  });
+});
