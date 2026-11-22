@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-    title: "Login | Scheniders",
-    description: "Sign in to Scheniders Order Management System",
+    title: "Fermi",
+    description: "Sign in to Fermi Order Management",
 };
 
 export default function AuthLayout({
