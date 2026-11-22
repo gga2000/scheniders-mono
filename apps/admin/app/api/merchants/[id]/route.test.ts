@@ -355,12 +355,25 @@ describe("PATCH /api/merchants/[id]", () => {
     expect(rpc).not.toHaveBeenCalled();
   });
 
-  it("turns renewal back on without asking why", async () => {
-    rpc.mockResolvedValue(changed({ auto_renew: true, changed: ["auto_renew_toggle"] }));
+  // Round 21 (UX new 2): turning renewal on charges a shop that renewal off
+  // locked, within the hour. One click sent it with no reason in the log.
+  it("refuses to turn renewal back on without a reason, before the database", async () => {
     const res = await patch({ auto_renew: true });
 
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe("Say why renewal turns on.");
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("turns renewal back on with staff's reason on the staff log", async () => {
+    rpc.mockResolvedValue(changed({ auto_renew: true, changed: ["auto_renew_toggle"] }));
+    const res = await patch({ auto_renew: true, reason: "Owner paid in cash at the office" });
+
     expect(res.status).toBe(200);
-    expect(rpc).toHaveBeenCalledWith("admin_update_shop", expect.not.objectContaining({ _reason: expect.anything() }));
+    expect(rpc).toHaveBeenCalledWith(
+      "admin_update_shop",
+      expect.objectContaining({ _auto_renew: true, _reason: "Owner paid in cash at the office" }),
+    );
   });
 
   it("passes staff's reason for a plan change on to the staff log", async () => {

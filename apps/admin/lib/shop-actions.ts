@@ -7,6 +7,7 @@
  * the rest under More. The API routes check the same permissions again.
  */
 import type { AdminAction } from "@/types/admin";
+import { formatDay, formatIQD } from "@/lib/format";
 
 export interface ShopFacts {
   /** The tenant's status as the record read returns it: trial, active, limited, suspended, cancelled. */
@@ -143,6 +144,55 @@ export function renewalWords(autoRenew: boolean, demo: boolean, status: string):
     default:
       return "On: charges the wallet each month";
   }
+}
+
+/** What the Renewal switch knows when staff turn renewal back on. */
+export interface RenewalOnFacts {
+  demo: boolean;
+  /** The tenant's status as the record read returns it. */
+  status: string;
+  onTrial: boolean;
+  /** The end of this month or trial; null when there is none. */
+  periodEnd: string | null;
+  /** The billing lock, when the shop is locked: the month's price opens it. */
+  lock: { price_iqd: number } | null;
+  walletIqd: number;
+}
+
+/** Why no job charges the shop right now (renew_subscription_core and settle_billing_lock answer on_hold). */
+const NOT_CHARGED_WHILE: Readonly<Record<string, string>> = {
+  limited: "The shop is paused, so nothing is charged until the pause lifts.",
+  suspended: "The shop is on hold, so nothing is charged until it comes back.",
+  cancelled: "The shop is cancelled, so nothing is charged.",
+};
+
+/**
+ * What turning renewal back on does, said before it is done (round 21, UX
+ * new 2). For a shop locked with renewal off, it is a charge: the next hourly
+ * lock run takes the month from the wallet when it holds it, and the shop
+ * opens (20261119073654_renewal_off_stops_charge). A paused or held shop is
+ * not charged until it comes back. Otherwise the next month is charged when
+ * this one ends, as usual. The demo store is never charged (B13).
+ */
+export function renewalOnWords(facts: RenewalOnFacts, now: Date = new Date()): string {
+  const on = "Renewal turns on.";
+  if (facts.demo) return `${on} The demo store is never charged.`;
+  const notCharged = NOT_CHARGED_WHILE[facts.status];
+  if (facts.lock) {
+    const price = formatIQD(facts.lock.price_iqd);
+    if (notCharged) return `${on} ${notCharged} Then the wallet pays ${price} for the month and the shop opens.`;
+    const wallet = formatIQD(facts.walletIqd);
+    return facts.walletIqd >= facts.lock.price_iqd
+      ? `${on} Within the hour the wallet pays ${price} for the month and the shop opens. The wallet holds ${wallet} now.`
+      : `${on} The wallet holds ${wallet}, short of the month's ${price}. Once it holds the month, it pays and the shop opens.`;
+  }
+  if (notCharged) return `${on} ${notCharged}`;
+  if (facts.onTrial) return `${on} When the trial ends, the first month is charged from the wallet as usual.`;
+  if (facts.periodEnd && Date.parse(facts.periodEnd) <= now.getTime()) {
+    return `${on} This month ended ${formatDay(facts.periodEnd, now)}, so the next renewal run charges a new month from the wallet.`;
+  }
+  const after = facts.periodEnd ? ` after ${formatDay(facts.periodEnd, now)}` : "";
+  return `${on} The month${after} is charged from the wallet as usual.`;
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;

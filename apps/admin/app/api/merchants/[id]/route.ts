@@ -30,6 +30,12 @@ const patchSchema = z
     message: "Say why renewal stops.",
     path: ["reason"],
   })
+  // Turning it back on charges a shop that renewal off locked, within the
+  // hour when its wallet holds the month (round 21, UX new 2).
+  .refine((d) => d.auto_renew !== true || d.reason, {
+    message: "Say why renewal turns on.",
+    path: ["reason"],
+  })
   // A plan decides what the shop pays each month. Every form that moves one
   // asks why (the shop page, the card's plan chip, bulk Change Plan).
   .refine((d) => !d.plan || d.reason, {

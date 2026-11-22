@@ -7,6 +7,7 @@ import {
   moreActions,
   reactivateComeback,
   reactivateWords,
+  renewalOnWords,
   renewalWords,
   shopFormFrom,
   shopFormHref,
@@ -188,6 +189,57 @@ describe("the renewal line", () => {
     expect(renewalWords(true, true, "active")).toBe("On: renews each month, never charged (demo store)");
     expect(renewalWords(false, true, "active")).toBe("Off, but the demo store renews each month at no charge");
     expect(renewalWords(false, false, "suspended")).toBe("Off: when the month ends it is not charged, and the shop locks");
+  });
+});
+
+// Round 21 (UX new 2): what turning renewal back on does, said before it is done.
+describe("what turning renewal on says", () => {
+  const now = new Date("2026-11-22T12:00:00Z");
+  const facts = (over: Partial<Parameters<typeof renewalOnWords>[0]> = {}) => ({
+    demo: false,
+    status: "active",
+    onTrial: false,
+    periodEnd: "2026-12-01T00:00:00Z",
+    lock: null,
+    walletIqd: 0,
+    ...over,
+  });
+  const locked = { lock: { price_iqd: 9000 } };
+
+  it("for a locked shop whose wallet holds the month: a charge within the hour, and the wallet now", () => {
+    expect(renewalOnWords(facts({ ...locked, walletIqd: 9000 }), now)).toBe(
+      "Renewal turns on. Within the hour the wallet pays 9,000 IQD for the month and the shop opens. The wallet holds 9,000 IQD now.",
+    );
+  });
+
+  it("for a locked shop whose wallet is short: it opens once the wallet holds the month", () => {
+    expect(renewalOnWords(facts({ ...locked, walletIqd: 8999 }), now)).toBe(
+      "Renewal turns on. The wallet holds 8,999 IQD, short of the month's 9,000 IQD. Once it holds the month, it pays and the shop opens.",
+    );
+  });
+
+  it("for a locked shop that is paused or on hold: no charge until it comes back", () => {
+    expect(renewalOnWords(facts({ ...locked, status: "limited", walletIqd: 50000 }), now)).toBe(
+      "Renewal turns on. The shop is paused, so nothing is charged until the pause lifts. Then the wallet pays 9,000 IQD for the month and the shop opens.",
+    );
+    expect(renewalOnWords(facts({ ...locked, status: "suspended" }), now)).toContain("on hold, so nothing is charged until it comes back");
+  });
+
+  it("for a shop that is not locked: the next month as usual, or the next run when its month has ended", () => {
+    expect(renewalOnWords(facts(), now)).toBe("Renewal turns on. The month after Tue 1 Dec is charged from the wallet as usual.");
+    expect(renewalOnWords(facts({ periodEnd: "2026-11-21T08:00:00Z" }), now)).toBe(
+      "Renewal turns on. This month ended Sat 21 Nov, so the next renewal run charges a new month from the wallet.",
+    );
+    expect(renewalOnWords(facts({ onTrial: true, status: "trial" }), now)).toBe(
+      "Renewal turns on. When the trial ends, the first month is charged from the wallet as usual.",
+    );
+    expect(renewalOnWords(facts({ status: "cancelled" }), now)).toBe("Renewal turns on. The shop is cancelled, so nothing is charged.");
+  });
+
+  it("for the demo store: never charged", () => {
+    expect(renewalOnWords(facts({ ...locked, demo: true, walletIqd: 50000 }), now)).toBe(
+      "Renewal turns on. The demo store is never charged.",
+    );
   });
 });
 
