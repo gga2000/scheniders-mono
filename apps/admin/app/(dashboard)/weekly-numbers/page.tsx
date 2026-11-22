@@ -5,6 +5,7 @@ import { z } from "zod";
 import { Loader2 } from "lucide-react";
 import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
 import { LoadError } from "@/components/shared/load-error";
+import { LoadFailedLine } from "@/components/shared/load-failed-line";
 import { adminFetch } from "@/lib/admin-fetch";
 import { formatCount, formatDateKey, formatIQD } from "@/lib/format";
 import { okOrLoadFailure } from "@/lib/load-failure";
@@ -59,7 +60,7 @@ const COLUMNS = [
  * week sits on top of the table and fills the numbers above it.
  */
 export default function WeeklyNumbersPage() {
-  const { data, error, isLoading, isError, isFetching, refetch } = useQuery({
+  const { data, error, isLoading, isError, isFetching, refetch, dataUpdatedAt } = useQuery({
     queryKey: ["admin", "weekly-dashboard"],
     queryFn: async () => {
       const res = okOrLoadFailure(await adminFetch("/api/weekly-dashboard"), "the weekly numbers");
@@ -85,6 +86,16 @@ export default function WeeklyNumbersPage() {
           Weeks run Saturday to Friday, Baghdad time. This week is still running. Paying means what it means on Paying shops; the
           demo store, shops we built for a lead and our own store are never counted.
         </p>
+        {isError && (
+          <LoadFailedLine
+            what="the weekly numbers"
+            shownFrom={dataUpdatedAt}
+            error={error}
+            onRetry={() => refetch()}
+            retrying={isFetching}
+            className="mt-2"
+          />
+        )}
       </div>
 
       {isLoading || !data ? (
