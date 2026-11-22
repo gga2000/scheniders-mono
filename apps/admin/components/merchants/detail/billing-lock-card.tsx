@@ -11,7 +11,7 @@ import {
   type BillingLockSnapshot,
 } from "@/lib/billing-lock-tools";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
-import { createRequestIds } from "@/lib/request-ids";
+import { keptRequestIds } from "@/lib/request-ids";
 import { formatDay } from "@/lib/format";
 import { LOCK_REASON_WORDS, lockOpensWords } from "@/lib/billing-lock-label";
 import { shopActionKey } from "@/lib/shop-actions";
@@ -52,7 +52,7 @@ export function BillingLockCard({ merchantId, lock, canForceUnlock, shopPaused }
   const [customOrders, setCustomOrders] = useState("");
   const [unlockDays, setUnlockDays] = useState(30);
   // One id per ask: a retry after a lost answer adds the orders or unlocks once.
-  const [requestIds] = useState(createRequestIds);
+  const [requestIds] = useState(() => keptRequestIds("lock"));
   const reasonOk = isStaffReason(reason);
 
   const mutation = useMutation({

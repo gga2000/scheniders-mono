@@ -107,6 +107,7 @@ const sentIds = () => send.mock.calls.map(([, init]) => JSON.parse(String((init 
 
 afterEach(() => {
   cleanup();
+  localStorage.clear();
   send.mockReset();
   vi.mocked(toast.error).mockReset();
   vi.mocked(toast.success).mockReset();
@@ -286,6 +287,22 @@ describe("the shop page's panels", () => {
   // Round 21 (structure new 2): a lost answer after the page was gone read
   // "No money was added to Kut Perfumes. No answer came back, so this may have
   // been done.", which says two opposite things.
+  // Round 21 (structure new 3): the ids lived in the page's memory, so the
+  // same top-up after leaving the shop and coming back went out with a new id.
+  it("send the same top-up with the same id after the page was left and opened again", async () => {
+    send.mockImplementation(async () => new Response("Gateway Timeout", { status: 504 }));
+    const first = page();
+    addFiveThousand();
+    await screen.findByRole("alert");
+    first.unmount();
+
+    page();
+    addFiveThousand("Cash, office");
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(2));
+    const [before, after] = sentIds();
+    expect(after).toBe(before);
+  });
+
   it("say a lost answer in a toast, naming the shop, never as not done", async () => {
     let answer: (res: Response) => void = () => {};
     send.mockReturnValue(new Promise<Response>((resolve) => (answer = resolve)));

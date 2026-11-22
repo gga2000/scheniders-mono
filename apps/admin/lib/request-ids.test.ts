@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { describe, it, expect } from "vitest";
-import { createRequestIds } from "./request-ids";
+import { createRequestIds, KEPT_FOR_MS, keptRequestIds, type KeptStorage } from "./request-ids";
 
 /*
  * A staff top-up carries an id the server uses to drop a repeat. The id must
@@ -47,6 +47,83 @@ describe("createRequestIds", () => {
     const a = createRequestIds();
     const b = createRequestIds();
     expect(a.idFor("shop-a:5000:")).not.toBe(b.idFor("shop-a:5000:"));
+  });
+});
+
+/*
+ * Round 21 (structure new 3): ids lived in one form's memory. A retry after
+ * leaving the page, a reload, a second tab, or Quick Top-Up after Add money
+ * for the same shop and amount sent a new id and could credit twice, while
+ * the server's words promised "once at most".
+ */
+describe("keptRequestIds", () => {
+  /** A browser's localStorage, shared by every page and tab that reads it. */
+  function browser(): KeptStorage {
+    const items = new Map<string, string>();
+    return { getItem: (key) => items.get(key) ?? null, setItem: (key, value) => void items.set(key, value) };
+  }
+
+  it("keeps an id across pages, reloads and tabs of one browser", () => {
+    const storage = browser();
+    const billing = keptRequestIds("topup", { storage });
+    const id = billing.idFor("shop-a:50000");
+    // The shop page's Add money, or Billing after a reload: a new handle, the same browser.
+    expect(keptRequestIds("topup", { storage }).idFor("shop-a:50000")).toBe(id);
+  });
+
+  it("keeps kinds apart", () => {
+    const storage = browser();
+    const topUp = keptRequestIds("topup", { storage }).idFor("shop-a:7");
+    expect(keptRequestIds("free-days", { storage }).idFor("shop-a:7")).not.toBe(topUp);
+  });
+
+  it("ends only the ask that went through", () => {
+    const storage = browser();
+    const ids = keptRequestIds("topup", { storage });
+    const fifty = ids.idFor("shop-a:50000"); // its answer was lost
+    const ten = ids.idFor("shop-a:10000");
+    ids.done(); // 10,000 went through
+    expect(ids.idFor("shop-a:50000")).toBe(fifty);
+    expect(ids.idFor("shop-a:10000")).not.toBe(ten);
+  });
+
+  it("ends an ask from another handle once it goes through there", () => {
+    const storage = browser();
+    const id = keptRequestIds("topup", { storage }).idFor("shop-a:50000");
+    const shopPage = keptRequestIds("topup", { storage });
+    expect(shopPage.idFor("shop-a:50000")).toBe(id);
+    shopPage.done();
+    expect(keptRequestIds("topup", { storage }).idFor("shop-a:50000")).not.toBe(id);
+  });
+
+  it("forgets an ask after an hour, so a wanted top-up later is a new one", () => {
+    const storage = browser();
+    let at = 1_000_000;
+    const now = () => at;
+    const id = keptRequestIds("topup", { storage, now }).idFor("shop-a:50000");
+    at += KEPT_FOR_MS - 1;
+    expect(keptRequestIds("topup", { storage, now }).idFor("shop-a:50000")).toBe(id);
+    at += KEPT_FOR_MS;
+    expect(keptRequestIds("topup", { storage, now }).idFor("shop-a:50000")).not.toBe(id);
+  });
+
+  it("keeps ids in the tab when the browser refuses its storage", () => {
+    const refusing: KeptStorage = {
+      getItem: () => {
+        throw new Error("SecurityError");
+      },
+      setItem: () => {
+        throw new Error("SecurityError");
+      },
+    };
+    const first = keptRequestIds("lock", { storage: refusing }).idFor("shop-b:orders:50");
+    expect(keptRequestIds("lock", { storage: refusing }).idFor("shop-b:orders:50")).toBe(first);
+  });
+
+  it("starts afresh when the stored text is not its own", () => {
+    const storage = browser();
+    storage.setItem("adminRequestIds", "not json");
+    expect(keptRequestIds("bulk", { storage }).idFor("top-up:10000:a,b")).toMatch(/^[0-9a-f-]{36}$/);
   });
 });
 
