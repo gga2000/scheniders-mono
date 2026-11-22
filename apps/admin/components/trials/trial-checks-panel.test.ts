@@ -14,6 +14,7 @@ let query: {
   data: unknown;
   isLoading: boolean;
   isError: boolean;
+  isRefetchError?: boolean;
   error: unknown;
   isFetching: boolean;
   refetch: () => void;
@@ -42,7 +43,7 @@ describe("the one-trial card", () => {
   it("says when it shows a list kept from an earlier read, and from when", () => {
     const kept = { checks: [], summary: { needs_look: 0, no_trial: 0, review: 0 } };
     query = {
-      data: kept, isLoading: false, isError: true, error: new LoadFailure(500, "the one-trial checks"),
+      data: kept, isLoading: false, isError: true, isRefetchError: true, error: new LoadFailure(500, "the one-trial checks"),
       isFetching: false, refetch: () => {}, dataUpdatedAt: Date.parse("2026-11-22T17:00:00Z"),
     };
     const html = render();

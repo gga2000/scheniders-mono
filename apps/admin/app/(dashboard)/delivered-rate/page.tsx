@@ -6,7 +6,7 @@ import { z } from "zod";
 import { Loader2, Truck } from "lucide-react";
 import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
 import { LoadError } from "@/components/shared/load-error";
-import { LoadFailedLine } from "@/components/shared/load-failed-line";
+import { StaleLine } from "@/components/shared/stale-line";
 import { ShopNameLink } from "@/components/shared/shop-name-link";
 import { adminFetch } from "@/lib/admin-fetch";
 import { dayOf } from "@/lib/baghdad-day";
@@ -41,7 +41,7 @@ const CHIP = "inline-flex rounded-full bg-red-500/10 px-2 py-0.5 text-xs font-me
  * shops come first, for a person to check; nothing here acts on a shop.
  */
 export default function DeliveredRatePage() {
-  const { data, error, isLoading, isError, isFetching, refetch, dataUpdatedAt } = useQuery({
+  const pageRead = useQuery({
     queryKey: ["admin", "delivered-rate-watch"],
     queryFn: async () => {
       const res = okOrLoadFailure(await adminFetch("/api/delivered-rate-watch"), "the delivered rate");
@@ -50,6 +50,7 @@ export default function DeliveredRatePage() {
     staleTime: 60_000,
     refetchInterval: 300_000,
   });
+  const { data, error, isLoading, isError, isFetching, refetch } = pageRead;
 
   if (isError && !data) {
     return <LoadError what="the delivered rate" onRetry={() => refetch()} retrying={isFetching} error={error} />;
@@ -75,16 +76,7 @@ export default function DeliveredRatePage() {
           )}{" "}
           Return and exchange orders are left out. Flagged rows are for a person to check; nothing happens on its own.
         </p>
-        {isError && (
-          <LoadFailedLine
-            what="the delivered rate"
-            shownFrom={dataUpdatedAt}
-            error={error}
-            onRetry={() => refetch()}
-            retrying={isFetching}
-            className="mt-2"
-          />
-        )}
+        <StaleLine read={pageRead} what="the delivered rate" className="mt-2" />
       </div>
 
       {isLoading || !data ? (

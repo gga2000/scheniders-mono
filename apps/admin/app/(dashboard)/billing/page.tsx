@@ -14,7 +14,7 @@ import {
 import { ExportButton } from "@/components/shared/export-button";
 import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
 import { LoadError } from "@/components/shared/load-error";
-import { LoadFailedLine } from "@/components/shared/load-failed-line";
+import { StaleLine } from "@/components/shared/stale-line";
 import { okOrLoadFailure } from "@/lib/load-failure";
 import { keptRequestIds, requestKey, shopKey } from "@/lib/request-ids";
 import { STAFF_REASON_MAX } from "@/lib/billing-lock-tools";
@@ -99,12 +99,13 @@ export default function BillingPage() {
   // so the tables below hold still for the super admins who use it; support
   // staff, who would only get a refusal, see it leave.
   const showTopUp = roleLoading || can("top_up_wallet");
-  const { data, isLoading, isError, error, refetch, isFetching, dataUpdatedAt } = useQuery<BillingData>({
+  const pageRead = useQuery<BillingData>({
     queryKey: ["admin", "billing"],
     queryFn: fetchBilling,
     staleTime: 30_000,
     refetchInterval: 60_000,
   });
+  const { data, isLoading, isError, error, refetch, isFetching } = pageRead;
 
   // Top-up form state
   const [topupTenantId, setTopupTenantId] = useState("");
@@ -179,16 +180,7 @@ export default function BillingPage() {
           <p className="text-[13px] text-foreground/70">
             Every shop&apos;s wallet, its top-ups and its charges.
           </p>
-          {isError && (
-            <LoadFailedLine
-              what="the wallets"
-              shownFrom={dataUpdatedAt}
-              error={error}
-              onRetry={() => refetch()}
-              retrying={isFetching}
-              className="mt-2"
-            />
-          )}
+          <StaleLine read={pageRead} what="the wallets" className="mt-2" />
         </div>
         {/* The transactions file needs adjust_balance (api/export). */}
         {can("adjust_balance") && <ExportButton type="transactions" label="Export Transactions" />}

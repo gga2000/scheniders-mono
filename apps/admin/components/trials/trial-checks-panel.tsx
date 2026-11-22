@@ -9,7 +9,7 @@ import { okOrLoadFailure } from "@/lib/load-failure";
 import { toIntlIraqi } from "@/components/leads/lead-phone";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
 import { LoadError } from "@/components/shared/load-error";
-import { LoadFailedLine } from "@/components/shared/load-failed-line";
+import { StaleLine } from "@/components/shared/stale-line";
 import {
   DECISION_LABEL,
   TRIAL_CHECKS_KEY,
@@ -210,7 +210,7 @@ function CheckRow({ check }: { check: TrialCheck }) {
  * mark it checked, each with a reason in the log. The merchant never sees why.
  */
 export function TrialChecksPanel() {
-  const { data, isLoading, isError, error, refetch, isFetching, dataUpdatedAt } = useQuery<TrialChecksResponse>({
+  const pageRead = useQuery<TrialChecksResponse>({
     queryKey: TRIAL_CHECKS_KEY,
     queryFn: async () => {
       const res = okOrLoadFailure(await adminFetch("/api/trial-checks"), "the trial checks");
@@ -218,6 +218,7 @@ export function TrialChecksPanel() {
     },
     staleTime: 30_000,
   });
+  const { data, isLoading, isError, error, refetch, isFetching } = pageRead;
 
   // A side card on the Trials page: its failure stays in the card, so the
   // trial list and "Ends today" below it, which did load, stay in view.
@@ -245,17 +246,7 @@ export function TrialChecksPanel() {
             ? "Nothing new. Every flagged store has a decision."
             : `${summary.needs_look} to look at: ${summary.no_trial} no trial, ${summary.review} to review`}
         </p>
-        {isError && (
-          <LoadFailedLine
-            what="the one-trial checks"
-            shownFrom={dataUpdatedAt}
-            kept="list"
-            error={error}
-            onRetry={() => refetch()}
-            retrying={isFetching}
-            className="mt-2"
-          />
-        )}
+        <StaleLine read={pageRead} what="the one-trial checks" kept="list" className="mt-2" />
       </div>
       <div className="divide-y divide-[var(--card-border)]">
         {data.checks.map((check) => (

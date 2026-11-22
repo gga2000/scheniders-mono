@@ -9,7 +9,7 @@ import { ShopNameLink } from "@/components/shared/shop-name-link";
 import { adminFetch } from "@/lib/admin-fetch";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { LoadError } from "@/components/shared/load-error";
-import { LoadFailedLine } from "@/components/shared/load-failed-line";
+import { StaleLine } from "@/components/shared/stale-line";
 import { okOrLoadFailure } from "@/lib/load-failure";
 import { monthOf } from "@/lib/baghdad-day";
 import { formatMonth } from "@/lib/format";
@@ -120,7 +120,7 @@ export default function WhatsAppPage() {
   const { role } = useAdminAuth();
   const current = monthOf(new Date());
   const [month, setMonth] = useState(current);
-  const { data, dataUpdatedAt, error, isLoading, isError, isFetching, refetch } = useQuery({
+  const pageRead = useQuery({
     queryKey: ["admin", "whatsapp", month],
     queryFn: async () => {
       const res = okOrLoadFailure(await adminFetch(`/api/whatsapp?month=${month}`), "the WhatsApp numbers");
@@ -129,6 +129,7 @@ export default function WhatsAppPage() {
     staleTime: 60_000,
     refetchInterval: 120_000,
   });
+  const { data, error, isLoading, isError, isFetching, refetch } = pageRead;
 
   if (isError && !data) {
     return <LoadError what="the WhatsApp numbers" onRetry={() => refetch()} retrying={isFetching} error={error} />;
@@ -148,16 +149,7 @@ export default function WhatsAppPage() {
             free trial. A shop whose messages mostly fail is paused so the number stays healthy. Months on Baghdad time,
             counted from 16 Nov 2026.
           </p>
-          {isError && (
-            <LoadFailedLine
-              what="the WhatsApp numbers"
-              shownFrom={dataUpdatedAt}
-              error={error}
-              onRetry={() => refetch()}
-              retrying={isFetching}
-              className="mt-2"
-            />
-          )}
+          <StaleLine read={pageRead} what="the WhatsApp numbers" className="mt-2" />
         </div>
         <div className="flex items-center gap-1 rounded-xl border border-[var(--card-border)] p-1" data-testid="whatsapp-month">
           <button

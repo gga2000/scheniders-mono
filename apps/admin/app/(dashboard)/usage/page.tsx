@@ -17,7 +17,7 @@ import {
 import { AnimatedCounter } from "@/components/shared/animated-counter";
 import { cn } from "@/lib/utils";
 import { LoadError } from "@/components/shared/load-error";
-import { LoadFailedLine } from "@/components/shared/load-failed-line";
+import { StaleLine } from "@/components/shared/stale-line";
 import { formatDateKey, formatDay, formatMonth } from "@/lib/format";
 import { adminFetch } from "@/lib/admin-fetch";
 
@@ -46,7 +46,7 @@ function getHeatmapColor(count: number, maxCount: number): string {
 }
 
 export default function UsagePage() {
-  const { data, isLoading, isError, error, isFetching, refetch, dataUpdatedAt } = useQuery<UsageData>({
+  const pageRead = useQuery<UsageData>({
     queryKey: ["admin", "usage"],
     queryFn: async () => {
       const res = await adminFetch("/api/usage");
@@ -56,6 +56,7 @@ export default function UsagePage() {
     staleTime: 60_000,
     refetchInterval: 120_000,
   });
+  const { data, isLoading, isError, error, isFetching, refetch } = pageRead;
 
   const heatmapData = data?.heatmapData;
 
@@ -86,7 +87,7 @@ export default function UsagePage() {
   const maxCount = useMemo(() => Math.max(1, ...(heatmapData?.map((d) => d.count) || [1])), [heatmapData]);
 
   if (isError && !data) {
-    return <LoadError what="the usage numbers" onRetry={() => refetch()} retrying={isFetching} />;
+    return <LoadError what="the usage numbers" error={error} onRetry={() => refetch()} retrying={isFetching} />;
   }
 
   if (isLoading || !data) {
@@ -107,16 +108,7 @@ export default function UsagePage() {
         <div>
           <h1 className="text-[22px] font-semibold text-foreground">Orders by hour</h1>
           <p className="text-[13px] text-foreground/70">Orders per day and hour, Baghdad time, last 365 days</p>
-          {isError && (
-            <LoadFailedLine
-              what="the usage numbers"
-              shownFrom={dataUpdatedAt}
-              error={error}
-              onRetry={() => refetch()}
-              retrying={isFetching}
-              className="mt-2"
-            />
-          )}
+          <StaleLine read={pageRead} what="the usage numbers" className="mt-2" />
         </div>
         <div className="flex items-center gap-2">
           <AnimatedCounter value={data.totalOrders} className="text-lg font-bold text-foreground" />

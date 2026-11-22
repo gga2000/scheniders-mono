@@ -14,7 +14,7 @@ import { keptRequestIds, requestKey, shopKey } from "@/lib/request-ids";
 import { failureOf, sendJson } from "@/components/merchants/detail/action-ui";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
 import { LoadError } from "@/components/shared/load-error";
-import { LoadFailedLine } from "@/components/shared/load-failed-line";
+import { StaleLine } from "@/components/shared/stale-line";
 import { okOrLoadFailure } from "@/lib/load-failure";
 import { useCan } from "@/hooks/use-admin-auth";
 import { TrialChecksPanel } from "@/components/trials/trial-checks-panel";
@@ -189,7 +189,7 @@ function ExtendTrialButton({ tenantId }: { tenantId: string }) {
 // ---------------------------------------------------------------------------
 
 export default function TrialsPage() {
-  const { data, isLoading, isError, error, refetch, isFetching, dataUpdatedAt } = useQuery<TrialsResponse>({
+  const pageRead = useQuery<TrialsResponse>({
     queryKey: ["admin", "trials"],
     queryFn: async () => {
       const res = okOrLoadFailure(await adminFetch("/api/trials"), "the trials");
@@ -197,6 +197,7 @@ export default function TrialsPage() {
     },
     staleTime: 30_000,
   });
+  const { data, isLoading, isError, error, refetch, isFetching } = pageRead;
   // The follow-up facts have their own read: when it fails, the list stays (round 18).
   const followUp = useQuery({
     queryKey: TRIAL_FOLLOW_UP_KEY,
@@ -242,16 +243,7 @@ export default function TrialsPage() {
         <p className="text-[13px] text-foreground/70">
           {isLoading ? "Loading..." : trialsLine(summary)}
         </p>
-        {isError && (
-          <LoadFailedLine
-            what="the trials"
-            shownFrom={dataUpdatedAt}
-            error={error}
-            onRetry={() => refetch()}
-            retrying={isFetching}
-            className="mt-2"
-          />
-        )}
+        <StaleLine read={pageRead} what="the trials" className="mt-2" />
       </div>
 
       {/* Stores that matched an earlier store (Fermi B5) */}
@@ -283,15 +275,7 @@ export default function TrialsPage() {
       {followUp.isError && !followUp.data && (
         <LoadError compact what="the follow-up facts" error={followUp.error} onRetry={() => followUp.refetch()} retrying={followUp.isFetching} />
       )}
-      {followUp.isError && followUp.data && (
-        <LoadFailedLine
-          what="the follow-up facts"
-          shownFrom={followUp.dataUpdatedAt}
-          error={followUp.error}
-          onRetry={() => followUp.refetch()}
-          retrying={followUp.isFetching}
-        />
-      )}
+      <StaleLine read={followUp} what="the follow-up facts" />
 
       {/* Trial List */}
       {isLoading ? (

@@ -28,7 +28,7 @@ describe("Home after a failed re-read", () => {
   it("says the numbers are from the last read that worked", () => {
     vi.useFakeTimers();
     vi.setSystemTime(Date.parse("2026-11-22T16:30:00Z"));
-    const html = draw({ isError: true, error: new Error("fetch failed") });
+    const html = draw({ isError: true, isRefetchError: true, error: new Error("fetch failed") });
     expect(html).toContain("Could not refresh the dashboard. These numbers are from 18:42.");
     expect(html).toContain("Command Center");
   });

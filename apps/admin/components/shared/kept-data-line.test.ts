@@ -8,12 +8,13 @@ import { describe, expect, it } from "vitest";
  * was ever read) said nothing when a later read failed: Merchants, the shop
  * page, Activity, Payments to check, Paying shops, WhatsApp costs, Team and
  * the lead page went on showing old numbers as today's. Each place that keeps
- * data now draws the load-failed line with `shownFrom`, which says the
- * refresh failed and how old the numbers are. The support desk's files are
- * that thread's.
+ * data now draws a `StaleLine`, which says the refresh failed and how old the
+ * numbers are; it is the one place that says so, where the same block had
+ * been pasted on 19 pages. The support desk's files are that thread's.
  */
 
 const ROOT = join(__dirname, "..", "..");
+const STALE_LINE = join(ROOT, "components", "shared", "stale-line.tsx");
 const SKIP = [
   join(ROOT, "app", "(dashboard)", "support"),
   join(ROOT, "components", "support"),
@@ -35,6 +36,11 @@ function keptOnFailure(source: string): number {
 
 /** Lines that say a refresh failed and how old what is kept is. */
 function staleLines(source: string): number {
+  return [...source.matchAll(/<StaleLine\b/g)].length;
+}
+
+/** The same line built by hand, beside the one component that builds it. */
+function handBuilt(source: string): number {
   return [...source.matchAll(/\bshownFrom=\{/g)].length;
 }
 
@@ -46,8 +52,9 @@ describe("a page that keeps its last read when a read fails", () => {
     expect(keptOnFailure("query.isError && !query.data")).toBe(1);
     expect(keptOnFailure("isError ? <LoadError /> : <List />")).toBe(0);
     expect(keptOnFailure("{decide.isError && <p>{decide.error.message}</p>}")).toBe(0);
-    expect(staleLines("<LoadFailedLine what=\"x\" shownFrom={dataUpdatedAt} onRetry={r} />")).toBe(1);
+    expect(staleLines("<StaleLine read={pageRead} what=\"the payments\" kept=\"list\" />")).toBe(1);
     expect(staleLines("<LoadFailedLine what=\"x\" onRetry={r} />")).toBe(0);
+    expect(handBuilt("<LoadFailedLine what=\"x\" shownFrom={dataUpdatedAt} onRetry={r} />")).toBe(1);
   });
 
   it("says so when a later read fails, once for each read it keeps, on every page of the console", () => {
@@ -60,5 +67,13 @@ describe("a page that keeps its last read when a read fails", () => {
         return said < kept ? [`${file.slice(ROOT.length + 1)}: keeps ${kept} read(s), says ${said}`] : [];
       });
     expect(silent).toEqual([]);
+  });
+
+  it("says it with the one stale line, never one built by hand", () => {
+    const byHand = sources(join(ROOT, "app"))
+      .concat(sources(join(ROOT, "components")))
+      .filter((file) => file !== STALE_LINE && handBuilt(readFileSync(file, "utf8")) > 0)
+      .map((file) => file.slice(ROOT.length + 1));
+    expect(byHand).toEqual([]);
   });
 });
