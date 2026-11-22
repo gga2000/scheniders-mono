@@ -22,7 +22,8 @@ import type { ShopCheck } from "@/lib/support-shop-check";
 import type { SupportSpike } from "@/lib/support-spike";
 import { SHELL_READ, useAfterPageReads } from "@/hooks/use-after-page-reads";
 import { adminFetch } from "@/lib/admin-fetch";
-import { writesOnce } from "@/lib/support";
+import { SUPPORT_SEND_UNSURE, writesOnce } from "@/lib/support";
+import { AnswerLost, failureOf, sendJson } from "@/components/merchants/detail/action-ui";
 
 async function readJson<T>(res: Response): Promise<T> {
   const body: unknown = await res.json().catch(() => null);
@@ -35,13 +36,6 @@ async function readJson<T>(res: Response): Promise<T> {
   }
   return body as T;
 }
-
-/**
- * What staff read when a send got no answer back (the connection dropped, or
- * a gateway answered 502 or 504 with no words). It may have gone through;
- * pressing again is safe, because the send keeps its id (round 22, N8).
- */
-export const SEND_ANSWER_LOST = "No answer came back, so this may have been done. Press again: it is done once at most.";
 
 /**
  * One id per ask, kept until it goes through. The ask is what staff send (the
@@ -73,23 +67,19 @@ function useAskIds() {
   );
 }
 
-/** POSTs one send with its id; a lost answer reads as SEND_ANSWER_LOST, not as "not done". */
+/**
+ * POSTs one send with its id, through the console's one sender (sendJson and
+ * failureOf), so its words match every other write. A lost answer, whether the
+ * connection dropped or a gateway answered with no words, says the send may
+ * have been done and that pressing again with the same words is safe.
+ */
 async function sendOnce<T>(url: string, body: unknown): Promise<T> {
-  const res = await adminFetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  }).catch((error: unknown) => {
-    // The browser rejects with a TypeError when the network fails after the request left.
-    if (error instanceof TypeError) throw new Error(SEND_ANSWER_LOST);
-    throw error;
+  const answer = await sendJson(url, body).catch((error: unknown) => {
+    throw error instanceof AnswerLost ? new AnswerLost(SUPPORT_SEND_UNSURE) : error;
   });
-  const answer: unknown = await res.json().catch(() => null);
-  if (res.ok) return answer as T;
-  const words =
-    answer && typeof answer === "object" && "error" in answer && typeof answer.error === "string" ? answer.error : null;
-  if (words !== null) throw new Error(words);
-  throw new Error(res.status >= 500 ? SEND_ANSWER_LOST : "Request failed");
+  if (answer.ok) return answer.data as T;
+  const failure = failureOf(answer.status, answer.data, "Request failed");
+  throw failure instanceof AnswerLost ? new AnswerLost(SUPPORT_SEND_UNSURE) : failure;
 }
 
 /**

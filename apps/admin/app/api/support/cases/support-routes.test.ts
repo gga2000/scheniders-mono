@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 import type { AdminRole } from "@/types/admin";
 import { AdminAuthError } from "@/lib/admin-auth-error";
+import { SUPPORT_SEND_UNSURE } from "@/lib/support";
 
 /**
  * The support inbox routes, called for real with the real permission check;
@@ -250,13 +251,13 @@ describe("support case actions", () => {
     expect(res.status).toBe(status);
   });
 
-  it("reports a real database failure as 500, not as a refusal", async () => {
+  it("reports a real database failure as a lost answer (502), not as a refusal", async () => {
     dbQueue.push(
       { data: { display_name: "Noor", email: null }, error: null },
       { data: null, error: { code: "57014", message: "canceling statement due to statement timeout" } },
     );
     const res = await post("support", { action: "reply", body: "hi" });
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(502);
   });
 
   it("takes ownership only of a conversation that is still open", async () => {
@@ -935,12 +936,14 @@ describe("support shop call with no task", () => {
     expect(dbCalls.some((c) => c.method === "insert")).toBe(false);
   });
 
-  it("says it failed when the database answers something unexpected", async () => {
+  it("says it may have been done when the database answers something unexpected", async () => {
     dbQueue.push(
       { data: { display_name: "Noor", email: null }, error: null },
       { data: { tenant_id: TENANT }, error: null },
     );
-    expect((await call("support", { tenantId: TENANT, outcome: "done" })).status).toBe(500);
+    const res = await call("support", { tenantId: TENANT, outcome: "done" });
+    expect(res.status).toBe(502);
+    expect(await res.json()).toEqual({ error: SUPPORT_SEND_UNSURE });
     expect(dbCalls.some((c) => c.method === "insert")).toBe(false);
   });
 });
@@ -1300,37 +1303,133 @@ describe("support writes carry their send's id (round 22, N8)", () => {
     expect(res.status).toBe(200);
   });
 
-  it("logs a first message once: a repeat of the same send logs nothing", async () => {
-    dbQueue.push(
-      { data: { display_name: "Noor", email: null }, error: null },
-      { data: { case_id: CASE_ID, tenant_id: TENANT, message_id: "m1", started: true, repeat: true }, error: null },
-    );
-    const res = await (await import("../needs-us/route")).POST(
+  const NOTICE_ROW = {
+    id: "88888888-8888-4888-8888-888888888888",
+    body: "hi",
+    created_by_name: "Noor",
+    created_at: "2026-11-16T12:00:00+00:00",
+    ends_at: "2026-11-16T14:00:00+00:00",
+  };
+  const NAME = { data: { display_name: "Noor", email: null }, error: null };
+  const startSend = async () =>
+    (await import("../needs-us/route")).POST(
       req("/api/support/needs-us", "POST", "support", withId({ tenantId: TENANT, body: "hi" })),
     );
-    expect(await res.json()).toEqual({ caseId: CASE_ID, started: true });
+  const noticeSend = async () =>
+    (await import("../notices/route")).POST(req("/api/support/notices", "POST", "support", withId({ body: "hi", hours: 2 })));
+  const STARTED = { case_id: CASE_ID, tenant_id: TENANT, message_id: "m1", started: true };
+
+  /*
+   * Round 23 (7): a repeat used to skip the log outright, so a first send whose
+   * log row failed was never logged. Each row now keeps its send's id; a repeat
+   * looks for it and writes it only when it is missing.
+   */
+  it.each([
+    ["a first message", "support_reached_out", startSend, STARTED],
+    ["a notice", "support_notice_posted", noticeSend, NOTICE_ROW],
+  ])("logs %s with its send's id, without looking first", async (_name, action, send, answer) => {
+    dbQueue.push(NAME, { data: answer, error: null });
+    expect((await send()).status).toBe(200);
+    expect(dbCalls.some((c) => c.method === "eq" && c.args[0] === "details->>request_id")).toBe(false);
+    expect(dbCalls.find((c) => c.method === "insert")?.args[0]).toMatchObject({ action, details: { request_id: SEND_ID } });
+  });
+
+  it.each([
+    ["a first message", "support_reached_out", startSend, STARTED],
+    ["a notice", "support_notice_posted", noticeSend, NOTICE_ROW],
+  ])("logs nothing new for a repeat of %s whose row is on record", async (_name, action, send, answer) => {
+    dbQueue.push(NAME, { data: { ...answer, repeat: true }, error: null }, { data: [{ id: 7 }], error: null });
+    expect((await send()).status).toBe(200);
+    expect(dbCalls.filter((c) => c.method === "eq").map((c) => c.args)).toEqual(
+      expect.arrayContaining([
+        ["admin_user_id", SUPPORT_ID],
+        ["action", action],
+        ["details->>request_id", SEND_ID],
+      ]),
+    );
     expect(dbCalls.some((c) => c.method === "insert")).toBe(false);
   });
 
-  it("logs a notice once: a repeat of the same post logs nothing", async () => {
-    dbQueue.push(
-      { data: { display_name: "Noor", email: null }, error: null },
-      {
-        data: {
-          id: "88888888-8888-4888-8888-888888888888",
-          body: "hi",
-          created_by_name: "Noor",
-          created_at: "2026-11-16T12:00:00+00:00",
-          ends_at: "2026-11-16T14:00:00+00:00",
-          repeat: true,
-        },
-        error: null,
-      },
-    );
-    const res = await (await import("../notices/route")).POST(
-      req("/api/support/notices", "POST", "support", withId({ body: "hi", hours: 2 })),
-    );
-    expect(res.status).toBe(200);
-    expect(dbCalls.some((c) => c.method === "insert")).toBe(false);
+  it.each([
+    ["a first message", "support_reached_out", startSend, STARTED],
+    ["a notice", "support_notice_posted", noticeSend, NOTICE_ROW],
+  ])("writes the row a first send of %s failed to write, on its repeat", async (_name, action, send, answer) => {
+    dbQueue.push(NAME, { data: { ...answer, repeat: true }, error: null }, { data: [], error: null });
+    expect((await send()).status).toBe(200);
+    expect(dbCalls.find((c) => c.method === "insert")?.args[0]).toMatchObject({
+      admin_user_id: SUPPORT_ID,
+      action,
+      details: { request_id: SEND_ID },
+    });
+  });
+});
+
+/*
+ * Round 23 (3): when the database's answer was lost, the writers answered 500
+ * "Failed to ..." (and notices the database's raw text), which tells staff the
+ * step was not done when it may have been. They now answer 502 with the shared
+ * words: pressing again with the same words is safe, because the send keeps its id.
+ */
+describe("support writes whose database answer was lost", () => {
+  const LOST = { code: "08006", message: "connection to server lost: SECRET internals" };
+  const NAME = { data: { display_name: "Noor", email: null }, error: null };
+
+  it.each([
+    ["a reply", () => post("support", { action: "reply", body: "hi" })],
+    ["a note", () => post("support", { action: "note", body: "hi" })],
+    [
+      "a first message",
+      async () =>
+        (await import("../needs-us/route")).POST(
+          req("/api/support/needs-us", "POST", "support", withId({ tenantId: TENANT, body: "hi" })),
+        ),
+    ],
+    [
+      "a task call",
+      async () =>
+        (await import("../tasks/route")).POST(
+          req("/api/support/tasks", "POST", "support", withId({ taskId: "44444444-4444-4444-8444-444444444444", outcome: "done" })),
+        ),
+    ],
+    [
+      "a shop call",
+      async () =>
+        (await import("../calls/route")).POST(
+          req("/api/support/calls", "POST", "support", withId({ tenantId: TENANT, outcome: "done" })),
+        ),
+    ],
+    [
+      "a notice",
+      async () =>
+        (await import("../notices/route")).POST(req("/api/support/notices", "POST", "support", withId({ body: "hi", hours: 2 }))),
+    ],
+  ])("answers %s with the lost-answer words, never the database's text", async (_name, send) => {
+    dbQueue.push(NAME, { data: null, error: LOST });
+    const res = await send();
+    expect(res.status).toBe(502);
+    expect(await res.json()).toEqual({ error: SUPPORT_SEND_UNSURE });
+  });
+
+  it("answers a lost solve as not done: a solve has no id, and solving twice changes nothing", async () => {
+    dbQueue.push(NAME, { data: null, error: LOST });
+    const res = await post("support", { action: "solve", reason: "orders" });
+    expect(res.status).toBe(500);
+    expect(JSON.stringify(await res.json())).not.toContain("SECRET");
+  });
+
+  it("answers a lost end of a notice with words that say to look first, never the database's text", async () => {
+    dbQueue.push({ data: null, error: LOST });
+    const res = await (await import("../notices/route")).DELETE(req("/api/support/notices", "DELETE", "support"));
+    expect(res.status).toBe(502);
+    const words = JSON.stringify(await res.json());
+    expect(words).toContain("Check the notice bar");
+    expect(words).not.toContain("SECRET");
+  });
+
+  it("never answers the database's text when the notice cannot be read", async () => {
+    dbQueue.push({ data: null, error: LOST });
+    const res = await (await import("../notices/route")).GET(req("/api/support/notices", "GET", "support"));
+    expect(res.status).toBe(500);
+    expect(JSON.stringify(await res.json())).not.toContain("SECRET");
   });
 });
