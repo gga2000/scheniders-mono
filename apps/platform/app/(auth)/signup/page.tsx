@@ -38,6 +38,7 @@ import { SignupPhoneCheck, useSignupPhoneCodeSwitch } from "@/components/auth/si
 import { StoreAddressField, storeAddressSendable, useStoreAddress } from "@/components/auth/store-address-field";
 import { AuthCardHeading, AuthCardShell } from "@/components/auth/auth-card-shell";
 import { FermiSignupPixel } from "@/components/auth/fermi-signup-pixel";
+import { SignupHero } from "@/components/auth/signup-hero";
 import { trackSignupComplete } from "@/lib/fermi-pixel";
 import { TRIAL_DAYS } from "@/lib/trial";
 
@@ -461,7 +462,7 @@ function SignupForm() {
 
 export default function SignupPage() {
     return (
-        <AuthCardShell showBack={false}>
+        <AuthCardShell showBack={false} aside={<SignupHero />}>
             <FermiSignupPixel />
             <Suspense
                 fallback={

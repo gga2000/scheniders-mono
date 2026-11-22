@@ -9,12 +9,49 @@ import { useLanguage, useTextDir } from "@/hooks/use-language";
  * Shared frame for every auth page (login, sign-up, forgot, choose new): brand row,
  * white card with the neon top strip, optional "back to sign in", and the
  * encryption footer. Keeps the auth screens visually identical.
+ *
+ * `aside` (sign-up) adds a brand panel: beside the card on wide screens,
+ * pinned while the form scrolls, and a short band above the card on phones.
  */
-export function AuthCardShell({ children, showBack = true }: { children: React.ReactNode; showBack?: boolean }) {
+export function AuthCardShell({
+    children,
+    showBack = true,
+    aside,
+}: {
+    children: React.ReactNode;
+    showBack?: boolean;
+    aside?: React.ReactNode;
+}) {
+    if (!aside) return <AuthCardFrame showBack={showBack}>{children}</AuthCardFrame>;
+    return (
+        <div className="min-h-screen lg:grid lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+            <div className="lg:sticky lg:top-0 lg:h-screen">{aside}</div>
+            <AuthCardFrame showBack={showBack} besideAside>
+                {children}
+            </AuthCardFrame>
+        </div>
+    );
+}
+
+function AuthCardFrame({
+    children,
+    showBack,
+    besideAside = false,
+}: {
+    children: React.ReactNode;
+    showBack: boolean;
+    besideAside?: boolean;
+}) {
     const { t } = useLanguage();
     const dir = useTextDir();
     return (
-        <div className="min-h-screen flex items-center justify-center px-4 py-10 relative overflow-hidden">
+        <div
+            className={
+                besideAside
+                    ? "flex items-start lg:items-center justify-center px-4 py-8 lg:py-12 relative overflow-hidden lg:min-h-screen"
+                    : "min-h-screen flex items-center justify-center px-4 py-10 relative overflow-hidden"
+            }
+        >
             <div className="absolute inset-0 pointer-events-none" aria-hidden>
                 <div
                     className="absolute -top-40 left-1/2 -translate-x-1/2 w-[900px] h-[520px] rounded-full opacity-60 blur-3xl"
