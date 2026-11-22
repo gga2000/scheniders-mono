@@ -28,7 +28,7 @@ describe("tab title", () => {
         const labels: Record<string, string> = { "nav.orders": "الطلبات", "nav.finances": "المالية" };
         const t = (key: string) => labels[key] ?? key;
         expect(pageTabTitle("/orders", t)).toBe("الطلبات");
-        expect(pageTabTitle("/finances/new", t)).toBe("المالية");
+        expect(pageTabTitle("/finances/advanced", t)).toBe("المالية");
         expect(pageTabTitle("/login", t)).toBe("");
         expect(pageTabTitle("/", t)).toBe("");
         expect(pageTabTitle(null, t)).toBe("");

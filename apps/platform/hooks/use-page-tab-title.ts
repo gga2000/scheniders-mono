@@ -6,7 +6,7 @@ import { setTabTitlePart } from "@/lib/tab-title";
 
 /**
  * The page's name for the tab: the sidebar label of its first path segment
- * ("/finances/new" → "nav.finances"), or "" for a page the sidebar does not
+ * ("/finances/advanced" → "nav.finances"), or "" for a page the sidebar does not
  * name. `t` returns the key itself when it has no translation.
  */
 export function pageTabTitle(pathname: string | null, t: (key: string) => string): string {

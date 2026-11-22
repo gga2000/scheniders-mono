@@ -125,6 +125,8 @@ const nextConfig: NextConfig = {
       { source: '/', destination: '/orders', permanent: false },
       { source: '/reviews', destination: '/store/reviews', permanent: false },
       { source: '/recovery', destination: '/store/recovery', permanent: false },
+      // The new Finances page lived here while in preview; it is /finances now (the query, e.g. ?tab=, carries over).
+      { source: '/finances/new', destination: '/finances', permanent: false },
     ];
   },
 

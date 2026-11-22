@@ -272,7 +272,7 @@ export function PrintShipTab() {
                         accent="cyan"
                         action={
                             <Link
-                                href="/finances?tab=cash"
+                                href="/finances/advanced?tab=cash"
                                 className="text-[12px] text-muted hover:text-foreground inline-flex items-center gap-1"
                             >
                                 Cash view <ArrowRight className="w-3 h-3" />
@@ -342,7 +342,7 @@ export function PrintShipTab() {
                         accent="violet"
                     />
                     <QuickActionLink
-                        href="/finances?tab=cash"
+                        href="/finances/advanced?tab=cash"
                         title="Track in-transit cash"
                         sub={`${stats.inTransitCount} orders out for delivery`}
                         icon={Clock}
