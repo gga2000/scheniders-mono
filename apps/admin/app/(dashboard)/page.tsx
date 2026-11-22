@@ -24,6 +24,7 @@ import { MerchantWatchlistWidget } from "@/components/merchants/merchant-watchli
 import { Loader2 } from "lucide-react";
 import { SeedAutomationToggle } from "@/components/dashboard/seed-automation-toggle";
 import { LoadError } from "@/components/shared/load-error";
+import { LoadFailedLine } from "@/components/shared/load-failed-line";
 
 const staggerContainer = {
   initial: {},
@@ -44,8 +45,10 @@ export default function CommandCenterPage() {
   const {
     isLoading,
     isError,
+    error,
     isFetching,
     refetch,
+    dataUpdatedAt,
     kpis,
     platformStats,
     pipeline,
@@ -87,6 +90,16 @@ export default function CommandCenterPage() {
           <p className="text-foreground-muted mt-1">
             Platform overview and key metrics
           </p>
+          {isError && (
+            <LoadFailedLine
+              what="the dashboard"
+              shownFrom={dataUpdatedAt}
+              error={error}
+              onRetry={() => refetch()}
+              retrying={isFetching}
+              className="mt-2"
+            />
+          )}
         </div>
         <SeedAutomationToggle />
       </div>
