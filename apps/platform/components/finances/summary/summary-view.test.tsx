@@ -364,7 +364,7 @@ describe("SummaryView", () => {
         expect(rows).toEqual([
             "ثمن طلبات هذه الفترة في كشوف هذه الفترة380,000د.ع",
             "مبلغان مستردان دفعتهما شركة التوصيل لزبونين وغيّرتَ أنت حالة طلبيهما إلى «تم الاسترجاع» (2)وهذا ضمن «مبالغ مستردة» في حساب الربح، وهو هناك 40,000 د.ع لأنه يشمل أيضاً مبالغ مستردة دُفعت في الفترة وليست في هذه الكشوف.−30,000د.ع",
-            "مبلغ مسترد دفعته شركة التوصيل ولم تغيّر أنت حالة طلبه بعد (1)غيّر حالة كل طلب إلى «تم الاسترجاع» ليُخصم من ربحك في «مبالغ مستردة». وإلى أن تفعل ذلك يبقى صافي الربح أكبر من الحقيقي بـ20,000 د.ع.RTN-4108-1−20,000د.ع",
+            "مبلغ مسترد دفعته شركة التوصيل لزبون ولم تغيّر أنت حالة طلبه بعد (1)غيّر حالة كل طلب إلى «تم الاسترجاع» ليُخصم من ربحك في «مبالغ مستردة». وإلى أن تفعل ذلك يبقى صافي الربح أكبر من الحقيقي بـ20,000 د.ع.RTN-4108-1−20,000د.ع",
             "أجرة توصيل خصمتها شركة التوصيل عن طلبين مدفوعين مسبقاً (2)دفع الزبون ثمنها لك مسبقاً، فخصمت شركة التوصيل أجرتها فقط (5,000 د.ع عن كل طلب)، عدا الطلب 1261030001: ذكر الكشف أنها قبضت عنه 1 د.ع، فخصمت 4,999 د.ع. لا تحتاج إلى فعل شيء. و3 طلبات أخرى دفعها الزبون مسبقاً في «دُفع لك» لم ترد في كشوف هذه الفترة.1261030001−4,999د.ع1261104002−5,000د.ع−9,999د.ع",
             "طلب قُبض فيه سعر مختلف (1)قبضت شركة التوصيل 5,000 د.ع أكثر من سعر الطلب المسجّل. إن كان السعر في الطلب خطأ فصحّحه.4261101004+5,000د.ع",
             "طلب دُفع ثمنه وما زال غير «مُسلَّم» عندك (1)غيّر حالته إلى «مُسلَّم» ليُحسب في مبيعاتك.4261102012+3,000د.ع",
@@ -405,7 +405,7 @@ describe("SummaryView", () => {
         expect(byTestId("money-reached-parts")?.textContent).toContain("ثمن طلبات هذه الفترة في كشوف هذه الفترة100,000");
         fireEvent.click(byTestId("money-from-now-toggle") as HTMLElement);
         expect(byTestId("money-from-now-link")?.getAttribute("href")).toBe("#courier-payments");
-        expect(Array.from(byTestId("money-from-now-lines")?.querySelectorAll("li") ?? []).map((li) => li.textContent)).toEqual(["ثمن طلبات هذه الفترة في كشوف هذه الفترة (الرقم أعلاه)100,000د.ع", "خصمته الكشوف نفسها (مبالغ مستردة وفروق)−20,000د.ع", "صافي هذه الطلبات في الكشوف80,000د.ع"]);
+        expect(Array.from(byTestId("money-from-now-lines")?.querySelectorAll("li") ?? []).map((li) => li.textContent)).toEqual(["ثمن طلبات هذه الفترة في كشوف هذه الفترة (الرقم أعلاه)100,000د.ع", "صافي ما خصمته الكشوف نفسها (مبالغ مستردة وفروق)−20,000د.ع", "صافي هذه الطلبات في الكشوف80,000د.ع"]);
         cleanup();
         // the same statements also paid 3,000 for an order not marked delivered and took a 5,000 fee off a prepaid
         // order (already off "paid up front", so not in the gap): the lines name both, so 80,000 − 5,000 + 3,000
@@ -422,7 +422,7 @@ describe("SummaryView", () => {
         expect(Array.from(byTestId("money-from-now-lines")?.querySelectorAll("li") ?? []).map((li) => li.textContent)).toEqual([
             // it starts again from the statements' part, so the lines read as one sum
             "ثمن طلبات هذه الفترة في كشوف هذه الفترة (الرقم أعلاه)100,000د.ع",
-            "خصمته الكشوف نفسها (مبالغ مستردة وفروق)−20,000د.ع",
+            "صافي ما خصمته الكشوف نفسها (مبالغ مستردة وفروق)−20,000د.ع",
             "صافي هذه الطلبات في الكشوف80,000د.ع",
             "وأجرة توصيل طلب مدفوع مسبقاً خصمتها الكشوف (وهي مخصومة من «دفعها الزبون لك مسبقاً»)−5,000د.ع",
             "وثمن طلب في الكشوف لم تغيّر أنت حالته إلى «مُسلَّم» بعد+3,000د.ع",
@@ -454,6 +454,10 @@ describe("SummaryView", () => {
         expect(byTestId("money-road-stuck")?.textContent).toBe("منها طردان عالقان، على الطريق منذ 15 يوماً أو أكثر (50,000 د.ع).");
         // the line leads straight to those parcels
         expect(byTestId("money-road-stuck-link")?.getAttribute("href")).toBe("/orders?stuck=1");
+        cleanup();
+        // every parcel on the road is stuck: "all of them", not "26 of them" out of 26
+        renderView(query(summary({ cash: { ...s.cash, stuck: { count: s.cash.in_transit.count, amount: s.cash.in_transit.amount } } })));
+        expect(byTestId("money-road-stuck")?.textContent).toBe("وكلها عالقة: على الطريق منذ 15 يوماً أو أكثر.");
         cleanup();
         renderView(query(summary()));
         expect(byTestId("money-road-stuck")).toBeNull();
@@ -516,7 +520,7 @@ describe("SummaryView", () => {
         expect(document.querySelector('[data-cell="sales"]')?.textContent).toContain("27 طلباً");
         expect(document.querySelector('[data-cell="on_road"]')?.textContent).toContain("27 طرداً");
         expect(byTestId("returned-parcels")?.textContent).toContain("36 طلباً مرفوضاً");
-        expect(byTestId("returned-parcels")?.textContent).toContain("أجرة برايم عن 13 طرداً مرفوضاً من طرودها في هذه الفترة (ضمن بند التوصيل)");
+        expect(byTestId("returned-parcels")?.textContent).toContain("أجرة برايم عن 13 من هذه الطرود الـ36 (ضمن بند «التوصيل»)");
         expect(byTestId("stock-shelf")?.textContent).toContain("29 منتجاً");
         expect(document.querySelector('[data-product="p1"]')?.textContent).toContain("5 قطع ·");
         expect(document.body.textContent).toContain("4 قطع مسلّمة بلا كلفة");

@@ -355,7 +355,8 @@ export function MoneyRoute({ summary, delivery }: MoneyRouteProps) {
                     >
                         {summary.cash.stuck.count > 0 && (
                             <p className="mt-0.5 text-left text-[13px] leading-relaxed text-muted" dir={dir} data-testid="money-road-stuck">
-                                {t("fin.money.road.stuck", {
+                                {/* When every parcel on the road is stuck, "of them, 26 of 26" reads like a slip: say "all". */}
+                                {t(summary.cash.stuck.count >= road.count ? "fin.money.road.stuckAll" : "fin.money.road.stuck", {
                                     n: formatWhole(summary.cash.stuck.count),
                                     count: summary.cash.stuck.count,
                                     amount: money(summary.cash.stuck.amount),
