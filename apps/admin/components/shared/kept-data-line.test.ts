@@ -11,6 +11,13 @@ import { describe, expect, it } from "vitest";
  * data now draws a `StaleLine`, which says the refresh failed and how old the
  * numbers are; it is the one place that says so, where the same block had
  * been pasted on 19 pages. The support desk's files are that thread's.
+ *
+ * Round 24 (structure new 2): the guard counted only reads that keep their
+ * data, so a read that swapped a good list for its error ("isError ? …")
+ * was invisible to it. Leads (desk and phone), the shop timeline, its latest
+ * orders, Lead numbers, the industries, the bell, the watchlist and the map's
+ * counts all threw away what they showed on one failed re-read. A read's
+ * error now stands in for its data only when there is none.
  */
 
 const ROOT = join(__dirname, "..", "..");
@@ -34,6 +41,17 @@ function keptOnFailure(source: string): number {
   return [...source.matchAll(/\bisError\s*&&\s*(?:!\s*[\w.]+|[\w.]+\.length\s*===\s*0)/g)].length;
 }
 
+/**
+ * Places that swap a read's data for its error: an error branch that does not
+ * also ask whether anything was read. Passing the error on (`isError ? error
+ * : null`) is not a swap.
+ */
+function dropsOnFailure(source: string): number {
+  const ternary = [...source.matchAll(/\b(?:[\w.]+\.)?isError\s*\?(?!\s*(?:[\w.]+\.)?error\b)/g)].length;
+  const early = [...source.matchAll(/\bif\s*\(\s*(?:[\w.]+\.)?isError\s*\)\s*(?:\{\s*)?return\b/g)].length;
+  return ternary + early;
+}
+
 /** Lines that say a refresh failed and how old what is kept is. */
 function staleLines(source: string): number {
   return [...source.matchAll(/<StaleLine\b/g)].length;
@@ -55,6 +73,23 @@ describe("a page that keeps its last read when a read fails", () => {
     expect(staleLines("<StaleLine read={pageRead} what=\"the payments\" kept=\"list\" />")).toBe(1);
     expect(staleLines("<LoadFailedLine what=\"x\" onRetry={r} />")).toBe(0);
     expect(handBuilt("<LoadFailedLine what=\"x\" shownFrom={dataUpdatedAt} onRetry={r} />")).toBe(1);
+    expect(dropsOnFailure("{isError ? <LoadError /> : <List />}")).toBe(1);
+    expect(dropsOnFailure(") : timeline.isError ? (")).toBe(1);
+    expect(dropsOnFailure("if (tasks.isError) return <LoadError />;")).toBe(1);
+    expect(dropsOnFailure("{isError && !data ? <LoadError /> : <List />}")).toBe(0);
+    expect(dropsOnFailure("<LoadError error={isError ? error : null} />")).toBe(0);
+    expect(dropsOnFailure("<LoadError error={read.isError ? read.error : null} />")).toBe(0);
+    expect(dropsOnFailure("if (save.isError) errorRef.current?.scrollIntoView();")).toBe(0);
+  });
+
+  it("never throws away what it showed because a later read failed", () => {
+    const dropped = sources(join(ROOT, "app"))
+      .concat(sources(join(ROOT, "components")))
+      .flatMap((file) => {
+        const drops = dropsOnFailure(readFileSync(file, "utf8"));
+        return drops > 0 ? [`${file.slice(ROOT.length + 1)}: ${drops} error branch(es) with no "&& !data"`] : [];
+      });
+    expect(dropped).toEqual([]);
   });
 
   it("says so when a later read fails, once for each read it keeps, on every page of the console", () => {

@@ -5,8 +5,9 @@ import type { Lead } from "@/types/leads";
 import { useLeadStore } from "@/store/use-lead-store";
 import { adminFetch } from "@/lib/admin-fetch";
 import { okOrLoadFailure } from "@/lib/load-failure";
+import { oldestRead, stampRead, type ReadAt } from "@/lib/page-read-at";
 
-interface LeadsPage { leads: Lead[]; total: number; page: number; limit: number; }
+interface LeadsPage extends ReadAt { leads: Lead[]; total: number; page: number; limit: number; }
 
 const LIMIT = 20;
 
@@ -16,7 +17,7 @@ export function useInfiniteLeads() {
     assigneeFilter, hasStoreFilter, scoreRange, searchQuery, sortBy,
   } = useLeadStore();
 
-  return useInfiniteQuery<LeadsPage>({
+  const read = useInfiniteQuery<LeadsPage>({
     queryKey: [
       "leads", "infinite", statusFilter, platformFilter, priorityFilter, tierFilter,
       industryFilter, assigneeFilter, hasStoreFilter, scoreRange, searchQuery, sortBy,
@@ -39,7 +40,7 @@ export function useInfiniteLeads() {
       if (sortBy) params.set("sort", sortBy);
       const res = await adminFetch(`/api/leads?${params}`);
       okOrLoadFailure(res, "leads");
-      return res.json();
+      return stampRead((await res.json()) as Omit<LeadsPage, "readAt">);
     },
     getNextPageParam: (lastPage) => {
       const loaded = lastPage.page * lastPage.limit;
@@ -47,4 +48,6 @@ export function useInfiniteLeads() {
     },
     staleTime: 30_000,
   });
+  // The list is as old as its oldest page, not the page loaded last.
+  return { ...read, dataUpdatedAt: oldestRead(read.data?.pages, read.dataUpdatedAt) };
 }

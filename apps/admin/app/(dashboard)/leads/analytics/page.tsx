@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
 import { formatCount, formatIQD, formatMonth } from "@/lib/format";
 import { useLeadAnalytics } from "@/hooks/use-lead-analytics";
+import { StaleLine } from "@/components/shared/stale-line";
 import { LoadError } from "@/components/shared/load-error";
 import {
   LEAD_STATUS_CONFIG,
@@ -101,7 +102,8 @@ function EmptyState() {
 // ── Main page ─────────────────────────────────────────────────────────
 
 export default function LeadAnalyticsPage() {
-  const { data, isError, error, refetch, isFetching } = useLeadAnalytics();
+  const numbersRead = useLeadAnalytics();
+  const { data, isError, error, refetch, isFetching } = numbersRead;
 
   return (
     <div className="space-y-6 p-4 md:p-6">
@@ -109,10 +111,11 @@ export default function LeadAnalyticsPage() {
       <div>
         <h1 className="text-[22px] font-semibold text-foreground">Lead numbers</h1>
         <p className="text-xs text-foreground/70">Every lead together: where they stand, where they came from, how many became shops.</p>
+        <StaleLine read={numbersRead} what="the lead numbers" className="mt-2" />
       </div>
 
       {/* Content */}
-      {isError ? (
+      {isError && !data ? (
         <LoadError what="the lead numbers" error={error} onRetry={() => refetch()} retrying={isFetching} />
       ) : !data ? (
         <LoadingState />

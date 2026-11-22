@@ -34,12 +34,13 @@ import {
   Table2,
   ChevronLeft,
   ChevronRight,
-  AlertTriangle,
   SlidersHorizontal,
 } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
 import { formatCount } from "@/lib/format";
+import { LoadError } from "@/components/shared/load-error";
+import { StaleLine } from "@/components/shared/stale-line";
 
 
 export function LeadsDesktopView() {
@@ -61,7 +62,11 @@ export function LeadsDesktopView() {
   useEffect(() => {
     if (viewMode !== "table") setColumnsEditing(false);
   }, [viewMode]);
-  const { data, isLoading, isError, refetch } = useLeads(page, viewMode === "kanban" ? 100 : LEADS_PAGE_SIZE);
+  const leadsRead = useLeads(page, viewMode === "kanban" ? 100 : LEADS_PAGE_SIZE);
+  const { data, isLoading, isError, error, refetch, isFetching } = leadsRead;
+  // A failed re-read keeps the leads on screen and says how old they are;
+  // only a page never read shows the error (round 24 structure new 2).
+  const neverRead = isError && !data;
   // The table's shared column layout is read with the page, beside the leads,
   // and the table waits for it: read only once the table drew, it arrived
   // seconds later and moved every column under the pointer. A failed read
@@ -147,7 +152,7 @@ export function LeadsDesktopView() {
         <div>
           <h1 className="text-[22px] font-semibold text-foreground">Leads</h1>
           <p className="text-[13px] text-foreground/70">
-            {leadsCountLine({ count: data?.total, isError })}
+            {leadsCountLine({ count: data?.total, isError: neverRead })}
           </p>
         </div>
         <div className="flex items-center gap-2.5">
@@ -254,23 +259,11 @@ export function LeadsDesktopView() {
           />
         </div>
 
+        <StaleLine read={leadsRead} what="the leads" kept="list" className="px-4 pt-3" />
+
         {/* Content */}
-        {isError ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="w-16 h-16 rounded-2xl bg-red-500/10 flex items-center justify-center mb-4">
-              <AlertTriangle className="w-8 h-8 text-[var(--ink-red)]" />
-            </div>
-            <h3 className="text-lg font-bold text-[var(--foreground)] mb-2">Failed to load leads</h3>
-            <p className="text-sm text-[var(--muted)] mb-6 max-w-sm">
-              Something went wrong while fetching leads. Please try again.
-            </p>
-            <button
-              onClick={() => void refetch()}
-              className="px-6 py-3 rounded-xl bg-[var(--primary)] text-[var(--primary-fg)] text-sm font-bold hover:brightness-110 transition-all"
-            >
-              Retry
-            </button>
-          </div>
+        {neverRead ? (
+          <LoadError compact what="the leads" error={error} onRetry={() => void refetch()} retrying={isFetching} />
         ) : isLoading || waitingForColumns ? (
           viewMode === "table" ? (
             <div className="divide-y divide-[var(--card-border)]">
@@ -380,7 +373,7 @@ export function LeadsDesktopView() {
         )}
 
         {/* Pagination (table/cards only) */}
-        {viewMode !== "kanban" && totalPages > 1 && !isLoading && !isError && (
+        {viewMode !== "kanban" && totalPages > 1 && !isLoading && !neverRead && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-[var(--card-border)]">
             <p className="text-sm text-[var(--muted)]">
               Showing {formatCount((page - 1) * LEADS_PAGE_SIZE + 1)}–{formatCount(Math.min(page * LEADS_PAGE_SIZE, total))} of {formatCount(total)}
