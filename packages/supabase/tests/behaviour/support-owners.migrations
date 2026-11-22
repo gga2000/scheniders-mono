@@ -3,3 +3,6 @@
 20261116210528_b11_setup_help_call_back.sql
 20261118231646_support_log_shop_call.sql
 20261119040811_support_call_log_rows_in_db.sql
+20261122192314_support_staff_request_ids.sql
+20261122192417_support_call_request_id.sql
+20261122192425_support_shop_call_request_id_grants.sql

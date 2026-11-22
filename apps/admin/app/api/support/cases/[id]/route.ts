@@ -7,12 +7,14 @@ import { logAdminActivity } from "@/lib/activity-logger";
 import { lastDaysStart } from "@/lib/baghdad-day";
 import {
   CaseActionSchema,
+  SupportRequestIdSchema,
   SUPPORT_CASE_COLUMNS,
   SUPPORT_CASE_NOTE_COLUMNS,
   SUPPORT_SHOT_BUCKET,
   SUPPORT_VOICE_BUCKET,
   filePaths,
   supportRefusal,
+  writesOnce,
   type SupportCaseNote,
   type SupportCaseRow,
   type SupportMessageRow,
@@ -189,11 +191,22 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const { id } = await params;
   if (!UUID_RE.test(id)) return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
 
-  const parsed = CaseActionSchema.safeParse(await request.json().catch(() => null));
+  const raw: unknown = await request.json().catch(() => null);
+  const parsed = CaseActionSchema.safeParse(raw);
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid input", details: parsed.error.flatten() }, { status: 400 });
   }
   const input = parsed.data;
+
+  // A reply or a note carries the id of its send: a retry after a lost answer writes once.
+  let requestId: string | null = null;
+  if (writesOnce(input)) {
+    const sent = SupportRequestIdSchema.safeParse(raw);
+    if (!sent.success) {
+      return NextResponse.json({ error: sent.error.issues[0]?.message ?? "Invalid input" }, { status: 400 });
+    }
+    requestId = sent.data.request_id;
+  }
 
   try {
     const supabase = createAdminClient();
@@ -240,6 +253,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
               p_admin_id: auth.user.id,
               p_admin_name: adminName,
               p_body: input.body,
+              p_request_id: requestId,
             })
           : await supabase.rpc("support_case_hand_over", {
               p_case_id: id,
@@ -273,6 +287,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
             p_admin_id: auth.user.id,
             p_admin_name: adminName,
             p_body: input.body,
+            p_request_id: requestId,
           })
         : await supabase.rpc("support_staff_solve", {
             p_case_id: id,

@@ -3,7 +3,16 @@ import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminPermission } from "@/lib/api-auth";
 import { adminDisplayName } from "@/lib/support-admin-name";
 import { logAdminAction } from "@/lib/activity-logger";
-import { NoticePostSchema, NoticeSchema, SUPPORT_NOTICE_COLUMNS, supportRefusal } from "@/lib/support";
+import {
+  NoticePostSchema,
+  NoticeSchema,
+  SUPPORT_NOTICE_COLUMNS,
+  SupportRequestIdSchema,
+  supportRefusal,
+  wasRepeat,
+} from "@/lib/support";
+
+const NoticeRequestSchema = NoticePostSchema.extend(SupportRequestIdSchema.shape);
 
 /** The notice merchants see now at the top of their Help chat, if any. */
 export async function GET(request: NextRequest) {
@@ -25,9 +34,14 @@ export async function POST(request: NextRequest) {
   const admin = await requireAdminPermission(request, "handle_support");
   if (admin instanceof NextResponse) return admin;
 
-  const parsed = NoticePostSchema.safeParse(await request.json().catch(() => null));
+  const raw: unknown = await request.json().catch(() => null);
+  const parsed = NoticePostSchema.safeParse(raw);
   if (!parsed.success) {
     return NextResponse.json({ error: "A notice needs a text of up to 300 letters and a length." }, { status: 400 });
+  }
+  const sent = NoticeRequestSchema.safeParse(raw);
+  if (!sent.success) {
+    return NextResponse.json({ error: sent.error.issues[0]?.message ?? "Invalid input" }, { status: 400 });
   }
 
   const supabase = createAdminClient();
@@ -36,12 +50,15 @@ export async function POST(request: NextRequest) {
     p_admin_name: await adminDisplayName(supabase, admin),
     p_body: parsed.data.body,
     p_hours: parsed.data.hours,
+    p_request_id: sent.data.request_id,
   });
   const refusal = supportRefusal(error);
   if (refusal) return NextResponse.json({ error: refusal.error }, { status: refusal.status });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   const notice = NoticeSchema.parse(data);
+  // A repeat of the same post did nothing new, and was logged the first time.
+  if (wasRepeat(data)) return NextResponse.json({ notice });
   await logAdminAction(admin, "support_notice_posted", {
     details: { notice_id: notice.id, hours: parsed.data.hours, body: notice.body },
   });

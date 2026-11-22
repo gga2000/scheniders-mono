@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { countLine } from "@/lib/load-failure";
 import { lockReasonWords } from "@/lib/billing-lock-label";
+import { staffRequestIdSchema } from "@/lib/staff-reason";
 
 /**
  * Merchant support cases as the staff console sees them. The tables
@@ -74,6 +75,24 @@ export const CaseActionSchema = z.discriminatedUnion("action", [
 ]);
 
 export type CaseAction = z.infer<typeof CaseActionSchema>;
+
+/**
+ * The id one send carries (a reply, a note, a call, a task outcome, a notice,
+ * a first message), made in the browser per ask. Pressing again after a lost
+ * answer sends the same id, and the database writes once: the merchant never
+ * gets the same message twice (round 22, N8).
+ */
+export const SupportRequestIdSchema = z.object({ request_id: staffRequestIdSchema });
+
+/** The steps that write something a retry would write twice. */
+export function writesOnce(action: CaseAction): boolean {
+  return action.action === "reply" || action.action === "note";
+}
+
+/** The database's answer to an id it had already done: the first answer again, marked as a repeat. */
+export function wasRepeat(data: unknown): boolean {
+  return typeof data === "object" && data !== null && "repeat" in data && data.repeat === true;
+}
 
 /** The `support_cases` columns (plus the shop) every list and detail read selects. */
 export const SUPPORT_CASE_COLUMNS =

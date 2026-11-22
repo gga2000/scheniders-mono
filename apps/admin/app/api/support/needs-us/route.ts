@@ -3,7 +3,9 @@ import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminPermission } from "@/lib/api-auth";
 import { logAdminActivity } from "@/lib/activity-logger";
 import { adminDisplayName } from "@/lib/support-admin-name";
-import { NeedsUsSchema, StartConversationSchema, supportRefusal } from "@/lib/support";
+import { NeedsUsSchema, StartConversationSchema, SupportRequestIdSchema, supportRefusal, wasRepeat } from "@/lib/support";
+
+const StartRequestSchema = StartConversationSchema.extend(SupportRequestIdSchema.shape);
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +37,7 @@ export async function POST(request: NextRequest) {
   const admin = await requireAdminPermission(request, "handle_support");
   if (admin instanceof NextResponse) return admin;
 
-  const parsed = StartConversationSchema.safeParse(await request.json().catch(() => null));
+  const parsed = StartRequestSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid input", details: parsed.error.flatten() }, { status: 400 });
   }
@@ -47,6 +49,7 @@ export async function POST(request: NextRequest) {
       p_admin_id: admin.user.id,
       p_admin_name: await adminDisplayName(supabase, admin),
       p_body: parsed.data.body,
+      p_request_id: parsed.data.request_id,
     });
 
     const refusal = supportRefusal(error);
@@ -54,6 +57,8 @@ export async function POST(request: NextRequest) {
     if (error) throw error;
 
     const result = data as { case_id: string; started: boolean };
+    // A repeat of the same send did nothing new, and was logged the first time.
+    if (wasRepeat(data)) return NextResponse.json({ caseId: result.case_id, started: result.started });
     await logAdminActivity({
       adminUserId: admin.user.id,
       actorEmail: admin.user.email,

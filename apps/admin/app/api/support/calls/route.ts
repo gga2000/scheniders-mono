@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminPermission } from "@/lib/api-auth";
 import { adminDisplayName } from "@/lib/support-admin-name";
-import { ShopCallLoggedSchema, ShopCallSchema, supportRefusal } from "@/lib/support";
+import { ShopCallLoggedSchema, ShopCallSchema, SupportRequestIdSchema, supportRefusal } from "@/lib/support";
+
+const ShopCallRequestSchema = ShopCallSchema.extend(SupportRequestIdSchema.shape);
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +18,7 @@ export async function POST(request: NextRequest) {
   const admin = await requireAdminPermission(request, "handle_support");
   if (admin instanceof NextResponse) return admin;
 
-  const parsed = ShopCallSchema.safeParse(await request.json().catch(() => null));
+  const parsed = ShopCallRequestSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid input", details: parsed.error.flatten() }, { status: 400 });
   }
@@ -30,6 +32,7 @@ export async function POST(request: NextRequest) {
       p_outcome: parsed.data.outcome,
       p_note: parsed.data.note,
       p_actor_email: admin.user.email ?? null,
+      p_request_id: parsed.data.request_id,
     });
 
     const refusal = supportRefusal(error);
