@@ -12,13 +12,23 @@ import { ContactSupportButton } from "@/components/support/contact-support-butto
 import { useBillingLock } from "@/hooks/use-billing-lock";
 import { isOpenWhileLocked } from "@/lib/billing/lock-routes";
 import { BillingLockPay, billingLockMessage } from "./billing-lock-pay";
+import { baghdadDayKey } from "@/lib/order-window";
+import { hasPassed } from "@/components/settings/billing/billing-format";
 
 /** Orders left in the trial at which the banner starts warning. */
 const ORDERS_LEFT_WARNING = 10;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
-function computeDaysLeft(trialEndsAt: string | null): number | null {
+/**
+ * Baghdad calendar days from today to the trial's last day: 0 when it ends
+ * today, 1 when it ends tomorrow. Rounding hours up made a trial ending at
+ * 18:00 today read "ends tomorrow".
+ */
+function trialCalendarDaysLeft(trialEndsAt: string | null): number | null {
     if (!trialEndsAt) return null;
-    return Math.max(0, Math.ceil((new Date(trialEndsAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
+    const end = Date.parse(trialEndsAt);
+    if (Number.isNaN(end)) return null;
+    return Math.round((Date.parse(baghdadDayKey(end)) - Date.parse(baghdadDayKey())) / DAY_MS);
 }
 
 export function TrialBanner() {
@@ -65,15 +75,15 @@ export function TrialBanner() {
     // The other lines stay off settings: the billing section is where they point.
     if (pathname?.includes("/settings")) return null;
 
-    const daysLeft = computeDaysLeft(tenant.trial_ends_at);
-    const isTrialExpired = tenant.status === "trial" && daysLeft !== null && daysLeft <= 0;
+    const daysLeft = trialCalendarDaysLeft(tenant.trial_ends_at);
+    const isTrialExpired = tenant.status === "trial" && !!tenant.trial_ends_at && hasPassed(tenant.trial_ends_at);
     const isSuspended = tenant.status === "suspended";
     const isCancelled = tenant.status === "cancelled";
     const ordersLeft = orderCap && orderCap > 0 && ordersUsed != null ? Math.max(0, orderCap - ordersUsed) : null;
     // The trial ends after its days or its order cap, whichever comes first, so
     // the warning fires on whichever is about to run out.
     const isOrdersWarning = tenant.status === "trial" && ordersLeft !== null && ordersLeft <= ORDERS_LEFT_WARNING;
-    const isTrialWarning = tenant.status === "trial" && daysLeft !== null && daysLeft <= 3 && daysLeft > 0;
+    const isTrialWarning = tenant.status === "trial" && !isTrialExpired && daysLeft !== null && daysLeft <= 3;
 
     // Suspended / Cancelled — full block overlay
     if (isSuspended || isCancelled) {
@@ -118,7 +128,9 @@ export function TrialBanner() {
             ? t("billing.trialOrdersLeft", { count: ordersLeft, cap: orderCap })
             : daysLeft === null
                 ? null
-                : daysLeft === 1
+                : daysLeft <= 0
+                    ? t("billing.trialEndsToday")
+                    : daysLeft === 1
                     ? t("billing.trialEndsTomorrow")
                     : t("billing.trialDaysLeft", { count: daysLeft });
         // Unreachable: without the order warning, isTrialWarning fired, and it needs a day count.

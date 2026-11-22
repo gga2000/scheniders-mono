@@ -7690,6 +7690,7 @@ export const en: Record<string, string> = {
     "login.google": "Continue with Google",
     "login.noAccount": "Don't have an account?",
     "login.signUp": "Sign up",
+    "billing.trialEndsToday": "Your trial ends today!",
     "billing.trialEndsTomorrow": "Your trial ends tomorrow!",
     "billing.trialDaysLeft": "{count} days left in your free trial.",
     "billing.trialOrdersLeft": "{count} of {cap} free-trial orders left. The trial ends at the {cap}th order.",

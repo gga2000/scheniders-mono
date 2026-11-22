@@ -8541,6 +8541,7 @@ export const ar: Record<string, string> = {
     "login.google": "المتابعة بحساب غوغل",
     "login.noAccount": "ليس لديك حساب؟",
     "login.signUp": "أنشئ حساباً",
+    "billing.trialEndsToday": "تنتهي فترتك التجريبية اليوم!",
     "billing.trialEndsTomorrow": "تنتهي فترتك التجريبية غداً!",
     "billing.trialDaysLeft": "بقي {count} يوم في فترتك التجريبية المجانية.",
     "billing.trialDaysLeft.two": "بقي يومين في فترتك التجريبية المجانية.",
