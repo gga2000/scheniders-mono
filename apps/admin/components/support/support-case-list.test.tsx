@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 // The change request tag in the inbox (round 23): it counted down in minutes
 // ("Due in 22 h 59 min") and pushed the shop's name to nothing. It now reads
-// in whole hours, and the name keeps a minimum width.
+// in whole hours. Round 24: beside the name it still ran into the wait chip in
+// the 320 px column, so it sits on the message line.
 import { describe, expect, it, vi, afterEach } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import type { SupportInboxRow } from "@/lib/support";
@@ -44,12 +45,16 @@ function list(cases: SupportInboxRow[]) {
 }
 
 describe("the change request tag", () => {
-  it("counts down in whole hours beside a name that keeps its width", () => {
-    list([row({})]);
+  it("counts down in whole hours on the message line, never beside the name and the wait chip", () => {
+    list([row({ status: "waiting_us", waiting_since: "2026-11-23T02:00:00Z" })]);
     const tag = screen.getByText("Change · 5 h");
     expect(tag.className).toContain("text-[var(--ink-amber)]");
     expect(tag.getAttribute("title")).toMatch(/^Change request: we promised it by .+, 11:00$/);
-    expect(screen.getByText("A shop with a long name").className).toContain("min-w-[5rem]");
+    expect(tag.closest("[data-row]")?.getAttribute("data-row")).toBe("message");
+    const nameRow = screen.getByText("A shop with a long name").closest("[data-row]");
+    expect(nameRow?.getAttribute("data-row")).toBe("name");
+    expect(nameRow?.textContent).not.toContain("Change");
+    expect(nameRow?.textContent).toContain("1 h");
   });
 
   it("turns red once the promise is broken", () => {

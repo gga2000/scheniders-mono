@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { useLiveTick } from "@/hooks/use-live-tick";
 import { useSupportLogTask, useSupportTakeShop, useSupportTasks } from "@/hooks/use-support-cases";
 import { LoadError } from "@/components/shared/load-error";
+import { StaleLine } from "@/components/shared/stale-line";
 import { formatDay } from "@/lib/format";
 import { SupportCallList } from "@/components/support/support-call-list";
 import {
@@ -47,19 +48,25 @@ export function SupportToday() {
     );
   }
 
-  if (tasks.isError) {
+  // A failed 60 s re-read keeps the rows, so a call note being typed (and its
+  // send's id) stays; the line says the list is old (round 24, UX new 1).
+  if (tasks.isError && !tasks.data) {
     return (
-      <LoadError what="today's calls" onRetry={() => tasks.refetch()} retrying={tasks.isFetching} error={tasks.error} />
+      <LoadError what="today's calls" onRetry={() => void tasks.refetch()} retrying={tasks.isFetching} error={tasks.error} />
     );
   }
 
   const me = tasks.data?.me ?? null;
   const list = sortTasks(tasks.data?.tasks ?? [], me);
+  const stale = <StaleLine read={tasks} what="today's calls" kept="list" />;
   if (list.length === 0) {
     return (
-      <div className={cn(CARD, "flex flex-col items-center gap-2 px-6 py-16 text-center text-foreground/70")}>
-        <CheckCircle2 className="h-8 w-8" />
-        <p className="text-sm font-medium">No calls left for today.</p>
+      <div className="space-y-3">
+        {stale}
+        <div className={cn(CARD, "flex flex-col items-center gap-2 px-6 py-16 text-center text-foreground/70")}>
+          <CheckCircle2 className="h-8 w-8" />
+          <p className="text-sm font-medium">No calls left for today.</p>
+        </div>
       </div>
     );
   }
@@ -67,6 +74,7 @@ export function SupportToday() {
   const mine = list.filter((t) => t.owner_id === me).length;
   return (
     <div className="space-y-3">
+      {stale}
       <p className="text-sm text-foreground-muted">
         {list.length} call{list.length === 1 ? "" : "s"} for today, {mine} of them yours. Merchants who asked for a call come first, then new shops in their first week.
       </p>

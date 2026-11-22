@@ -8,6 +8,7 @@ import { useLiveTick } from "@/hooks/use-live-tick";
 import { useLeaveGuard } from "@/hooks/use-leave-guard";
 import { useSupportNeedsUs, useSupportStartConversation } from "@/hooks/use-support-cases";
 import { LoadError } from "@/components/shared/load-error";
+import { StaleLine } from "@/components/shared/stale-line";
 import {
   SHOP_PROBLEM_LABELS,
   formatAgo,
@@ -42,11 +43,13 @@ export function SupportNeedsUs({ onOpenCase }: SupportNeedsUsProps) {
     );
   }
 
-  if (shops.isError) {
+  // A failed 60 s re-read keeps the rows, so a first message being typed (and
+  // its send's id) stays; the line says the list is old (round 24, UX new 1).
+  if (shops.isError && !shops.data) {
     return (
       <LoadError
         what="the shops that need us"
-        onRetry={() => shops.refetch()}
+        onRetry={() => void shops.refetch()}
         retrying={shops.isFetching}
         error={shops.error}
       />
@@ -54,17 +57,22 @@ export function SupportNeedsUs({ onOpenCase }: SupportNeedsUsProps) {
   }
 
   const list = shops.data ?? [];
+  const stale = <StaleLine read={shops} what="the shops that need us" kept="list" />;
   if (list.length === 0) {
     return (
-      <div className={cn(CARD, "flex flex-col items-center gap-2 px-6 py-16 text-center text-foreground/70")}>
-        <CheckCircle2 className="h-8 w-8" />
-        <p className="text-sm font-medium">Every shop looks fine right now.</p>
+      <div className="space-y-3">
+        {stale}
+        <div className={cn(CARD, "flex flex-col items-center gap-2 px-6 py-16 text-center text-foreground/70")}>
+          <CheckCircle2 className="h-8 w-8" />
+          <p className="text-sm font-medium">Every shop looks fine right now.</p>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="space-y-3">
+      {stale}
       <p className="text-sm text-foreground-muted">
         {list.length} shop{list.length === 1 ? "" : "s"} with something wrong. Write first, before they have to ask.
       </p>

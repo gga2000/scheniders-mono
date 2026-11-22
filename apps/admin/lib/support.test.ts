@@ -325,8 +325,12 @@ describe("changeRequestDueAt", () => {
 describe("changeRequestClock", () => {
   const asked = "2026-11-22T08:00:00Z";
   it.each([
-    ["2026-11-22T08:01:00Z", "24 h", false],
-    ["2026-11-22T09:01:00Z", "23 h", false],
+    ["2026-11-22T08:01:00Z", "23 h", false],
+    ["2026-11-22T09:01:00Z", "22 h", false],
+    ["2026-11-23T06:59:00Z", "1 h", false],
+    ["2026-11-23T07:00:30Z", "59 min", false],
+    ["2026-11-23T07:59:50Z", "1 min", false],
+    ["2026-11-23T09:59:00Z", "1 h late", true],
     ["2026-11-23T03:00:00Z", "5 h", false],
     ["2026-11-23T07:20:00Z", "40 min", false],
     ["2026-11-23T08:15:00Z", "15 min late", true],

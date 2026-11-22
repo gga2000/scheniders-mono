@@ -15,7 +15,8 @@ import { SupportNeedsUs } from "@/components/support/support-needs-us";
 import { SupportToday } from "@/components/support/support-today";
 import { SupportNoticeBar } from "@/components/support/support-notice-bar";
 import { SupportTabCount } from "@/components/support/support-tab-count";
-import { LoadFailedLine } from "@/components/shared/load-failed-line";
+import { LoadError } from "@/components/shared/load-error";
+import { StaleLine } from "@/components/shared/stale-line";
 import { waitingOnUsLine, type ScoreboardDays } from "@/lib/support";
 
 type View = "open" | "solved" | "needs" | "today" | "scoreboard";
@@ -119,23 +120,19 @@ function SupportInbox() {
           }}
         />
       ) : list.isError && !list.data ? (
-        <div className={cn(PANE, "p-6 text-sm text-[var(--ink-red)]")}>
-          Could not load support conversations. {list.error.message}
+        <div className={PANE}>
+          <LoadError what="the conversations" onRetry={() => void list.refetch()} retrying={list.isFetching} error={list.error} />
         </div>
       ) : (
         <div className="grid h-[calc(100vh-16.5rem)] min-h-[520px] grid-cols-1 gap-4 lg:grid-cols-[320px_minmax(0,1fr)_300px]">
           <div className={cn(PANE, "overflow-y-auto")}>
             {/* A failed 10 s re-read keeps the list it had and says how old it is. */}
-            {list.isError && (
-              <LoadFailedLine
-                what="the conversations"
-                onRetry={() => list.refetch()}
-                retrying={list.isFetching}
-                error={list.error}
-                shownFrom={list.dataUpdatedAt}
-                className="border-b border-[var(--card-border)] px-4 py-2"
-              />
-            )}
+            <StaleLine
+              read={list}
+              what="the conversations"
+              kept="list"
+              className="border-b border-[var(--card-border)] px-4 py-2"
+            />
             <SupportCaseList
               cases={cases}
               selectedId={activeId}
@@ -154,21 +151,24 @@ function SupportInbox() {
                 </p>
               </div>
             ) : detail.isError && !detail.data ? (
-              <div className="p-6 text-sm text-[var(--ink-red)]">{detail.error.message}</div>
+              <LoadError
+                what="this conversation"
+                onRetry={() => void detail.refetch()}
+                retrying={detail.isFetching}
+                error={detail.error}
+                compact
+              />
             ) : detail.data ? (
               // A failed 5 s re-read keeps the conversation drawn, so the reply
               // or note being typed (and its send's id) stays; a line says so.
               <div className="flex h-full flex-col">
-                {detail.isError && (
-                  <LoadFailedLine
-                    what="this conversation"
-                    onRetry={() => detail.refetch()}
-                    retrying={detail.isFetching}
-                    error={detail.error}
-                    shownFrom={detail.dataUpdatedAt}
-                    className="border-b border-[var(--card-border)] px-4 py-2"
-                  />
-                )}
+                <StaleLine
+                  read={detail}
+                  what="this conversation"
+                  kept="page"
+                  gone="This conversation is no longer there."
+                  className="border-b border-[var(--card-border)] px-4 py-2"
+                />
                 <div className="min-h-0 flex-1">
                   <SupportConversation
                     key={detail.data.case.id}
