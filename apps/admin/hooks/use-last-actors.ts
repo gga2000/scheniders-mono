@@ -33,7 +33,13 @@ export interface LastActors {
   retry: () => void;
 }
 
-const LAST_ACTORS_KEY = ["admin", "last-actors"] as const;
+/**
+ * Under the shop list's own key, so every step that reads the list again after
+ * a change (the shop page's panels, the card's status and plan, bulk steps)
+ * reads the badges again too, and a badge never names the step before the
+ * one just done (round 24 data new 2).
+ */
+export const LAST_ACTORS_KEY = ["admin", "merchants", "last-actors"] as const;
 
 /**
  * The badges already read for these shops, from any page's answer. A new shop

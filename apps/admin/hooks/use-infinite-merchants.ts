@@ -13,6 +13,8 @@ interface MerchantsPage {
   total: number;
   page: number;
   limit: number;
+  /** When this browser read the page (ms). */
+  readAt: number;
 }
 
 /**
@@ -96,7 +98,8 @@ export function useInfiniteMerchants(limit = 50) {
       if (dateRange.to) params.set("date_to", dateRange.to);
 
       const res = okOrLoadFailure(await adminFetch(`/api/merchants?${params.toString()}`), "the merchants");
-      return res.json();
+      const page = (await res.json()) as Omit<MerchantsPage, "readAt">;
+      return { ...page, readAt: Date.now() };
     },
     initialPageParam: 1,
     getNextPageParam: (lastPage) => {
@@ -127,8 +130,15 @@ export function useInfiniteMerchants(limit = 50) {
 
   const total = query.data?.pages[0]?.total ?? 0;
 
+  // "Load more" moves the query's own time to the newest page, while the
+  // first pages on screen stay as old as they were. The list is as old as
+  // its oldest page (round 24 data new 4).
+  const pages = query.data?.pages;
+  const listReadAt = pages && pages.length > 0 ? Math.min(...pages.map((p) => p.readAt)) : query.dataUpdatedAt;
+
   return {
     ...query,
+    dataUpdatedAt: listReadAt,
     merchants,
     pageIds,
     total,

@@ -100,6 +100,23 @@ describe("Merchants' last-done-by badges", () => {
     await waitFor(() => expect(Object.keys(result.current.actors)).toHaveLength(101));
   });
 
+  /*
+   * Round 24 data new 2: after a step on the shop page, the shop list was
+   * read again but the badges were not, so for up to a minute a badge named
+   * the step before the one just done.
+   */
+  it("asks again whenever the shop list is read again after a change", async () => {
+    serve();
+    const ids = Array.from({ length: 2 }, (_, i) => shopId(i));
+    const client = new QueryClient();
+    const wrapper = ({ children }: { children: ReactNode }) => createElement(QueryClientProvider, { client }, children);
+    const { result } = renderHook(() => useLastActors(pagesOf(ids)), { wrapper });
+    await waitFor(() => expect(Object.keys(result.current.actors)).toHaveLength(2));
+    send.mockClear();
+    await act(() => client.invalidateQueries({ queryKey: ["admin", "merchants"] }));
+    await waitFor(() => expect(asked()).toEqual([ids]));
+  });
+
   it("asks nothing when no shop is loaded", () => {
     const client = new QueryClient();
     const wrapper = ({ children }: { children: ReactNode }) => createElement(QueryClientProvider, { client }, children);
