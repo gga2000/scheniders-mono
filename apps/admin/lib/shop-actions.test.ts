@@ -275,6 +275,27 @@ describe("what turning renewal on says", () => {
       );
       expect(renewalOffWords(facts(), now)).toBe(RENEWAL_STOP_WORDS);
     });
+
+    /*
+     * Round 23 data new 2: a paused shop locked past its trial or month was
+     * told it opens when it pays on its lock screen, but while the pause lasts
+     * settle_billing_lock answers on_hold and nothing opens it.
+     */
+    it("says a paused or held shop is left alone until it comes back, then what happens", () => {
+      expect(renewalOffWords(facts({ ...locked, onTrial: true, status: "limited" }), now)).toBe(
+        "The shop is paused, so nothing is charged and nothing opens the lock until the pause lifts. Then it stays locked, and no job charges it. It opens when the shop pays 9,000 IQD on its lock screen, or staff turn renewal on and the wallet pays it.",
+      );
+      expect(renewalOffWords(facts({ ...locked, status: "suspended" }), now)).toMatch(
+        /^The shop is on hold, so nothing is charged and nothing opens the lock until it comes back\. Then it stays locked/,
+      );
+      expect(renewalOffWords(facts({ status: "suspended" }), now)).toBe(
+        `The shop is on hold, so nothing is charged until it comes back. ${RENEWAL_STOP_WORDS}`,
+      );
+      expect(renewalOffWords(facts({ status: "limited", periodEnd: "2026-11-21T08:00:00Z" }), now)).toBe(
+        "The shop is paused, so nothing is charged until the pause lifts. This month ended Sat 21 Nov. It is not charged, and the shop locks until the shop pays the month on its lock screen, or staff turn renewal on and the wallet pays it.",
+      );
+      expect(renewalOffWords(facts({ onTrial: true, status: "limited" }), now)).toMatch(/^The shop is paused, so nothing is charged until the pause lifts\. When the trial ends/);
+    });
   });
 });
 
