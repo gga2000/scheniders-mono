@@ -211,3 +211,60 @@ describe("SubscriptionCard turning renewal back on", () => {
     });
   });
 });
+
+/*
+ * Round 22 (structure new 3): the panel worked out its step from the switch on
+ * each draw. Staff pressed Stop renewing, the answer was lost, and the re-read
+ * showed renewal off: the open panel turned into "Turn renewal on" with the
+ * reason still filled in, so one more press undid the stop and charged a
+ * locked shop's month.
+ */
+describe("SubscriptionCard after a lost answer", () => {
+  const REASON = "Owner asked to stop at the end of the month";
+  const lost = () => Promise.resolve(new Response("upstream timed out", { status: 504 }));
+
+  function Card({ on }: { on: boolean }) {
+    return createElement(SubscriptionCard, {
+      merchantId: "t1",
+      tenant,
+      subscription: { ...subscription, auto_renew: on } as MerchantDetail["subscription"],
+      billingLock: null,
+      walletIqd: 0,
+    });
+  }
+
+  const pressStop = async () => {
+    auth.role = "super_admin";
+    send.mockImplementation(lost);
+    const client = new QueryClient();
+    const view = draw(createElement(QueryClientProvider, { client }, createElement(Card, { on: true })));
+    fireEvent.click(screen.getByRole("switch", { name: "Renew each month" }));
+    fireEvent.change(screen.getByPlaceholderText("Why stop renewing? (the shop's timeline shows it)"), {
+      target: { value: REASON },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Stop renewing" }));
+    await screen.findByText(/No answer came back/);
+    return (on: boolean) => view.rerender(createElement(QueryClientProvider, { client }, createElement(Card, { on })));
+  };
+
+  it("closes the panel when the shop, read again, shows renewal stopped", async () => {
+    const reread = await pressStop();
+    reread(false);
+    expect(screen.queryByRole("button", { name: "Turn renewal on" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Stop renewing" })).toBeNull();
+    expect(screen.queryByDisplayValue(REASON)).toBeNull();
+    expect(screen.getByRole("switch", { name: "Renew each month" }).getAttribute("aria-checked")).toBe("false");
+  });
+
+  it("keeps asking the same step, reason kept, when the shop still renews", async () => {
+    const reread = await pressStop();
+    reread(true);
+    expect(screen.getByDisplayValue(REASON)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Turn renewal on" })).toBeNull();
+    send.mockClear();
+    fireEvent.click(screen.getByRole("button", { name: "Stop renewing" }));
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(1));
+    const [, init] = send.mock.calls[0] as [string, RequestInit];
+    expect(JSON.parse(String(init.body))).toEqual({ auto_renew: false, reason: REASON });
+  });
+});

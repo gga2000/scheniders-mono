@@ -305,10 +305,11 @@ export default function BillingPage() {
           )}
           {topupMutation.isSuccess && (
             <p className="text-xs text-[var(--ink-green)] mt-2">
+              {/* A repeat's balance is the one right after the first credit, not
+                  today's: the wallet list below, read again, shows today's. */}
               {topupMutation.data.duplicate
                 ? `${formatIQD(topupMutation.variables.amount)} was already added${toppedUpShop ? ` to ${toppedUpShop.business_name}` : ""}, so it was not added again.`
-                : `Added ${formatIQD(topupMutation.variables.amount)}${toppedUpShop ? ` to ${toppedUpShop.business_name}` : ""}.`}{" "}
-              Wallet now {formatIQD(topupMutation.data.newBalance)}.
+                : `Added ${formatIQD(topupMutation.variables.amount)}${toppedUpShop ? ` to ${toppedUpShop.business_name}` : ""}. Wallet now ${formatIQD(topupMutation.data.newBalance)}.`}
             </p>
           )}
         </div>

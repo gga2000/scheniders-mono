@@ -1167,3 +1167,69 @@ describe("support notices", () => {
     });
   });
 });
+
+/*
+ * Round 22 (structure new 7): the conversation's GET had only its 401 test, so
+ * dropping one of #1591's fields from the shop card's reads (the month's
+ * status, plan and renewal switch, the demo flag) passed every test while the
+ * card said "Renews" for a shop that does not.
+ */
+describe("one conversation and its shop card", () => {
+  const SUBSCRIPTION = { status: "past_due", plan: "starter", auto_renew: false, current_period_end: "2026-12-01T00:00:00+00:00" };
+
+  async function get(id = CASE_ID): Promise<Response> {
+    const { GET } = await import("./[id]/route");
+    return GET(req(`/api/support/cases/${id}`, "GET", "support"), { params: Promise.resolve({ id }) });
+  }
+
+  /** The columns the route asked for in its read of `table`. */
+  function selected(table: string): string[] {
+    const at = dbCalls.findIndex((c) => c.method === "from" && c.args[0] === table);
+    const select = dbCalls[at + 1];
+    expect(select?.method).toBe("select");
+    return String(select?.args[0]).split(",").map((column) => column.trim());
+  }
+
+  it("gives the shop card whether its month renews", async () => {
+    dbQueue.push(
+      // The conversation, its messages and its notes.
+      { data: { id: CASE_ID, tenant_id: TENANT, status: "waiting_us", reason: null }, error: null },
+      { data: [], error: null },
+      { data: [], error: null },
+      // The shop card's reads, in the route's order.
+      { data: { id: TENANT, business_name: "Kut Perfumes", plan: "starter", status: "limited", is_demo: false }, error: null },
+      { data: { balance_iqd: "12000" }, error: null },
+      { data: SUBSCRIPTION, error: null },
+      { data: null, error: null, count: 3 },
+      { data: null, error: null, count: 40 },
+      { data: null, error: null, count: 2 },
+      { data: [], error: null },
+      { data: [], error: null },
+      { data: null, error: null },
+      { data: [], error: null },
+    );
+    const res = await get();
+    expect(res.status).toBe(200);
+    const { shop } = await res.json();
+    expect(shop.subscription).toEqual(SUBSCRIPTION);
+    expect(shop.tenant.is_demo).toBe(false);
+    expect(shop.walletBalanceIqd).toBe(12000);
+    expect(shop.ordersLast7Days).toBe(3);
+    expect(selected("subscriptions")).toEqual(expect.arrayContaining(["status", "plan", "auto_renew", "current_period_end"]));
+    expect(selected("tenants")).toEqual(expect.arrayContaining(["is_demo", "status", "restrictions", "trial_ends_at"]));
+  });
+
+  it("answers 404 for a conversation that does not exist, and reads no shop", async () => {
+    dbQueue.push({ data: null, error: null }, { data: [], error: null }, { data: [], error: null });
+    const res = await get();
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ error: "Conversation not found" });
+    expect(dbCalls.some((c) => c.method === "from" && c.args[0] === "tenants")).toBe(false);
+  });
+
+  it("answers 404 for an id that is not one, without reading", async () => {
+    const res = await get("not-a-case");
+    expect(res.status).toBe(404);
+    expect(dbCalls).toHaveLength(0);
+  });
+});

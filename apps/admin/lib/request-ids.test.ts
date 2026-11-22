@@ -137,6 +137,23 @@ describe("keptRequestIds", () => {
     expect(keptRequestIds("lock", { storage: refusing }).idFor(requestKey(B, "orders", 50))).toBe(first);
   });
 
+  it("keeps the same id for the same ask when the browser's storage is full", () => {
+    // Reads work, writes are refused: the stored copy never gets the new id,
+    // so it must not win over this tab's (round 22).
+    const stored = browser();
+    const full: KeptStorage = {
+      getItem: (key) => stored.getItem(key),
+      setItem: () => {
+        throw new Error("QuotaExceededError");
+      },
+    };
+    const first = keptRequestIds("topup", { storage: full }).idFor(requestKey(B, 50000));
+    const retry = keptRequestIds("topup", { storage: full });
+    expect(retry.idFor(requestKey(B, 50000))).toBe(first);
+    retry.done();
+    expect(keptRequestIds("topup", { storage: full }).idFor(requestKey(B, 50000))).not.toBe(first);
+  });
+
   it("starts afresh when the stored text is not its own", () => {
     const storage = browser();
     storage.setItem("adminRequestIds", "not json");

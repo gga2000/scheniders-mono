@@ -108,9 +108,16 @@ function browserStorage(): KeptStorage | null {
 /** This tab's own copy, used when the browser keeps nothing. */
 let inTab: Kept = {};
 
+/**
+ * Storage that refused a write (full): it no longer holds the newest ids, so
+ * this tab's own copy wins from then on. Read alone, it would hand every
+ * press of the same ask a new id (round 22).
+ */
+const unwritable = new WeakSet<KeptStorage>();
+
 function readKept(storage: KeptStorage | null, now: number): Kept {
   let kept = inTab;
-  if (storage) {
+  if (storage && !unwritable.has(storage)) {
     try {
       const parsed = keptSchema.safeParse(JSON.parse(storage.getItem(STORE) ?? "{}"));
       if (parsed.success) kept = parsed.data;
@@ -123,10 +130,12 @@ function readKept(storage: KeptStorage | null, now: number): Kept {
 
 function writeKept(storage: KeptStorage | null, kept: Kept): void {
   inTab = kept;
+  if (!storage) return;
   try {
-    storage?.setItem(STORE, JSON.stringify(kept));
+    storage.setItem(STORE, JSON.stringify(kept));
   } catch {
     // Storage refused or full: the ids last for this tab, as before round 21.
+    unwritable.add(storage);
   }
 }
 

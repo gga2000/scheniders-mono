@@ -15,6 +15,7 @@ import { LoadError } from "@/components/shared/load-error";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
 import { isStaffReason } from "@/lib/billing-lock-tools";
 import { okOrLoadFailure } from "@/lib/load-failure";
+import { failureOf, sendJson } from "@/components/merchants/detail/action-ui";
 import {
   REJECT_REASON_MAX,
   TOPUP_QUEUE_KEY,
@@ -89,18 +90,14 @@ function Decision({ row, canDecide, canAddMore }: { row: TopupQueueItem; canDeci
   const [confirming, setConfirming] = useState<"approve" | "refuse" | null>(null);
   const decide = useMutation({
     mutationFn: async (decision: TopupDecision) => {
-      const res = await adminFetch(`/api/wallet-topup-requests/${row.id}`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(decision),
-      });
+      // A dropped connection or a gateway's 502/504 says the decision may have
+      // been saved, as every other money screen does: "Decision failed: 504"
+      // invited a second press (round 22). A second press is safe: it answers 409.
+      const answer = await sendJson(`/api/wallet-topup-requests/${row.id}`, decision);
       // 409: it was decided first and nothing changed; say so, and the
       // refreshed list shows how it was decided.
-      if (res.status === 409) return alreadyDecidedText(await res.json().catch(() => null));
-      if (!res.ok) {
-        const body = await res.json().catch(() => null);
-        throw new Error(typeof body?.error === "string" ? body.error : `Decision failed: ${res.status}`);
-      }
+      if (answer.status === 409) return alreadyDecidedText(answer.data);
+      if (!answer.ok) throw failureOf(answer.status, answer.data, "The decision was not saved.");
       return null;
     },
     onSuccess: (alreadyDecided) => {
