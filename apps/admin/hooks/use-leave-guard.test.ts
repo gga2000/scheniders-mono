@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { holdLeaveGuard, useLeaveGuard, useLinkLeaveQuestion } from "./use-leave-guard";
+import { SIGN_OUT_QUESTION, holdLeaveGuard, mayStopHeldWork, useLeaveGuard, useLinkLeaveQuestion } from "./use-leave-guard";
 
 /*
  * Round 15: when a sign-in ended, a background read reloaded the page within
@@ -62,6 +62,41 @@ describe("holdLeaveGuard", () => {
     holdLeaveGuard()();
     expect(leaving()).toBe(true);
     view.unmount();
+  });
+});
+
+/*
+ * Round 24 (security new 2): Sign out is a button, so neither question saw
+ * it, and a running import went on for whoever signed in next on the tab.
+ */
+describe("mayStopHeldWork", () => {
+  it("asks before Sign out only while held work runs, and goes on only on OK", () => {
+    const confirm = vi.spyOn(window, "confirm");
+    try {
+      expect(mayStopHeldWork()).toBe(true);
+      expect(confirm).not.toHaveBeenCalled();
+
+      const release = holdLeaveGuard();
+      confirm.mockReturnValueOnce(false);
+      expect(mayStopHeldWork()).toBe(false);
+      confirm.mockReturnValueOnce(true);
+      expect(mayStopHeldWork()).toBe(true);
+      expect(confirm).toHaveBeenCalledWith(SIGN_OUT_QUESTION);
+
+      release();
+      release();
+      confirm.mockClear();
+      expect(mayStopHeldWork()).toBe(true);
+      expect(confirm).not.toHaveBeenCalled();
+
+      // A second release did not count twice: the next hold still asks.
+      const again = holdLeaveGuard();
+      confirm.mockReturnValueOnce(false);
+      expect(mayStopHeldWork()).toBe(false);
+      again();
+    } finally {
+      confirm.mockRestore();
+    }
   });
 });
 
