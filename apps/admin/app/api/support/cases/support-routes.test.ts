@@ -129,14 +129,25 @@ describe("change requests in the inbox", () => {
     { id: OTHER, status: "waiting_merchant", waiting_since: null, last_message_at: "2026-11-22T09:00:00Z" },
   ];
 
-  it("marks the open conversations that hold a change request, without listing ids in the URL", async () => {
-    dbQueue.push({ data: listed, error: null }, { data: null, error: null, count: 1 }, { data: [{ case_id: CASE_ID }], error: null });
+  it("gives each open conversation its first change request's time, without listing ids in the URL", async () => {
+    dbQueue.push(
+      { data: listed, error: null },
+      { data: null, error: null, count: 1 },
+      {
+        data: [
+          { case_id: CASE_ID, created_at: "2026-11-21T08:00:00Z" },
+          { case_id: CASE_ID, created_at: "2026-11-22T09:30:00Z" },
+        ],
+        error: null,
+      },
+    );
     const { GET } = await import("./route");
     const body = await (await GET(req("/api/support/cases", "GET", "support"))).json();
-    expect(body.cases.map((c: { id: string; change_request: boolean }) => [c.id, c.change_request])).toEqual([
-      [CASE_ID, true],
-      [OTHER, false],
+    expect(body.cases.map((c: { id: string; change_requested_at: string | null }) => [c.id, c.change_requested_at])).toEqual([
+      [CASE_ID, "2026-11-21T08:00:00Z"],
+      [OTHER, null],
     ]);
+    expect(dbCalls).toContainEqual({ method: "order", args: ["created_at", { ascending: true }] });
     expect(dbCalls).toContainEqual({ method: "eq", args: ["context->>kind", "change_request"] });
     expect(dbCalls).toContainEqual({ method: "neq", args: ["support_cases.status", "solved"] });
     expect(dbCalls.some((c) => c.method === "in")).toBe(false);
@@ -146,7 +157,7 @@ describe("change requests in the inbox", () => {
     dbQueue.push({ data: [listed[0]], error: null }, { data: null, error: null, count: 0 }, { data: [], error: null });
     const { GET } = await import("./route");
     const body = await (await GET(req("/api/support/cases?view=solved", "GET", "support"))).json();
-    expect(body.cases[0].change_request).toBe(false);
+    expect(body.cases[0].change_requested_at).toBeNull();
     expect(dbCalls).toContainEqual({ method: "in", args: ["case_id", [CASE_ID]] });
   });
 });

@@ -4,7 +4,7 @@ import { CheckCircle2, Clock, Inbox, Lightbulb, ThumbsDown, ThumbsUp } from "luc
 import { SUPPORT_REPLY_MINUTES, supportWaitMinutes } from "@scheniders/shared/support-hours";
 import { cn } from "@/lib/utils";
 import { useLiveTick } from "@/hooks/use-live-tick";
-import { formatWait, SUPPORT_REASON_LABELS, type SupportInboxRow } from "@/lib/support";
+import { changeRequestDueAt, formatDue, formatWait, SUPPORT_REASON_LABELS, type SupportInboxRow } from "@/lib/support";
 
 interface SupportCaseListProps {
   cases: SupportInboxRow[];
@@ -23,6 +23,27 @@ function waitTone(since: string, now: number): string {
   if (minutes >= 15) return "bg-red-500/15 text-[var(--ink-red)]";
   if (minutes >= SUPPORT_REPLY_MINUTES) return "bg-amber-500/15 text-[var(--ink-amber)]";
   return "bg-foreground/5 text-foreground/70";
+}
+
+/**
+ * The change request tag. Until the conversation is solved it counts down the
+ * 24-hour promise ("Due in 5 h", then red "Late by 2 h"), whoever wrote last.
+ */
+function ChangeRequestTag({ requestedAt, solved, now }: { requestedAt: string; solved: boolean; now: number }) {
+  const dueAt = changeRequestDueAt(requestedAt);
+  const late = !solved && Date.parse(dueAt) <= now;
+  return (
+    <span
+      title={`Change request: we promised it within 24 hours (by ${new Date(dueAt).toLocaleString("en-GB", { timeZone: "Asia/Baghdad", dateStyle: "medium", timeStyle: "short" })})`}
+      className={cn(
+        "inline-flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-xs font-semibold tabular-nums",
+        late ? "bg-red-500/15 text-[var(--ink-red)]" : "bg-amber-500/15 text-[var(--ink-amber)]",
+      )}
+    >
+      <Lightbulb className="h-3 w-3" />
+      {solved ? "Change" : `Change · ${formatDue(dueAt, now)}`}
+    </span>
+  );
 }
 
 export function SupportCaseList({ cases, selectedId, onSelect, isLoading, emptyLabel }: SupportCaseListProps) {
@@ -64,14 +85,8 @@ export function SupportCaseList({ cases, selectedId, onSelect, isLoading, emptyL
                 <span dir="auto" className="min-w-0 truncate text-sm font-semibold text-foreground">
                   {c.tenants?.business_name ?? "Unknown shop"}
                 </span>
-                {c.change_request && (
-                  <span
-                    title="Change request: we promised it within 24 hours"
-                    className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-xs font-semibold text-[var(--ink-amber)]"
-                  >
-                    <Lightbulb className="h-3 w-3" />
-                    Change
-                  </span>
+                {c.change_requested_at && (
+                  <ChangeRequestTag requestedAt={c.change_requested_at} solved={c.status === "solved"} now={now} />
                 )}
               </span>
               {c.status === "waiting_us" && c.waiting_since ? (

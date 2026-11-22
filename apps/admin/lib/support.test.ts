@@ -6,6 +6,7 @@ import {
   fillSavedReply,
   formatAgo,
   formatDue,
+  changeRequestDueAt,
   callBackNumber,
   sortTasks,
   taskLabel,
@@ -308,6 +309,15 @@ describe("formatDue", () => {
     ["2026-11-16T10:00:00Z", "Late by 2 h"],
   ])("%s reads %s", (due, expected) => {
     expect(formatDue(due, now)).toBe(expected);
+  });
+});
+
+describe("changeRequestDueAt", () => {
+  it("is 24 hours after the merchant asked, read the same way as a task's due time", () => {
+    const due = changeRequestDueAt("2026-11-22T08:00:00Z");
+    expect(due).toBe("2026-11-23T08:00:00.000Z");
+    expect(formatDue(due, Date.parse("2026-11-23T03:00:00Z"))).toBe("Due in 5 h");
+    expect(formatDue(due, Date.parse("2026-11-23T10:00:00Z"))).toBe("Late by 2 h");
   });
 });
 
