@@ -52,7 +52,7 @@ export function SupportToday() {
   // send's id) stays; the line says the list is old (round 24, UX new 1).
   if (tasks.isError && !tasks.data) {
     return (
-      <LoadError what="today's calls" onRetry={() => void tasks.refetch()} retrying={tasks.isFetching} error={tasks.error} />
+      <LoadError what="today's calls" shows="list" onRetry={() => void tasks.refetch()} retrying={tasks.isFetching} error={tasks.error} />
     );
   }
 

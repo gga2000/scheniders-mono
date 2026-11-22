@@ -121,7 +121,7 @@ function SupportInbox() {
         />
       ) : list.isError && !list.data ? (
         <div className={PANE}>
-          <LoadError what="the conversations" onRetry={() => void list.refetch()} retrying={list.isFetching} error={list.error} />
+          <LoadError what="the conversations" shows="list" onRetry={() => void list.refetch()} retrying={list.isFetching} error={list.error} />
         </div>
       ) : (
         <div className="grid h-[calc(100vh-16.5rem)] min-h-[520px] grid-cols-1 gap-4 lg:grid-cols-[320px_minmax(0,1fr)_300px]">
@@ -153,6 +153,7 @@ function SupportInbox() {
             ) : detail.isError && !detail.data ? (
               <LoadError
                 what="this conversation"
+                shows="page"
                 onRetry={() => void detail.refetch()}
                 retrying={detail.isFetching}
                 error={detail.error}

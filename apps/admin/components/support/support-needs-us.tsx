@@ -49,6 +49,7 @@ export function SupportNeedsUs({ onOpenCase }: SupportNeedsUsProps) {
     return (
       <LoadError
         what="the shops that need us"
+        shows="list"
         onRetry={() => void shops.refetch()}
         retrying={shops.isFetching}
         error={shops.error}

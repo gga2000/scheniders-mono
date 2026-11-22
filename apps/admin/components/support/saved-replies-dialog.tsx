@@ -121,6 +121,7 @@ export function SavedRepliesDialog({ open, onOpenChange }: { open: boolean; onOp
             ) : replies.isError && !replies.data ? (
               <LoadError
                 what="the saved replies"
+                shows="list"
                 onRetry={() => void replies.refetch()}
                 retrying={replies.isFetching}
                 error={replies.error}
