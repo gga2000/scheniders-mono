@@ -242,9 +242,11 @@ export function TrialChecksPanel() {
           One trial per merchant
         </h2>
         <p className="text-xs text-foreground-muted mt-1">
-          {summary.needs_look === 0
-            ? "Nothing new. Every flagged store has a decision."
-            : `${summary.needs_look} to look at: ${summary.no_trial} no trial, ${summary.review} to review`}
+          {data.checks.length === 0
+            ? "No store flagged."
+            : summary.needs_look === 0
+              ? "Nothing new. Every flagged store has a decision."
+              : `${summary.needs_look} to look at: ${summary.no_trial} no trial, ${summary.review} to review`}
         </p>
         <StaleLine read={pageRead} what="the one-trial checks" kept="list" className="mt-2" />
       </div>

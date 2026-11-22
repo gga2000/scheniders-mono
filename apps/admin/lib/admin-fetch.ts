@@ -105,6 +105,14 @@ export async function holdsLiveSignIn(): Promise<boolean> {
   return token !== null && !signInEnded(token.signedInAt);
 }
 
+/** Who this tab is signed in as right now (the user id), or null when no one is. */
+export async function signedInUserId(): Promise<string | null> {
+  const {
+    data: { session },
+  } = await getBrowserClient().auth.getSession();
+  return session?.user.id ?? null;
+}
+
 /**
  * After a failed API answer. When this browser no longer holds a session (the
  * console ended a sign-in past its age limit, or another tab signed out), the

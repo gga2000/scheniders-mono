@@ -50,6 +50,9 @@ describe("the one-trial card", () => {
     expect(html).toContain("Could not refresh the one-trial checks. This list is from");
     expect(html).toContain("One trial per merchant");
     expect(html).not.toContain("min-h-[60vh]");
+    // Round 24: no store was ever flagged, so none "has a decision".
+    expect(html).toContain("No store flagged.");
+    expect(html).not.toContain("Every flagged store has a decision");
   });
 
   it("shows nothing while there is nothing flagged", () => {

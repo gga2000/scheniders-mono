@@ -1,6 +1,7 @@
 import { Readable } from "node:stream";
 import { inflateRawSync } from "node:zlib";
 import ExcelJS from "exceljs";
+import { SaxesParser } from "saxes";
 import { formatCount } from "./format";
 import { IMPORT_MAX_ROWS } from "./product-import";
 
@@ -369,16 +370,30 @@ const FIRST_PARTS = ["xl/workbook.xml", LINKS_PART, "xl/styles.xml", "xl/sharedS
 const LINKS_START = /^\uFEFF?(?:<\?xml\s[^?]*\?>)?(?:\s|<!--(?:[^-]|-[^-])*-->)*<Relationships[\s/>]/;
 
 /**
- * Whether the links part opens with its Relationships element. The reader
- * keeps the links only from that element's tag: without it (an empty part,
- * only a header or a comment) it still writes each sheet to a temporary file
+ * Whether the reader will find the links. It keeps them only once its XML
+ * parser (saxes, which ExcelJS runs with these same defaults) reports the
+ * Relationships element's start tag; without that (an empty part, only a
+ * header or a comment) it still writes each sheet to a temporary file
  * (audit round 22), so such a part is refused, as Excel never saves one.
- * The element must be the part's first: the same text inside a comment, an
- * instruction (<?...?>) or a DOCTYPE is no element (audit round 23), and
- * Excel writes neither of the last two.
+ * - The element must come first, as Excel saves it (LINKS_START): the same
+ *   text inside a comment, an instruction (<?...?>) or a DOCTYPE is no
+ *   element (audit round 23).
+ * - The parser itself must read the whole part with no error and meet that
+ *   element first: a start tag cut off at the part's end ("<Relationships ")
+ *   looks right as text, but the parser reports no tag (audit round 24).
  */
 export function hasLinksRoot(text: string): boolean {
-  return LINKS_START.test(text);
+  if (!LINKS_START.test(text)) return false;
+  const parser = new SaxesParser();
+  const seen: { first: string | null; failed: boolean } = { first: null, failed: false };
+  parser.on("opentag", (tag) => {
+    seen.first ??= tag.name;
+  });
+  parser.on("error", () => {
+    seen.failed = true;
+  });
+  parser.write(text).close();
+  return !seen.failed && seen.first === "Relationships";
 }
 
 /** A stored zip entry of shared strings with none in it, for a workbook whose cells all hold their own text. */
