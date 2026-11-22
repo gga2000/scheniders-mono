@@ -1,13 +1,13 @@
 "use client";
 
-import { CheckCircle2, Clock, Inbox, ThumbsDown, ThumbsUp } from "lucide-react";
+import { CheckCircle2, Clock, Inbox, Lightbulb, ThumbsDown, ThumbsUp } from "lucide-react";
 import { SUPPORT_REPLY_MINUTES, supportWaitMinutes } from "@scheniders/shared/support-hours";
 import { cn } from "@/lib/utils";
 import { useLiveTick } from "@/hooks/use-live-tick";
-import { formatWait, SUPPORT_REASON_LABELS, type SupportCaseRow } from "@/lib/support";
+import { formatWait, SUPPORT_REASON_LABELS, type SupportInboxRow } from "@/lib/support";
 
 interface SupportCaseListProps {
-  cases: SupportCaseRow[];
+  cases: SupportInboxRow[];
   selectedId: string | null;
   onSelect: (id: string) => void;
   isLoading: boolean;
@@ -60,8 +60,19 @@ export function SupportCaseList({ cases, selectedId, onSelect, isLoading, emptyL
             )}
           >
             <div className="flex items-center justify-between gap-2">
-              <span dir="auto" className="min-w-0 truncate text-sm font-semibold text-foreground">
-                {c.tenants?.business_name ?? "Unknown shop"}
+              <span className="flex min-w-0 items-center gap-1.5">
+                <span dir="auto" className="min-w-0 truncate text-sm font-semibold text-foreground">
+                  {c.tenants?.business_name ?? "Unknown shop"}
+                </span>
+                {c.change_request && (
+                  <span
+                    title="Change request: we promised it within 24 hours"
+                    className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-xs font-semibold text-[var(--ink-amber)]"
+                  >
+                    <Lightbulb className="h-3 w-3" />
+                    Change
+                  </span>
+                )}
               </span>
               {c.status === "waiting_us" && c.waiting_since ? (
                 <span

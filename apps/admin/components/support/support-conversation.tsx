@@ -5,6 +5,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   FileText,
+  Lightbulb,
   Loader2,
   MessageSquareText,
   Package,
@@ -39,11 +40,17 @@ import { formatDayTime } from "@/lib/format";
 
 /** What the merchant was looking at, shown under their message. */
 function ContextChips({ message }: { message: SupportMessageRow }) {
-  const { path, orderNumber, errorCode, errorMessage, sentryEventId } = message.context;
-  if (!path && !orderNumber && !errorCode && !errorMessage) return null;
+  const { kind, path, orderNumber, errorCode, errorMessage, sentryEventId } = message.context;
+  if (!kind && !path && !orderNumber && !errorCode && !errorMessage) return null;
   const chip = "inline-flex max-w-full items-center gap-1 rounded-full bg-foreground/5 px-2 py-0.5 text-xs font-medium text-foreground/70";
   return (
     <div className="mt-1.5 flex flex-wrap gap-1.5">
+      {kind === "change_request" && (
+        <span className={cn(chip, "bg-amber-500/15 text-[var(--ink-amber)]")} title="Sent from Need a change? (promised within 24 hours)">
+          <Lightbulb className="h-3 w-3 shrink-0" />
+          Change request
+        </span>
+      )}
       {path && (
         <span className={chip} title="Page the merchant was on">
           <FileText className="h-3 w-3 shrink-0" />
