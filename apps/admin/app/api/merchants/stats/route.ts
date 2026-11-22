@@ -81,9 +81,18 @@ export async function GET(request: NextRequest) {
 
     const supabase = createAdminClient();
 
+    // Plan prices, a month's list price each, come from plan_limits only; a
+    // failed read fails the request rather than showing made-up prices. Read
+    // alongside the shops, not after them: one round trip less.
+    const readPlanPrices = async () => {
+      const { data, error } = await supabase.from("plan_limits").select("plan, base_price_iqd");
+      if (error) throw error;
+      return data;
+    };
+
     // The full filtered tenant set (lightweight columns only), a page at a
     // time: one request stops at 1,000 rows and does not say so.
-    const tenants = await everyRow<LiteShop>((from, to) => {
+    const shopsRead = everyRow<LiteShop>((from, to) => {
       let query = supabase
         .from("tenants")
         .select("id, status, plan, trial_ends_at, restrictions, city, wallet(balance_iqd), staff_needs_attention")
@@ -109,6 +118,7 @@ export async function GET(request: NextRequest) {
 
       return query.order("id", { ascending: true }).range(from, to);
     });
+    const [tenants, planLimits] = await Promise.all([shopsRead, readPlanPrices()]);
 
     const empty: Aggregates = {
       total: 0,
@@ -135,14 +145,7 @@ export async function GET(request: NextRequest) {
 
     const tenantIds = tenants.map((t) => t.id);
 
-    // Plan prices of the active shops, a month's list price each.
-    // Prices come from plan_limits only; a failed read fails the request
-    // rather than showing made-up prices.
-    const { data: planLimits, error: planLimitsError } = await supabase
-      .from("plan_limits")
-      .select("plan, base_price_iqd");
-    if (planLimitsError) throw planLimitsError;
-
+    // Plan prices of the active shops (read above).
     const planPrice: Record<string, number> = {};
     for (const row of planLimits) {
       planPrice[row.plan] = row.base_price_iqd;

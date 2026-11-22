@@ -1,4 +1,5 @@
 import { createServerClient } from "@supabase/ssr";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
 import { isCredentialRejection } from "@/lib/admin-auth-error";
 import {
@@ -161,17 +162,8 @@ async function checkAccess(request: NextRequest) {
   // API request. Reading the token first refreshes an expired session, as the
   // auth server's check did before. The row is read under the session's own
   // token and counts only once the auth server has answered for that same user.
-  const tokenCheck = await verifyStaffToken(supabase.auth).then(
-    (session) => ({
-      failed: false as const,
-      checked: session && {
-        session,
-        // Promise.resolve sends the read now: a query is only sent once awaited.
-        staffRow: Promise.resolve(
-          supabase.from("admin_users").select("user_id, admin_role, is_active").eq("user_id", session.userId).maybeSingle(),
-        ),
-      },
-    }),
+  const tokenCheck = await startStaffCheck(supabase.auth).then(
+    (checked) => ({ failed: false as const, checked }),
     (error: unknown) => ({ failed: true as const, error }),
   );
 
@@ -264,6 +256,35 @@ async function checkAccess(request: NextRequest) {
   }
 
   return supabaseResponse;
+}
+
+/**
+ * Checks the session's own token locally and starts the read of that staff
+ * member's row: null when the cookies hold no token that checks out.
+ *
+ * The row is read by a client of its own that sends that token. The cookie
+ * client lets one call at a time use the session, and its call to the auth
+ * server holds the session for the whole round trip, so a read through it
+ * waited for that answer even when started first (speed audit round 1: the
+ * live logs showed the two calls one after the other).
+ */
+async function startStaffCheck(auth: Pick<SupabaseClient["auth"], "getClaims" | "getSession">) {
+  const session = await verifyStaffToken(auth);
+  if (!session) return null;
+  // The token just checked, read again from the cookies: no network.
+  const { data } = await auth.getSession();
+  const accessToken = data.session?.access_token;
+  if (!accessToken) return null;
+  const staffClient = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
+    accessToken: async () => accessToken,
+  });
+  return {
+    session,
+    // Promise.resolve sends the read now: a query is only sent once awaited.
+    staffRow: Promise.resolve(
+      staffClient.from("admin_users").select("user_id, admin_role, is_active").eq("user_id", session.userId).maybeSingle(),
+    ),
+  };
 }
 
 /** A status or code the error carries (an auth error has both, a database error a code). */
