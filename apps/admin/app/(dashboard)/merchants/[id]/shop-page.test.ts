@@ -80,7 +80,7 @@ const shop = {
   planLimits: null,
   billingLock: null,
   // Charged since May; its latest charge pays for this month.
-  paidPlan: { first_paid_at: "2026-05-01T00:00:00Z", paid_until: "2026-12-01T00:00:00Z" },
+  paidPlan: { first_paid_at: "2026-05-01T00:00:00Z", month_end: "2026-12-01T00:00:00Z" },
   canForceUnlock: false,
   stoppedBy: null,
 };

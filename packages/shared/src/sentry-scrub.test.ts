@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { baseSentryOptions, isSensitiveKey, redactText, scrubSentryEvent, scrubValue } from "./sentry-scrub";
+import { baseSentryOptions, isSensitiveKey, redactText, SENTRY_IGNORE_ERRORS, scrubSentryEvent, scrubValue } from "./sentry-scrub";
 
 describe("redactText", () => {
     it.each([
@@ -145,5 +145,16 @@ describe("baseSentryOptions", () => {
         expect(on.enabled).toBe(true);
         expect(on.environment).toBe("production");
         expect(on.initialScope).toEqual({ tags: { app: "platform" } });
+    });
+});
+
+describe("SENTRY_IGNORE_ERRORS", () => {
+    // Sentry matches a string entry as a substring of "Type: message", a RegExp with test().
+    const ignored = (message: string) =>
+        SENTRY_IGNORE_ERRORS.some((rule) => (typeof rule === "string" ? message.includes(rule) : rule.test(message)));
+
+    it("drops the auth lock handover abort (SCHENIDERS-17) but keeps other aborts", () => {
+        expect(ignored("AbortError: Lock broken by another request with the 'steal' option.")).toBe(true);
+        expect(ignored("AbortError: signal is aborted without reason")).toBe(false);
     });
 });

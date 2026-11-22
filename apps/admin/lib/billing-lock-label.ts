@@ -1,4 +1,4 @@
-import { formatDay } from "@/lib/format";
+import { formatDay, formatIQD } from "@/lib/format";
 
 /** The billing lock as the Merchants list carries it: why the shop is locked and since when. */
 export type ListBillingLock = { reason: "trial_ended" | "unpaid"; since: string | null };
@@ -29,4 +29,26 @@ export function lockedBecause(code: string | null, since = ""): string {
 export function lockSentence(lock: ListBillingLock, now: Date = new Date()): string {
   const since = lock.since ? ` Locked since ${formatDay(lock.since, now)}.` : "";
   return `${LOCK_REASON_WORDS[lock.reason]}.${since}`;
+}
+
+/**
+ * What opens a lock, in one sentence: the shop page's status line and its lock
+ * card say it the same way. Paying the month from the wallet opens it, except
+ * that a paused shop is not charged until the pause lifts (settle_billing_lock
+ * answers on_hold), and a month that ended with renewal off is charged by no
+ * job (not_renewed): money alone never opens it. The shop paying on its lock
+ * screen turns renewal back on and pays (pay_billing_lock), or staff turn
+ * renewal on and the wallet pays it (20261119073654_renewal_off_stops_charge).
+ */
+export function lockOpensWords(priceIqd: number, paused: boolean, renewalOff: boolean): string {
+  const price = formatIQD(priceIqd);
+  if (renewalOff) {
+    const opens = `it opens when the shop pays ${price} on its lock screen, or when staff turn renewal on and the wallet pays it.`;
+    return paused
+      ? `Paused, and renewal is off. Once the pause lifts, ${opens}`
+      : `Renewal is off, so money alone does not open it: ${opens}`;
+  }
+  return paused
+    ? `Paused, so the lock stays until the pause lifts. Then paying ${price} from the wallet opens it.`
+    : `Paying ${price} from the wallet opens it again.`;
 }

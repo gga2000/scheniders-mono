@@ -182,6 +182,14 @@ describe("staffLogSummary", () => {
     expect(staffLogSummary("edit_lead", { merchant_name: "Kawkab", source: "form" })).toBe("source: form");
   });
 
+  // Round 20: the shop paying its locked month turns renewal back on with one
+  // row by "The shop" (pay_billing_lock); "source: shop_paid" was a code word.
+  it("says a renewal the shop turned back on by paying in words, never its code", () => {
+    const paid = { auto_renew: true, source: "shop_paid", reason: "The shop paid its month from the lock screen" };
+    expect(staffActionText("auto_renew_toggle", paid)).toBe("Monthly renewal turned on");
+    expect(staffLogSummary("auto_renew_toggle", paid)).toBe("reason: The shop paid its month from the lock screen");
+  });
+
   it("keeps a value the words did not use", () => {
     // An older bulk row has no count, so its words are the general ones.
     expect(staffActionText("bulk_leads", { action: "assign" })).toBe("Changed several leads at once");

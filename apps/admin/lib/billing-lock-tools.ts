@@ -31,6 +31,14 @@ export const REQUEST_REUSED = {
  */
 export const SHOP_PAUSED = { status: 409, error: "This shop is paused. Lift the pause first" } as const;
 
+/**
+ * The shop left its trial after the page was loaded, so the database refuses
+ * a trial step. One answer for extending a trial (shop page, Trials, bulk),
+ * a trial check and Start free time; round 20 found it said three ways, two
+ * of them as a 400 for a page that was only out of date.
+ */
+export const NOT_TRIAL = { status: 409, error: "This shop is no longer on trial. Reload the page to see it" } as const;
+
 /** What a staff member is told when a reason is too short: one sentence, said only from here. */
 export const STAFF_REASON_TOO_SHORT = `Write a reason with at least ${STAFF_REASON_MIN} letters.`;
 
@@ -60,6 +68,11 @@ export type BillingLockSnapshot = {
   allowance: number;
   plan: string | null;
   price_iqd: number;
+  /**
+   * The shop's renewal is off (never the demo store's): no job charges the
+   * month, so money alone does not open the lock (20261119074502).
+   */
+  renewal_off: boolean;
 };
 
 type Refusal = { ok: false; status: 403 | 404 | 409; error: string };
@@ -97,7 +110,8 @@ export async function readBillingLock(
     (data.since !== null && typeof data.since !== "string") ||
     (data.orders_left !== null && typeof data.orders_left !== "number") ||
     typeof data.allowance !== "number" ||
-    (data.plan !== null && typeof data.plan !== "string")
+    (data.plan !== null && typeof data.plan !== "string") ||
+    typeof data.renewal_off !== "boolean"
   ) {
     throw new Error("Unexpected billing_lock_snapshot response");
   }
@@ -109,6 +123,7 @@ export async function readBillingLock(
     allowance: data.allowance,
     plan: data.plan,
     price_iqd: Number(data.price_iqd ?? 0),
+    renewal_off: data.renewal_off,
   };
 }
 

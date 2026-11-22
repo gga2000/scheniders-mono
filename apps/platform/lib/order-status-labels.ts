@@ -1,3 +1,4 @@
+import { REFUND_ORDER_WORDS } from "@scheniders/shared/refund-words";
 import type { Locale } from "@/lib/i18n";
 
 /**
@@ -107,28 +108,11 @@ export function orderStatusTone(status: string | null | undefined): string {
 }
 
 /**
- * A refund order (RTN) moves the other way: the courier takes cash to the
- * customer and brings the item back. Its statuses are the ordinary ones, but
- * read as a refund — "In Transit" alone has misled staff into treating it as
- * an outbound delivery. A refund order the courier could not complete is
- * marked `rejected` (older rows) or `refund_failed`; both read as failed.
+ * A refund order (RTN) reads its statuses as a refund: "Courier collecting",
+ * not "In Transit". The words live in @scheniders/shared/refund-words, which
+ * the staff console's shop page reads too.
  */
-export const REFUND_ORDER_STATUS_LABELS: Record<Locale, Partial<Record<OrderStatusKey, string>>> = {
-    en: {
-        return_pending: "Pickup pending",
-        in_transit: "Courier collecting",
-        refund_delivered: "Refunded to customer",
-        refund_failed: "Refund failed",
-        rejected: "Refund failed",
-    },
-    ar: {
-        return_pending: "بانتظار الاستلام",
-        in_transit: "مع المندوب",
-        refund_delivered: "تم إرجاع المبلغ",
-        refund_failed: "فشل الاسترجاع",
-        rejected: "فشل الاسترجاع",
-    },
-};
+export const REFUND_ORDER_STATUS_LABELS: Record<Locale, Partial<Record<OrderStatusKey, string>>> = REFUND_ORDER_WORDS;
 
 /** camelCase spelling of a status key, for the `orders.status.*` i18n keys. */
 function camelCase(status: OrderStatusKey): string {

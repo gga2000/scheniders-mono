@@ -29,7 +29,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { resolveI18n } from "@scheniders/shared";
+import { normalizeIraqiMobile, resolveI18n } from "@scheniders/shared";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { BUSINESS_TYPES, isBusinessTypeId, type BusinessTypeId } from "@/lib/business-types";
 import { supabase } from "@/lib/supabase";
@@ -37,6 +37,8 @@ import { AuthCaptcha, useAuthCaptcha } from "@/components/auth/auth-captcha";
 import { SignupPhoneCheck, useSignupPhoneCodeSwitch } from "@/components/auth/signup-phone-check";
 import { StoreAddressField, storeAddressSendable, useStoreAddress } from "@/components/auth/store-address-field";
 import { AuthCardHeading, AuthCardShell } from "@/components/auth/auth-card-shell";
+import { FermiSignupPixel } from "@/components/auth/fermi-signup-pixel";
+import { trackSignupComplete } from "@/lib/fermi-pixel";
 
 const BUSINESS_TYPE_ICONS: Record<string, LucideIcon> = {
     Shirt,
@@ -65,8 +67,10 @@ function SignupForm() {
 
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
-    const [businessName, setBusinessName] = useState("");
-    const [contactPhone, setContactPhone] = useState("");
+    // usefermi.com's sign-up sheet hands over what the owner already typed there
+    // (?name=, ?phone=, ?slug=, ?sells=), so they are not asked twice.
+    const [businessName, setBusinessName] = useState(() => (searchParams.get("name") ?? "").trim().slice(0, 120));
+    const [contactPhone, setContactPhone] = useState(() => normalizeIraqiMobile(searchParams.get("phone")) ?? "");
     const [city, setCity] = useState("");
     // «شنو تبيع؟», in the order ticked: the first picks the store's content pack.
     const [sells, setSells] = useState<BusinessTypeId[]>(() => sellsFromLink(searchParams.get("sells")));
@@ -81,7 +85,7 @@ function SignupForm() {
     const phoneCode = useSignupPhoneCodeSwitch();
     const [phoneProof, setPhoneProof] = useState<string | null>(null);
     // The store's address, offered from its name and the merchant's to change (B11).
-    const storeAddress = useStoreAddress(businessName);
+    const storeAddress = useStoreAddress(businessName, searchParams.get("slug"));
 
     /**
      * The account is created unconfirmed, so it cannot sign in until its owner
@@ -173,6 +177,8 @@ function SignupForm() {
                 setIsLoading(false);
                 return;
             }
+
+            trackSignupComplete({ email: email.trim(), phone: contactPhone, sells });
 
             // UX2-18: if this browser still holds a session for a DIFFERENT
             // account, it must be cleared before signing in as the new one.
@@ -455,6 +461,7 @@ function SignupForm() {
 export default function SignupPage() {
     return (
         <AuthCardShell showBack={false}>
+            <FermiSignupPixel />
             <Suspense
                 fallback={
                     <div className="px-6 sm:px-8 py-16 flex items-center justify-center">

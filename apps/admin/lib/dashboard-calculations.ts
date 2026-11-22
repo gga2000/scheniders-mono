@@ -88,13 +88,6 @@ function daysBetween(a: Date, b: Date): number {
   return Math.floor(Math.abs(b.getTime() - a.getTime()) / DAY_MS);
 }
 
-const BAGHDAD_OFFSET_MS = 3 * 60 * 60 * 1000;
-
-/** The Baghdad calendar day (UTC+3, no DST) of an instant; the UTC day files 00:00-02:59 under the day before. */
-export function getDateKey(d: Date): string {
-  return new Date(d.getTime() + BAGHDAD_OFFSET_MS).toISOString().slice(0, 10);
-}
-
 const pctChange = (curr: number, prev: number) =>
   prev > 0 ? Math.round(((curr - prev) / prev) * 100) : null;
 
@@ -263,7 +256,7 @@ export function calculateGrowthMetrics(stats: DashboardStats, tenants: Dashboard
 
   const weekStart = addDays(today, -6);
   const prevStart = addDays(today, -13);
-  const signupDays = tenants.map((t) => getDateKey(new Date(t.created_at)));
+  const signupDays = tenants.map((t) => dayOf(t.created_at));
   const newMerchants = signupDays.filter((d) => d >= weekStart).length;
   const newMerchantsPrev = signupDays.filter((d) => d >= prevStart && d < weekStart).length;
 
@@ -637,7 +630,7 @@ export function calculateKpis(
   const activeTenants = tenants.filter((t) => t.status === "active").length;
   const activeRate = tenants.length ? Math.round((activeTenants / tenants.length) * 100) : 0;
 
-  const signupDays = tenants.map((t) => getDateKey(new Date(t.created_at)));
+  const signupDays = tenants.map((t) => dayOf(t.created_at));
   const signupsDaily7 = daysEnding(today, 7).map((day) => signupDays.filter((d) => d === day).length);
 
   const avgOrderValue = sales.count90 > 0 ? Math.round(sales.sum90 / sales.count90) : 0;

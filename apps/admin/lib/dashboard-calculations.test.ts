@@ -16,7 +16,6 @@ import {
   calculateTimeToFirstOrder,
   calculateTopMerchants,
   calculateTopUpPatterns,
-  getDateKey,
   MIN_ENDED_FOR_RATE,
   type DashboardTenant,
   type ShopStepRow,
@@ -41,13 +40,6 @@ const tenant = (id: string, over: Partial<DashboardTenant> = {}): DashboardTenan
 });
 
 const tenants = [tenant(SHOP_A), tenant(SHOP_B, { status: "trial" }), tenant(SHOP_C, { status: "trial" })];
-
-describe("getDateKey", () => {
-    it("files 00:00-02:59 Baghdad time under that Baghdad day, not the UTC day before", () => {
-        expect(getDateKey(new Date("2026-11-10T22:30:00Z"))).toBe("2026-11-11");
-        expect(getDateKey(new Date("2026-11-10T20:59:00Z"))).toBe("2026-11-10");
-    });
-});
 
 describe("order pipeline", () => {
   const pipeline = calculatePlatformPipeline(dashboardStats().statuses90);
