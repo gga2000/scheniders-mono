@@ -371,13 +371,14 @@ export function MoneyRoute({ summary, delivery }: MoneyRouteProps) {
                             </Link>
                         )}
                         {returning.count > 0 && (
-                            <p className="mt-0.5 flex items-center gap-1 text-left text-[13px] leading-relaxed text-muted" dir={dir} data-testid="money-returning">
+                            <p className="mt-0.5 flex items-center justify-end gap-1 text-left text-[13px] leading-relaxed text-muted" dir={dir} data-testid="money-returning">
                                 {t("fin.money.returning", { n: formatWhole(returning.count), count: returning.count })}
                                 <InfoTip text={t("fin.money.returning.tip")} textDir={dir} testId="money-returning-info" />
                             </p>
                         )}
+                        {/* Its own text direction, so the quote marks around «راجع» close where they should. */}
                         {returning.count > 0 && (
-                            <Link href={RETURNING_ORDERS_HREF} className={`${CARD_LINK} mt-1.5`} data-testid="money-returning-link">
+                            <Link href={RETURNING_ORDERS_HREF} className={`${CARD_LINK} mt-1.5`} dir={dir} data-testid="money-returning-link">
                                 {t("fin.money.returning.open")}
                                 <ArrowUpRight className="size-3.5" aria-hidden="true" />
                             </Link>
