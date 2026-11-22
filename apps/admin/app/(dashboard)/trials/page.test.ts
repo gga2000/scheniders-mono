@@ -34,6 +34,7 @@ const PAUSED_TRIAL = {
   balance_iqd: 0,
   days_remaining: 3,
   is_expired: false,
+  trial_day: 4,
   paused: true,
 };
 
@@ -88,6 +89,14 @@ describe("a paused trial on Trials", () => {
 
 // Fermi B12 item 1, concept A (Ali's pick, 22 Nov): chips above the list and
 // one follow-up line under each shop; the row itself stays as it was.
+describe("the trial bar on Trials", () => {
+  it("scales to the trial's own 7 days and is amber in its last 3, not red", () => {
+    const html = render("super_admin");
+    expect(html).toMatch(/bg-amber-500 [^"]*" style="width:43%"/);
+    expect(html).not.toContain("bg-red-500");
+  });
+});
+
 describe("the follow-up line on Trials", () => {
   it("adds the chips and a line of facts under the unchanged row, with WhatsApp and Mark contacted", () => {
     const html = render("support_staff", [FOLLOW_UP]);

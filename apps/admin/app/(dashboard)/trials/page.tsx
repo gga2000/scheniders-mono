@@ -24,7 +24,9 @@ import {
   TRIAL_FOLLOW_UP_KEY,
   inTrialFilter,
   trialFilterCounts,
+  trialBar,
   trialFollowUpResponseSchema,
+  type TrialBarTone,
   type TrialFilter,
   type TrialFollowUpRow,
 } from "@/lib/trial-pipeline";
@@ -50,6 +52,8 @@ interface Trial {
   balance_iqd: number;
   days_remaining: number;
   is_expired: boolean;
+  /** The shop's day on the Baghdad calendar, Day 0 on signup (lib/trial-shops). */
+  trial_day: number;
   /** Paused while on trial: its days still run, and free days wait until the pause is lifted. */
   paused: boolean;
 }
@@ -87,24 +91,13 @@ function trialsLine({ total, expired }: TrialsSummary): string {
   return expired > 0 ? `${onTrial}, ${expired} ended and not paid yet` : onTrial;
 }
 
-function getBarColor(days: number, ended: boolean): string {
-  if (ended) return "bg-gray-400";
-  if (days <= TRIAL_ENDING_DAYS) return "bg-red-500";
-  if (days <= 7) return "bg-amber-500";
-  return "bg-green-500";
-}
-
-function getBarBg(days: number, ended: boolean): string {
-  if (ended) return "bg-gray-200";
-  if (days <= TRIAL_ENDING_DAYS) return "bg-red-500/15";
-  if (days <= 7) return "bg-amber-500/15";
-  return "bg-green-500/15";
-}
-
-function getBarPercent(days: number): number {
-  // Assume 30-day max for visual scale
-  return Math.min(100, Math.max(5, (days / 30) * 100));
-}
+/** The bar's fill, its track and the words under it, by how the trial stands (lib/trial-pipeline trialBar). */
+const BAR_TONE: Record<TrialBarTone, { fill: string; track: string; ink: string }> = {
+  running: { fill: "bg-green-500", track: "bg-green-500/15", ink: "text-[var(--ink-green)]" },
+  ending: { fill: "bg-amber-500", track: "bg-amber-500/15", ink: "text-[var(--ink-amber)]" },
+  last: { fill: "bg-red-500", track: "bg-red-500/15", ink: "text-[var(--ink-red)]" },
+  ended: { fill: "bg-gray-400", track: "bg-gray-200", ink: "text-foreground/70" },
+};
 
 // ---------------------------------------------------------------------------
 // Extend Button Component
@@ -297,6 +290,8 @@ export default function TrialsPage() {
         <div className="pastel-card divide-y divide-[var(--card-border)]">
           {shownTrials.map((trial) => {
             const row = followUps.get(trial.id);
+            const bar = trialBar(trial);
+            const tone = BAR_TONE[bar.tone];
             return (
               <div key={trial.id}>
                 <div className="p-4 md:p-5 flex flex-col md:flex-row md:items-center gap-4">
@@ -322,28 +317,14 @@ export default function TrialsPage() {
                   <div className="md:flex-1 min-w-0">
                     <div className="flex items-center gap-3">
                       <div className="flex-1 min-w-0">
-                        <div className={`h-2.5 rounded-full ${getBarBg(trial.days_remaining, trial.is_expired)} overflow-hidden`}>
+                        <div className={`h-2.5 rounded-full ${tone.track} overflow-hidden`}>
                           <div
-                            className={`h-full rounded-full ${getBarColor(trial.days_remaining, trial.is_expired)} transition-all duration-500`}
-                            style={{
-                              width: trial.is_expired
-                                ? "100%"
-                                : `${getBarPercent(trial.days_remaining)}%`,
-                            }}
+                            className={`h-full rounded-full ${tone.fill} transition-all duration-500`}
+                            style={{ width: `${bar.percent}%` }}
                           />
                         </div>
                         <div className="flex items-center justify-between mt-1.5">
-                          <p
-                            className={`text-xs font-semibold ${
-                              trial.is_expired
-                                ? "text-foreground/70"
-                                : trial.days_remaining <= TRIAL_ENDING_DAYS
-                                  ? "text-[var(--ink-red)]"
-                                  : trial.days_remaining <= 7
-                                    ? "text-[var(--ink-amber)]"
-                                    : "text-[var(--ink-green)]"
-                            }`}
-                          >
+                          <p className={`text-xs font-semibold ${tone.ink}`}>
                             {trialDayLabel(trial)}
                           </p>
                           <p className="text-xs text-foreground/70">

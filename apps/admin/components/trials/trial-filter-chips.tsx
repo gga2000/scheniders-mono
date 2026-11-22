@@ -29,7 +29,7 @@ export function TrialFilterChips({ value, counts, onChange }: TrialFilterChipsPr
             )}
           >
             {TRIAL_FILTER_LABEL[filter]}
-            <span className={cn("tabular-nums", selected ? "text-background/70" : "text-foreground/50")}>{counts[filter]}</span>
+            <span className={cn("tabular-nums", selected ? "text-background/70" : "text-foreground/70")}>{counts[filter]}</span>
           </button>
         );
       })}

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  trialBar,
   inTrialFilter,
   trialFacts,
   trialFilterCounts,
@@ -142,5 +143,27 @@ describe("trialFollowUpResponseSchema", () => {
     });
     expect(parsed.trials[0]).toEqual(row());
     expect(() => trialFollowUpResponseSchema.parse({ trials: [{ ...row(), groups: ["day_2"] }] })).toThrow();
+  });
+});
+
+describe("trialBar", () => {
+  it("starts a 7-day trial full and green, and empties it as the days run", () => {
+    expect(trialBar({ trial_day: 0, days_remaining: 7, is_expired: false })).toEqual({ tone: "running", percent: 100 });
+    expect(trialBar({ trial_day: 3, days_remaining: 4, is_expired: false })).toEqual({ tone: "running", percent: 57 });
+  });
+
+  it("turns amber only from the 3 days the Ending number counts, and red on the last two days", () => {
+    expect(trialBar({ trial_day: 4, days_remaining: 3, is_expired: false }).tone).toBe("ending");
+    expect(trialBar({ trial_day: 5, days_remaining: 2, is_expired: false }).tone).toBe("ending");
+    expect(trialBar({ trial_day: 6, days_remaining: 1, is_expired: false }).tone).toBe("last");
+    expect(trialBar({ trial_day: 7, days_remaining: 0, is_expired: false })).toEqual({ tone: "last", percent: 5 });
+  });
+
+  it("reads free days as a longer trial, not a fuller one", () => {
+    expect(trialBar({ trial_day: 6, days_remaining: 8, is_expired: false })).toEqual({ tone: "running", percent: 57 });
+  });
+
+  it("fills an ended trial grey", () => {
+    expect(trialBar({ trial_day: 9, days_remaining: -2, is_expired: true })).toEqual({ tone: "ended", percent: 100 });
   });
 });
