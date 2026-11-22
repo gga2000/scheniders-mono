@@ -79,18 +79,28 @@ describe("POST /api/support/view: the viewer sign-in", () => {
     expect(called("updateUserById")).toBe(false);
   });
 
-  it("never takes over an account at the viewer address that the console did not make", async () => {
+  it("never takes over an account at the viewer address that the console did not make, and makes the viewer at a second address", async () => {
     answers.push(
       noViewerRow,
       emailExists,
       { data: { user: { id: "someone-else", app_metadata: { provider: "email" } } }, error: null },
+      { data: { user: { id: VIEWER } }, error: null },
+      ok,
+      ok,
+      link,
+      session,
     );
     const res = await start();
-    expect(res.status).toBe(409);
-    expect(((await res.json()) as { error: string }).error).toMatch(/already in use/);
-    for (const method of ["updateUserById", "upsert", "insert", "rpc"]) expect(called(method)).toBe(false);
-    expect(calls.filter((c) => c.method === "generateLink")).toEqual([
-      { method: "generateLink", args: [{ type: "magiclink", email: EMAIL }] },
+    // Audit R4-N1: an account signed up with a staff id switched View as merchant off for them (409).
+    expect(res.status).toBe(200);
+    for (const method of ["updateUserById", "deleteUser"]) expect(called(method)).toBe(false);
+    const made = calls.filter((c) => c.method === "createUser").map((c) => (c.args[0] as { email: string }).email);
+    expect(made[0]).toBe(EMAIL);
+    expect(made[1]).toMatch(new RegExp(`^support-viewer-${ADMIN_ID}-[0-9a-f-]{36}@usefermi\\.com$`));
+    expect(calls.find((c) => c.method === "insert")?.args[0]).toEqual({ user_id: VIEWER, admin_id: ADMIN_ID });
+    expect(calls.filter((c) => c.method === "generateLink").map((c) => c.args[0])).toEqual([
+      { type: "magiclink", email: EMAIL },
+      { type: "magiclink", email: made[1] },
     ]);
   });
 
@@ -99,8 +109,39 @@ describe("POST /api/support/view: the viewer sign-in", () => {
       noViewerRow,
       emailExists,
       { data: { user: { id: "someone-else", app_metadata: { support_viewer: "true" } } }, error: null },
+      { data: { user: { id: VIEWER } }, error: null },
+      ok,
+      ok,
+      link,
+      session,
     );
-    expect((await start()).status).toBe(409);
+    expect((await start()).status).toBe(200);
+    expect(calls.find((c) => c.method === "insert")?.args[0]).toEqual({ user_id: VIEWER, admin_id: ADMIN_ID });
+  });
+
+  it("makes the sign-in link for the address the viewer was made at", async () => {
+    const second = `support-viewer-${ADMIN_ID}-0b7c6a4e-1f2d-4c3b-9a8e-7d6c5b4a3f21@usefermi.com`;
+    answers.push({ data: { user_id: VIEWER }, error: null }, { data: { user: { id: VIEWER, email: second } }, error: null }, link, session);
+    expect((await start()).status).toBe(200);
+    expect(calls.filter((c) => c.method === "generateLink").map((c) => c.args[0])).toEqual([{ type: "magiclink", email: second }]);
+    expect(called("createUser")).toBe(false);
+  });
+
+  it("answers 500, and starts no look, when the viewer's address cannot be read", async () => {
+    answers.push({ data: { user_id: VIEWER }, error: null }, { data: { user: null }, error: { message: "down" } });
+    expect((await start()).status).toBe(500);
+    expect(called("generateLink")).toBe(false);
+    expect(called("rpc")).toBe(false);
+  });
+
+  it("answers 500 when the second address is taken too", async () => {
+    answers.push(
+      noViewerRow,
+      emailExists,
+      { data: { user: { id: "someone-else", app_metadata: {} } }, error: null },
+      emailExists,
+    );
+    expect((await start()).status).toBe(500);
     expect(called("insert")).toBe(false);
   });
 
