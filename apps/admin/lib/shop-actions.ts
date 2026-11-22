@@ -160,12 +160,23 @@ export interface RenewalOnFacts {
   walletIqd: number;
 }
 
-/** Why no job charges the shop right now (renew_subscription_core and settle_billing_lock answer on_hold). */
-const NOT_CHARGED_WHILE: Readonly<Record<string, string>> = {
-  limited: "The shop is paused, so nothing is charged until the pause lifts.",
-  suspended: "The shop is on hold, so nothing is charged until it comes back.",
-  cancelled: "The shop is cancelled, so nothing is charged.",
+/**
+ * A shop that no job charges and whose lock screen opens nothing until it is
+ * back: renew_subscription_core and settle_billing_lock answer on_hold for
+ * every status but trial and active. Both renewal sentences read this one
+ * table, so they say the same about one shop (round 24 structure new 4).
+ */
+const AWAY: Readonly<Record<string, { shop: string; until: string }>> = {
+  limited: { shop: "The shop is paused", until: "until the pause lifts" },
+  suspended: { shop: "The shop is on hold", until: "until it comes back" },
+  cancelled: { shop: "The shop is cancelled", until: "until it is made active again" },
 };
+
+/** Why no job charges the shop right now, or undefined when one may. */
+function notChargedWhile(status: string): string | undefined {
+  const away = AWAY[status];
+  return away && `${away.shop}, so nothing is charged ${away.until}.`;
+}
 
 /**
  * What turning renewal back on does, said before it is done (round 21, UX
@@ -178,7 +189,7 @@ const NOT_CHARGED_WHILE: Readonly<Record<string, string>> = {
 export function renewalOnWords(facts: RenewalOnFacts, now: Date = new Date()): string {
   const on = "Renewal turns on.";
   if (facts.demo) return `${on} The demo store is never charged.`;
-  const notCharged = NOT_CHARGED_WHILE[facts.status];
+  const notCharged = notChargedWhile(facts.status);
   if (facts.lock) {
     const price = formatIQD(facts.lock.price_iqd);
     if (notCharged) return `${on} ${notCharged} Then the wallet pays ${price} for the month and the shop opens.`;
@@ -196,25 +207,19 @@ export function renewalOnWords(facts: RenewalOnFacts, now: Date = new Date()): s
   return `${on} The month${after} is charged from the wallet as usual.`;
 }
 
-/** Until when a paused or held shop is left alone: no job charges it, and nothing opens its lock. */
-const UNTIL_BACK: Readonly<Record<string, { shop: string; until: string }>> = {
-  limited: { shop: "The shop is paused", until: "until the pause lifts" },
-  suspended: { shop: "The shop is on hold", until: "until it comes back" },
-};
-
 /**
  * What stopping renewal does, said before it is done, from the same facts as
  * renewalOnWords (round 22). The demo store renews at no charge whatever the
  * switch says (renew_subscription_core skips renewal off for it). A shop that
  * is locked already stays locked, and no hourly run charges it any more. A
- * trial's end is not charged; otherwise this month runs to its end. A paused
- * or held shop is said first: nothing is charged and its lock screen opens
+ * trial's end is not charged; otherwise this month runs to its end. A paused,
+ * held or cancelled shop is said first: nothing is charged and its lock screen opens
  * nothing until it comes back (settle_billing_lock answers on_hold), and only
  * then does the rest happen (round 23 data new 2).
  */
 export function renewalOffWords(facts: RenewalOnFacts, now: Date = new Date()): string {
   if (facts.demo) return "The demo store still renews each month at no charge: this switch changes nothing there.";
-  const away = UNTIL_BACK[facts.status];
+  const away = AWAY[facts.status];
   if (facts.lock) {
     const opens = `It opens when ${renewalOffOpens(facts.lock.price_iqd)}.`;
     return away

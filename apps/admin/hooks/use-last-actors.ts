@@ -1,6 +1,6 @@
 "use client";
 
-import { useQueries } from "@tanstack/react-query";
+import { useQueries, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { adminFetch } from "@/lib/admin-fetch";
 
 export interface LastActor {
@@ -33,8 +33,29 @@ export interface LastActors {
   retry: () => void;
 }
 
+const LAST_ACTORS_KEY = ["admin", "last-actors"] as const;
+
+/**
+ * The badges already read for these shops, from any page's answer. A new shop
+ * at the top moves one shop from each page to the next, so every page asks
+ * again under a new key; until it answers, each shop keeps the badge it had
+ * (round 24 structure new 7). Undefined when none of them was read yet.
+ */
+function knownActors(client: QueryClient, ids: readonly string[]): Record<string, LastActor> | undefined {
+  const known = new Map<string, LastActor>();
+  for (const [, answer] of client.getQueriesData<Record<string, LastActor>>({ queryKey: LAST_ACTORS_KEY })) {
+    for (const [id, actor] of Object.entries(answer ?? {})) known.set(id, actor);
+  }
+  const kept = ids.flatMap((id) => {
+    const actor = known.get(id);
+    return actor ? [[id, actor] as const] : [];
+  });
+  return kept.length > 0 ? Object.fromEntries(kept) : undefined;
+}
+
 /** `pages`: the shop ids of each page the server sent, in its own order. */
 export function useLastActors(pages: readonly (readonly string[])[]): LastActors {
+  const client = useQueryClient();
   const chunks: string[][] = [];
   for (const page of pages) {
     for (let i = 0; i < page.length; i += LAST_ACTORS_CHUNK) {
@@ -43,7 +64,7 @@ export function useLastActors(pages: readonly (readonly string[])[]): LastActors
   }
   return useQueries({
     queries: chunks.map((ids) => ({
-      queryKey: ["admin", "last-actors", [...ids].sort().join(",")],
+      queryKey: [...LAST_ACTORS_KEY, [...ids].sort().join(",")],
       queryFn: async (): Promise<Record<string, LastActor>> => {
         const res = await adminFetch("/api/admin/last-actors", {
           method: "POST",
@@ -54,6 +75,7 @@ export function useLastActors(pages: readonly (readonly string[])[]): LastActors
         return ((await res.json()) as { actors: Record<string, LastActor> }).actors;
       },
       staleTime: 60_000,
+      placeholderData: () => knownActors(client, ids),
     })),
     combine: (results) => {
       // A chunk that keeps an earlier answer still shows its badges.

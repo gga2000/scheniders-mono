@@ -9,11 +9,17 @@ import type { AdminTenant } from "@/types/admin";
  * the tab. A failed read kept the last shops with nothing to say they may be
  * old, and the count beside the title turned to "—" though the shops were
  * still on screen, as it did when only "load more" failed.
+ *
+ * Round 24 structure new 6: the line for badges that could not be read was
+ * tested in the hook only; nothing checked the page draws it.
  */
 
 type ListRead = Record<string, unknown>;
 let list: ListRead;
 vi.mock("@/hooks/use-infinite-merchants", () => ({ useInfiniteMerchants: () => list }));
+type Badges = import("@/hooks/use-last-actors").LastActors;
+let badges: Badges;
+vi.mock("@/hooks/use-last-actors", () => ({ useLastActors: () => badges }));
 vi.mock("@/hooks/use-admin-auth", () => ({
   useAdminAuth: () => ({ role: "super_admin" }),
   useCan: () => () => true,
@@ -73,8 +79,11 @@ const loaded = {
 const render = () =>
   renderToStaticMarkup(createElement(QueryClientProvider, { client: new QueryClient() }, createElement(MerchantsPage)));
 
+const noBadgeTrouble: Badges = { actors: {}, failed: false, error: null, retrying: false, retry: () => {} };
+
 beforeEach(() => {
   list = { ...loaded };
+  badges = noBadgeTrouble;
 });
 
 describe("Merchants after a failed read again", () => {
@@ -102,5 +111,19 @@ describe("Merchants after a failed read again", () => {
     const html = render();
     expect(html).not.toContain("Could not refresh");
     expect(html).toMatch(/>37<\/span>/);
+  });
+});
+
+describe("Merchants when some badges could not be read", () => {
+  it("says so over the cards, with Try again, and keeps the shops", () => {
+    badges = { ...noBadgeTrouble, failed: true, error: new TypeError("Failed to fetch") };
+    const html = render();
+    expect(html).toContain("Could not load who last acted on some shops.");
+    expect(html).toContain("Try again");
+    expect(html).toContain("Kut Perfumes");
+  });
+
+  it("says nothing when every badge was read", () => {
+    expect(render()).not.toContain("who last acted");
   });
 });

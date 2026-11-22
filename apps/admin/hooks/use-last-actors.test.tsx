@@ -13,6 +13,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
  * starred shops up, so starring one asked again for every chunk above it and
  * blanked those badges; a chunk that failed looked like "nobody acted". The
  * chunks now follow the pages the server sent, and a failed one is said.
+ *
+ * Round 24 structure new 7: a new shop at the top moves one shop from each
+ * page to the next, so every page asked again under a new key and every
+ * badge went blank until the answers came. Each shop now keeps its badge.
  */
 
 const send = vi.hoisted(() => vi.fn());
@@ -70,6 +74,30 @@ describe("Merchants' last-done-by badges", () => {
     rerender({ ids: [...first, ...more] });
     await waitFor(() => expect(Object.keys(result.current.actors)).toHaveLength(150));
     expect(asked()).toEqual([more]);
+  });
+
+  it("keeps every shop's badge while the pages ask again after a new shop moves them", async () => {
+    serve();
+    const old = Array.from({ length: 100 }, (_, i) => shopId(i));
+    const client = new QueryClient();
+    const wrapper = ({ children }: { children: ReactNode }) => createElement(QueryClientProvider, { client }, children);
+    const { result, rerender } = renderHook(({ ids }) => useLastActors(pagesOf(ids)), { wrapper, initialProps: { ids: old } });
+    await waitFor(() => expect(Object.keys(result.current.actors)).toHaveLength(100));
+    const answer = send.getMockImplementation();
+    let release = () => {};
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    send.mockImplementation(async (url: string, init: RequestInit) => {
+      await held;
+      return answer?.(url, init);
+    });
+    rerender({ ids: [shopId(999), ...old] });
+    await waitFor(() => expect(asked()).toHaveLength(2 + 3));
+    expect(Object.keys(result.current.actors).sort()).toEqual([...old].sort());
+    expect(result.current.failed).toBe(false);
+    act(() => release());
+    await waitFor(() => expect(Object.keys(result.current.actors)).toHaveLength(101));
   });
 
   it("asks nothing when no shop is loaded", () => {
