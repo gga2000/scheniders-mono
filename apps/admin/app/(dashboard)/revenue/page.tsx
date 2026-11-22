@@ -90,16 +90,16 @@ export default function RevenuePage() {
         <p className="text-[13px] text-foreground/70">
           Fees shops paid us: monthly plan, delivered orders and paid messages. Months on Baghdad time.
         </p>
-{isError && (
-  <LoadFailedLine
-    what="the fee numbers"
-    shownFrom={dataUpdatedAt}
-    error={error}
-    onRetry={() => refetch()}
-    retrying={isFetching}
-    className="mt-2"
-  />
-)}
+        {isError && (
+          <LoadFailedLine
+            what="the fee numbers"
+            shownFrom={dataUpdatedAt}
+            error={error}
+            onRetry={() => refetch()}
+            retrying={isFetching}
+            className="mt-2"
+          />
+        )}
       </div>
 
       {/* KPI Row */}
