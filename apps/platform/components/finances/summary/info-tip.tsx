@@ -73,7 +73,7 @@ export function InfoTip({ text, textDir, align = "start", className, testId }: I
                 role="tooltip"
                 hidden={!open}
                 className={cn(
-                    "absolute top-full z-30 mt-1.5 block w-[280px] rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] p-3 text-left text-[12.5px] font-normal leading-relaxed text-foreground shadow-lg",
+                    "absolute top-full z-30 mt-1.5 block w-[280px] whitespace-normal rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] p-3 text-left text-[12.5px] font-normal leading-relaxed text-foreground shadow-lg",
                     side === "start" ? "left-0" : "right-0",
                 )}
                 dir={textDir}
