@@ -180,8 +180,8 @@ export function NotificationBell() {
               </div>
             )}
 
-            {/* A daily billing job missed shops: trial not paused or month not renewed */}
-            {billingMissed && billingCheck && <BillingCheckAlert check={billingCheck} />}
+            {/* The daily renewal job missed shops: a trial or a month it did not reach */}
+            {billingMissed && billingCheck && <BillingCheckAlert check={billingCheck} onOpen={() => setIsOpen(false)} />}
 
             {/* An hourly job failed or stopped, or a pause did not lift on its own */}
             {hourlyMissed && hourlyCheck && <HourlyJobsAlert check={hourlyCheck} />}
