@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
+import { newestCheckValues } from "./sql-migrations.test-data";
 import {
+  SUPPORT_REASONS,
   CaseActionSchema,
   fillSavedReply,
   formatAgo,
@@ -372,5 +374,16 @@ describe("waitingOnUsLine", () => {
     expect(waitingOnUsLine({ count: undefined, isError: false })).toBe("Loading...");
     expect(waitingOnUsLine({ count: undefined, isError: true })).toBe("Could not check who is waiting on us");
     expect(waitingOnUsLine({ count: 0, isError: true })).toBe("Could not check who is waiting on us");
+  });
+});
+
+/*
+ * Round 22 (structure new 6): the reasons live here and in the database's
+ * check. The scoreboard reads reasons with z.enum(SUPPORT_REASONS), so a
+ * reason added in SQL alone fails the whole scoreboard, not one row.
+ */
+describe("SUPPORT_REASONS", () => {
+  it("is the list the newest support_cases_reason_check allows", () => {
+    expect([...SUPPORT_REASONS].sort()).toEqual(newestCheckValues("support_cases_reason_check").sort());
   });
 });
