@@ -10,6 +10,8 @@ const consoleApi = vi.hoisted(() => ({
   refuseImport: null as string | null,
   /** A promise the images call waits on, so a test can leave mid-run. */
   imagesGate: null as Promise<void> | null,
+  /** Who the tab is signed in as. */
+  user: "staff-a" as string | null,
 }));
 const toasts = vi.hoisted(() => ({ success: [] as unknown[][], error: [] as unknown[][] }));
 vi.mock("sonner", () => ({
@@ -19,6 +21,7 @@ vi.mock("sonner", () => ({
   },
 }));
 vi.mock("@/lib/admin-fetch", () => ({
+  signedInUserId: async () => consoleApi.user,
   adminFetch: async (url: string, init: RequestInit) => {
     expect(url).toBe("/api/merchants/s1/product-import/read");
     expect(init.body).toBeInstanceOf(FormData);
@@ -64,6 +67,7 @@ beforeEach(() => {
   consoleApi.posts = [];
   consoleApi.refuseImport = null;
   consoleApi.imagesGate = null;
+  consoleApi.user = "staff-a";
   toasts.success = [];
   toasts.error = [];
   consoleApi.readAnswer = {
@@ -165,6 +169,53 @@ describe("ProductImportFlow", () => {
     expect(toasts.error[0]?.[0]).toBe("Kawkab: import done. Added 1 of 1 product. Images: 1 of 2 saved.");
     expect(toasts.success).toHaveLength(0);
     expect(leaving()).toBe(false);
+  });
+
+  // Round 24: signing out and in stay inside the tab, so the run outlived
+  // them and sent the rest of the import as the next person to sign in.
+  it("sends nothing more once someone else is signed in on the tab, and tells them nothing", async () => {
+    let open = () => {};
+    consoleApi.imagesGate = new Promise((resolve) => {
+      open = resolve;
+    });
+    consoleApi.readAnswer = {
+      ...(consoleApi.readAnswer as object),
+      file: {
+        sheet: "Sheet1",
+        headers: ["الاسم", "السعر", "صورة"],
+        rows: [
+          ["عطر عود", "35,000", "https://a.example/1.jpg"],
+          ["مسك", "9,000", "https://a.example/2.jpg"],
+          ["عنبر", "12,000", "https://a.example/3.jpg"],
+          ["زعفران", "15,000", "https://a.example/4.jpg"],
+        ],
+        firstRow: 2,
+      },
+      mapping: ["name", "price", "images"],
+    };
+    const view = await readTheFile();
+    fireEvent.click(screen.getByText("Check the rows"));
+    fireEvent.click(screen.getByText("Import 4 products"));
+    // Three photo calls at once: the fourth waits for one of them.
+    await waitFor(() => expect(consoleApi.posts.filter((p) => p.url.endsWith("/images"))).toHaveLength(3));
+    view.unmount();
+    consoleApi.user = "staff-b";
+    open();
+    await waitFor(() => expect(leaving()).toBe(false));
+    expect(consoleApi.posts.filter((p) => p.url.endsWith("/images"))).toHaveLength(3);
+    expect(toasts.success).toHaveLength(0);
+    expect(toasts.error).toHaveLength(0);
+  });
+
+  it("says why the rest was not sent when the person who started it signed out", async () => {
+    await readTheFile();
+    fireEvent.click(screen.getByText("Check the rows"));
+    fireEvent.click(screen.getByText("Import 1 product"));
+    // The batch left on the press; the photos would leave after it.
+    consoleApi.user = null;
+    await screen.findByText("Images: 0 of 2 saved.");
+    expect(screen.getAllByText(/The import stopped: the person who started it is no longer signed in on this tab/).length).toBeGreaterThan(0);
+    expect(consoleApi.posts.map((p) => p.url)).toEqual(["/api/merchants/s1/product-import"]);
   });
 
   it("gives the file's photos to a product the shop has with none, with nothing new to add", async () => {

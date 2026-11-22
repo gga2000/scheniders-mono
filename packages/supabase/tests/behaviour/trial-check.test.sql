@@ -533,3 +533,28 @@ SELECT pg_temp.check(
   (SELECT first_order_at > now() - interval '2 hours' FROM public.trial_customer_digests
     WHERE tenant_id = 'c0000000-0000-4000-8000-000000000009' AND digest = pg_temp.customer(7015)),
   'the customer keeps the later date');
+
+-- Round 24: the trigger screens on plain columns, since the merchant who
+-- edits an order may not call trial_counts_order. Every column that function
+-- reads and every status it counts must be in the screen: a new rule there
+-- with no column here would leave its customers on the list, with every case
+-- above still passing.
+WITH fn AS (
+  SELECT prosrc FROM pg_proc WHERE oid = 'public.trial_counts_order(public.orders)'::regprocedure
+), cols AS (
+  SELECT DISTINCT m[1] AS col FROM fn, regexp_matches(fn.prosrc, '_o\.([a-z_]+)', 'g') m
+), statuses AS (
+  SELECT DISTINCT m[1] AS s
+    FROM fn, regexp_matches(substring(fn.prosrc FROM 'status\s+IN\s*\(([^)]*)\)'), '''([a-z_]+)''', 'g') m
+), screens AS (
+  SELECT tgname, pg_get_triggerdef(oid) AS def FROM pg_trigger
+   WHERE tgrelid = 'public.orders'::regclass AND tgname IN ('trial_customer_left_update', 'trial_customer_left_delete')
+)
+SELECT pg_temp.check(
+  (SELECT count(*) FROM screens) = 2
+  AND (SELECT count(*) FROM cols) >= 5
+  AND (SELECT count(*) FROM statuses) >= 1
+  AND (SELECT bool_and(def LIKE '%(old.' || col || ' IS DISTINCT FROM new.' || col || ')%')
+         FROM cols, screens WHERE tgname = 'trial_customer_left_update')
+  AND (SELECT bool_and(def LIKE '%''' || s || '''::text%') FROM statuses, screens),
+  'the trigger screens on every column trial_counts_order reads and every status it counts');

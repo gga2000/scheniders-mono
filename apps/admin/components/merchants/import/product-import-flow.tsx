@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { AnswerLost, postJson, useStillDrawn } from "@/components/merchants/detail/action-ui";
 import { holdLeaveGuard, useLinkLeaveQuestion } from "@/hooks/use-leave-guard";
+import { signedInUserId } from "@/lib/admin-fetch";
 import { planImport, type ColumnMapping } from "@/lib/product-import";
 import { checkRows, importOutcome, runProductImport, type Answer, type ImportProgress, type ReadAnswer } from "@/lib/product-import-run";
 import { ImportCheckStep } from "./import-check-step";
@@ -12,9 +13,22 @@ import { ImportFileStep } from "./import-file-step";
 import { ImportRunPanel } from "./import-run-panel";
 import { ImportStepChips, type ImportStep } from "./import-step-chips";
 
-/** One console call, as the run reads it: its JSON, the route's own error, or a lost answer. */
-async function answer(url: string, body: unknown): Promise<Answer> {
+/** Said for each call left once the person who started the import is no longer the one signed in. */
+const SIGNED_OUT = "The import stopped: the person who started it is no longer signed in on this tab.";
+
+/**
+ * One console call, as the run reads it: its JSON, the route's own error, or
+ * a lost answer. It is sent only while the person who started the run
+ * (`starter`) is still the one signed in on this tab. Signing out and in are
+ * moves inside the tab, so the run outlives them, and each call carries
+ * whoever is signed in when it leaves: without this, the next person to sign
+ * in would send the rest of the import and be logged for it (console audit
+ * round 24).
+ */
+async function answer(url: string, body: unknown, starter: Promise<string | null>): Promise<Answer> {
   try {
+    const [startedBy, now] = await Promise.all([starter, signedInUserId()]);
+    if (startedBy === null || now !== startedBy) return { ok: false, error: SIGNED_OUT, lost: false };
     return { ok: true, body: await postJson(url, body) };
   } catch (error) {
     return {
@@ -64,20 +78,25 @@ export function ProductImportFlow({ shopId, shopName }: { shopId: string; shopNa
     // Let go of the guard in the same step that shows the run as done, so
     // the words "done" never sit beside a question about leaving.
     const release = holdLeaveGuard();
+    // Read now, awaited by the first call, so nothing waits before the run
+    // shows as started (a second press finds it locked).
+    const starter = signedInUserId().catch(() => null);
     const done = await runProductImport({
       fileName: read.fileName,
       products: plan.products,
       photosOnly: plan.photosOnly,
       calls: {
-        importBatch: (body) => answer(`/api/merchants/${shopId}/product-import`, body),
-        saveImages: (body) => answer(`/api/merchants/${shopId}/product-import/images`, body),
+        importBatch: (body) => answer(`/api/merchants/${shopId}/product-import`, body, starter),
+        saveImages: (body) => answer(`/api/merchants/${shopId}/product-import/images`, body, starter),
       },
       onProgress: (next) => {
         if (next.phase === "done") release();
         setProgress(next);
       },
     }).finally(release);
-    if (!stillDrawn()) {
+    // Said where staff are, and only to the person who started it: someone
+    // else signed in on this tab since is not told of it.
+    if (!stillDrawn() && (await starter) === (await signedInUserId().catch(() => null))) {
       const outcome = importOutcome(shopName, done);
       (outcome.ok ? toast.success : toast.error)(outcome.title, outcome.description ? { description: outcome.description } : undefined);
     }

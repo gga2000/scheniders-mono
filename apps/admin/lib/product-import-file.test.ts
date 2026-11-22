@@ -419,6 +419,11 @@ describe("the reader's temporary files", () => {
       `${XML}<r:Relationships xmlns:r="${RELS}"/>`,
       `${XML}<?links <Relationships ?>`,
       `${XML}<!DOCTYPE r [<!ENTITY e "<Relationships">]><r/>`,
+      // Round 24: a start tag cut off at the end of the part is no tag to the reader's parser.
+      `${XML}<Relationships xmlns="${RELS}"`,
+      "<Relationships ",
+      `${XML}<Relationships/`,
+      `${XML}<Relationships xmlns="`,
     ]) {
       const book = bookEntries([broken, fine, fine]).map((entry) =>
         entry.name === "xl/_rels/workbook.xml.rels" ? { ...entry, data: utf8(links) } : entry,
@@ -434,7 +439,7 @@ describe("the reader's temporary files", () => {
   it("finds the Relationships element as the reader does", () => {
     expect(hasLinksRoot(`${XML}<Relationships xmlns="${RELS}"></Relationships>`)).toBe(true);
     expect(hasLinksRoot("<Relationships/>")).toBe(true);
-    expect(hasLinksRoot("<Relationships\n xmlns='x'>")).toBe(true);
+    expect(hasLinksRoot("<Relationships\n xmlns='x'></Relationships>")).toBe(true);
     expect(hasLinksRoot(`${XML}\r\n<!-- saved by hand -->\n<Relationships xmlns="${RELS}"/>`)).toBe(true);
     expect(hasLinksRoot("<!-- <Relationships> --><RelationshipsX/>")).toBe(false);
     expect(hasLinksRoot("<!-- a -- b --><Relationships/>")).toBe(false);
@@ -442,6 +447,11 @@ describe("the reader's temporary files", () => {
     expect(hasLinksRoot(`${XML}<?pi x?><Relationships/>`)).toBe(false);
     expect(hasLinksRoot(`<!DOCTYPE r [<!ENTITY e "<Relationships>">]><r>&e;</r>`)).toBe(false);
     expect(hasLinksRoot(`<x><Relationships/></x>`)).toBe(false);
+    for (const cut of [`${XML}<Relationships xmlns="${RELS}"`, "<Relationships ", "<Relationships/", `<Relationships xmlns="a>`]) {
+      expect(hasLinksRoot(cut)).toBe(false);
+    }
+    expect(hasLinksRoot(`${XML}<Relationships xmlns="${RELS}"><Relationship Id="rId1"/>`)).toBe(false);
+    expect(hasLinksRoot(`${XML}<Relationships xmlns="${RELS}" xmlns="${RELS}"/>`)).toBe(false);
     expect(hasLinksRoot("")).toBe(false);
   });
 });
