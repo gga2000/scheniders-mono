@@ -259,10 +259,7 @@ export function CourierPayments({ summary, onAddPayment }: CourierPaymentsProps)
                                 </dt>
                                 <dd className="shrink-0">
                                     {/* A difference that adds to the payments carries its sign, like the ones that take away. */}
-                                    <span className="whitespace-nowrap font-semibold text-foreground" dir="ltr">
-                                        {part.key !== "now" && part.amount > 0 && "+"}
-                                        <Money value={part.amount} />
-                                    </span>
+                                    <Money value={part.amount} plus={part.key !== "now"} className="font-semibold text-foreground" />
                                 </dd>
                             </div>
                         );

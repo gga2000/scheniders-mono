@@ -6,12 +6,14 @@ import { setTabTitlePart } from "@/lib/tab-title";
 
 /**
  * The page's name for the tab: the sidebar label of its first path segment
- * ("/finances/advanced" → "nav.finances"), or "" for a page the sidebar does not
+ * ("/orders/x" → "nav.orders"), or "" for a page the sidebar does not
  * name. `t` returns the key itself when it has no translation.
  */
 export function pageTabTitle(pathname: string | null, t: (key: string) => string): string {
-    const segment = pathname?.split("/")[1];
+    const [, segment, sub] = pathname?.split("/") ?? [];
     if (!segment) return "";
+    // The old finance page keeps its own name, so its tab is not mistaken for the Finances page.
+    if (segment === "finances" && sub === "advanced") return t("finances.header.title");
     const key = `nav.${segment}`;
     const label = t(key);
     return label === key ? "" : label;
