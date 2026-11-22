@@ -9,7 +9,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { LoadError } from "@/components/shared/load-error";
-import { LoadFailedLine } from "@/components/shared/load-failed-line";
+import { StaleLine } from "@/components/shared/stale-line";
 import { okOrLoadFailure } from "@/lib/load-failure";
 import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
 import { formatCount, formatIQD } from "@/lib/format";
@@ -91,12 +91,13 @@ async function fetchHealth(): Promise<HealthData> {
 
 export default function HealthPage() {
   const canTopUp = useCan()("top_up_wallet");
-  const { data, isLoading, isError, error, refetch, isFetching, dataUpdatedAt } = useQuery<HealthData>({
+  const pageRead = useQuery<HealthData>({
     queryKey: ["admin", "health"],
     queryFn: fetchHealth,
     staleTime: 30_000,
     refetchInterval: 60_000,
   });
+  const { data, isLoading, isError, error, refetch, isFetching } = pageRead;
 
   if (isError && !data) {
     return <LoadError what="the health numbers" error={error} onRetry={() => refetch()} retrying={isFetching} />;
@@ -120,16 +121,7 @@ export default function HealthPage() {
       {/* Header */}
       <div>
         <h1 className="text-[22px] font-semibold text-foreground">Shops at risk</h1>
-        {isError && (
-          <LoadFailedLine
-            what="the health numbers"
-            shownFrom={dataUpdatedAt}
-            error={error}
-            onRetry={() => refetch()}
-            retrying={isFetching}
-            className="mt-2"
-          />
-        )}
+        <StaleLine read={pageRead} what="the health numbers" className="mt-2" />
       </div>
 
       {/* Platform Status Bar. While the read runs, a neutral bar of the same

@@ -24,7 +24,7 @@ import { MerchantWatchlistWidget } from "@/components/merchants/merchant-watchli
 import { Loader2 } from "lucide-react";
 import { SeedAutomationToggle } from "@/components/dashboard/seed-automation-toggle";
 import { LoadError } from "@/components/shared/load-error";
-import { LoadFailedLine } from "@/components/shared/load-failed-line";
+import { StaleLine } from "@/components/shared/stale-line";
 
 const staggerContainer = {
   initial: {},
@@ -42,13 +42,13 @@ const staggerItem = {
 };
 
 export default function CommandCenterPage() {
+  const pageRead = useDashboardV2();
   const {
     isLoading,
     isError,
     error,
     isFetching,
     refetch,
-    dataUpdatedAt,
     kpis,
     platformStats,
     pipeline,
@@ -66,7 +66,7 @@ export default function CommandCenterPage() {
     merchantLTV,
     topUpPatterns,
     data,
-  } = useDashboardV2();
+  } = pageRead;
 
   if (isLoading) {
     return (
@@ -78,7 +78,7 @@ export default function CommandCenterPage() {
 
   // Only when there is nothing to show: a failed background refresh keeps the last good numbers.
   if (isError && !data) {
-    return <LoadError what="the dashboard" onRetry={() => refetch()} retrying={isFetching} />;
+    return <LoadError what="the dashboard" error={error} onRetry={() => refetch()} retrying={isFetching} />;
   }
 
   return (
@@ -90,16 +90,7 @@ export default function CommandCenterPage() {
           <p className="text-foreground-muted mt-1">
             Platform overview and key metrics
           </p>
-          {isError && (
-            <LoadFailedLine
-              what="the dashboard"
-              shownFrom={dataUpdatedAt}
-              error={error}
-              onRetry={() => refetch()}
-              retrying={isFetching}
-              className="mt-2"
-            />
-          )}
+          <StaleLine read={pageRead} what="the dashboard" className="mt-2" />
         </div>
         <SeedAutomationToggle />
       </div>

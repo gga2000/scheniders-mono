@@ -66,6 +66,7 @@ describe("the phone's lead page", () => {
     show({
       data: { lead, activities: [], follow_ups: [], social_links: [], competitors: [] },
       isError: true,
+      isRefetchError: true,
       error: new LoadFailure(404, "lead"),
     });
 
@@ -80,6 +81,7 @@ describe("the phone's lead page", () => {
     show({
       data: { lead, activities: [], follow_ups: [], social_links: [], competitors: [] },
       isError: true,
+      isRefetchError: true,
       error: Object.assign(new Error("Failed to load lead"), { status: 500 }),
     });
 

@@ -66,12 +66,12 @@ afterEach(cleanup);
 
 describe("the lead page after a failed read again", () => {
   it("keeps the lead on screen and says the read failed, with Try again", () => {
-    show({ data: { lead, activities: [], follow_ups: [], social_links: [], competitors: [] }, isError: true, error: failed });
+    show({ data: { lead, activities: [], follow_ups: [], social_links: [], competitors: [] }, isError: true, isRefetchError: true, error: failed });
 
     expect(screen.getByRole("heading", { name: "Kawkab" })).toBeTruthy();
     expect(screen.getByRole("alert").textContent).toMatch(/^Could not refresh this lead\. This page is from (Sun 22 Nov, )?20:00\./);
     expect(screen.getByRole("button", { name: "Try again" })).toBeTruthy();
-    expect(screen.queryByText("Failed to load lead")).toBeNull();
+    expect(screen.queryByText(/Could not load this lead/)).toBeNull();
   });
 
   // Round 14 (reliability new 2): a colleague deleted the lead while it was
@@ -80,6 +80,7 @@ describe("the lead page after a failed read again", () => {
     show({
       data: { lead, activities: [], follow_ups: [], social_links: [], competitors: [] },
       isError: true,
+      isRefetchError: true,
       error: new LoadFailure(404, "lead"),
     });
 
@@ -91,10 +92,14 @@ describe("the lead page after a failed read again", () => {
     expect(screen.getByRole("link", { name: /Back to Leads/ })).toBeTruthy();
   });
 
-  it("shows the error page only for a lead that was never read", () => {
+  // Round 23: the never-read page said "Something went wrong. Please try
+  // again later." with nothing to press; it is the console's load error now.
+  it("shows the error page, with Try again, only for a lead that was never read", () => {
     show({ data: undefined, isError: true, error: failed });
 
-    expect(screen.getByText("Failed to load lead")).toBeTruthy();
+    expect(screen.getByText(/Could not load this lead/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Try again" })).toBeTruthy();
+    expect(screen.queryByText(/Please try again later/)).toBeNull();
   });
 
   it("says nothing extra while the lead reads fine", () => {

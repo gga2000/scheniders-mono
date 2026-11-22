@@ -30,6 +30,7 @@ import { KeyboardShortcutsOverlay } from "@/components/merchants/keyboard-shortc
 import { ErrorBoundary } from "@/components/shared/error-boundary";
 import { LoadError } from "@/components/shared/load-error";
 import { LoadFailedLine } from "@/components/shared/load-failed-line";
+import { StaleLine } from "@/components/shared/stale-line";
 import { downloadSelectedShops } from "@/lib/download-export";
 import {
   EASE_CROSSFADE,
@@ -65,14 +66,13 @@ export default function MerchantsPage() {
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
 
+  const pageRead = useInfiniteMerchants(50);
   const {
     data,
-    dataUpdatedAt,
     merchants,
     total,
     isLoading,
     isError,
-    isRefetchError,
     error,
     isFetching,
     refetch,
@@ -81,7 +81,7 @@ export default function MerchantsPage() {
     isFetchNextPageError,
     fetchNextPage,
     pageIds,
-  } = useInfiniteMerchants(50);
+  } = pageRead;
 
   const lastActors = useLastActors(pageIds);
 
@@ -323,16 +323,7 @@ export default function MerchantsPage() {
         />
       </div>
 
-      {isRefetchError && merchants.length > 0 && (
-        <LoadFailedLine
-          what="the merchants"
-          shownFrom={dataUpdatedAt}
-          kept="list"
-          error={error}
-          onRetry={() => refetch()}
-          retrying={isFetching}
-        />
-      )}
+      <StaleLine read={pageRead} what="the merchants" kept="list" />
 
       {lastActors.failed && viewMode === "cards" && merchants.length > 0 && (
         <LoadFailedLine
@@ -356,7 +347,7 @@ export default function MerchantsPage() {
           >
             <MerchantCardGridSkeleton count={8} />
           </motion.div>
-        ) : isError && merchants.length === 0 ? (
+        ) : isError && !data ? (
           <LoadError what="the merchants" error={error} onRetry={() => refetch()} retrying={isFetching} />
         ) : merchants.length === 0 ? (
           <MerchantEmptyState

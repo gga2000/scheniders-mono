@@ -11,7 +11,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { LoadError } from "@/components/shared/load-error";
-import { LoadFailedLine } from "@/components/shared/load-failed-line";
+import { StaleLine } from "@/components/shared/stale-line";
 import { okOrLoadFailure } from "@/lib/load-failure";
 import { formatDayTime, formatWhen } from "@/lib/format";
 import { staffActionText, staffLogSummary } from "@/lib/staff-actions";
@@ -97,7 +97,7 @@ export default function ActivityLogPage() {
   params.set("limit", String(limit));
   if (kindFilter) params.set("kind", kindFilter);
 
-  const { data, dataUpdatedAt, isLoading, isError, error, refetch, isFetching } = useQuery<ActivityResponse>({
+  const pageRead = useQuery<ActivityResponse>({
     queryKey: ["admin", "activity", page, kindFilter],
     queryFn: async () => {
       const res = okOrLoadFailure(await adminFetch(`/api/activity?${params.toString()}`), "the activity log");
@@ -105,6 +105,7 @@ export default function ActivityLogPage() {
     },
     staleTime: 30_000,
   });
+  const { data, isLoading, isError, error, refetch, isFetching } = pageRead;
 
   if (isError && !data) {
     return <LoadError what="the activity log" error={error} onRetry={() => refetch()} retrying={isFetching} />;
@@ -122,17 +123,7 @@ export default function ActivityLogPage() {
         <p className="text-[13px] text-foreground/70">
           {isLoading ? "Loading..." : `${total} log entr${total !== 1 ? "ies" : "y"}`}
         </p>
-        {isError && (
-          <LoadFailedLine
-            what="the activity log"
-            shownFrom={dataUpdatedAt}
-            kept="list"
-            error={error}
-            onRetry={() => refetch()}
-            retrying={isFetching}
-            className="mt-2"
-          />
-        )}
+        <StaleLine read={pageRead} what="the activity log" kept="list" className="mt-2" />
       </div>
 
       {/* Filter Bar */}
