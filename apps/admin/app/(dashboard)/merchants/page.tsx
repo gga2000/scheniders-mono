@@ -78,8 +78,7 @@ export default function MerchantsPage() {
   } = useInfiniteMerchants(50);
 
   const visibleTenantIds = merchants.map((m) => m.id);
-  const { data: lastActorsData } = useLastActors(visibleTenantIds);
-  const lastActorsMap = lastActorsData?.actors ?? {};
+  const lastActorsMap = useLastActors(visibleTenantIds);
 
   const {
     viewMode,
