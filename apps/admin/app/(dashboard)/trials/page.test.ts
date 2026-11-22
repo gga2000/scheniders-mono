@@ -100,6 +100,7 @@ describe("the follow-up line on Trials", () => {
     expect(html).toContain('href="https://wa.me/9647701234567"');
     expect(html).toContain("WhatsApp owner");
     expect(html).toContain("Mark contacted");
+    expect(html).toContain("Copy report for WhatsApp");
     // The row above it is as it was.
     expect(html).toContain("Paused: ask a super admin to lift it");
     expect(html).toContain("Najaf Gifts");

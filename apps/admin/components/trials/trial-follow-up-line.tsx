@@ -3,13 +3,14 @@
 import { MessageCircle } from "lucide-react";
 import { toIntlIraqi } from "@/components/leads/lead-phone";
 import { MarkContacted } from "@/components/trials/mark-contacted";
+import { CopyTrialReport } from "@/components/trials/copy-trial-report";
 import { formatAgo } from "@/lib/support";
 import { trialFacts, type TrialFollowUpRow } from "@/lib/trial-pipeline";
 
 interface TrialFollowUpLineProps {
   row: TrialFollowUpRow;
   shopName: string;
-  /** Staff who may log support calls see "Mark contacted". */
+  /** Staff who handle support see "Mark contacted" and "Copy report for WhatsApp". */
   canLogCall: boolean;
   now: number;
 }
@@ -17,7 +18,8 @@ interface TrialFollowUpLineProps {
 /**
  * The follow-up line under a shop on Trials (Fermi B12 item 1, concept A,
  * Ali's pick 22 Nov): where its trial is, what it has done, who called last,
- * and the two things a caller does next. The row above it is unchanged.
+ * and what a caller does next: message the owner, send the trial report
+ * (item 2), log the call. The row above it is unchanged.
  */
 export function TrialFollowUpLine({ row, shopName, canLogCall, now }: TrialFollowUpLineProps) {
   const facts = trialFacts(row, (at) => formatAgo(at, now));
@@ -50,6 +52,7 @@ export function TrialFollowUpLine({ row, shopName, canLogCall, now }: TrialFollo
           ) : (
             <span className="text-xs text-foreground/70">No owner phone</span>
           )}
+          {canLogCall && <CopyTrialReport shopId={row.id} shopName={shopName} />}
           {canLogCall && <MarkContacted shopId={row.id} shopName={shopName} />}
         </div>
       )}
