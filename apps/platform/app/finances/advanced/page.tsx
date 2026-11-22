@@ -179,7 +179,7 @@ function FinancesContent() {
     useEffect(() => { setMounted(true); }, []);
 
     const handleTabChange = (tab: FinanceTabId) => {
-        const url = tab === "overview" ? "/finances" : `/finances?tab=${tab}`;
+        const url = tab === "overview" ? "/finances/advanced" : `/finances/advanced?tab=${tab}`;
         router.push(url, { scroll: false });
     };
 

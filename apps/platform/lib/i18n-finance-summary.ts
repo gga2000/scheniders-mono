@@ -1,12 +1,11 @@
-// Strings of the new Finances summary page (/finances/new), merged into both
+// Strings of the new Finances summary page (/finances), merged into both
 // dictionaries like the Shield and order-history strings.
 import type { Locale } from "@/lib/i18n";
 
 const en: Record<string, string> = {
     "fin.title": "Finances",
     "fin.subtitle": "What you sold, what it cost, and what is left for you. An order counts on the day its status changed to delivered.",
-    "fin.preview": "New page",
-    "fin.oldPage": "Open the old page",
+    "fin.advanced": "Advanced page",
     "fin.export": "Export",
     "fin.tab.summary": "Summary",
     "fin.tab.expenses": "Expenses",
@@ -322,8 +321,7 @@ const en: Record<string, string> = {
 const ar: Record<string, string> = {
     "fin.title": "المالية",
     "fin.subtitle": "ما بعته، وكم كلّفك، وكم بقي لك. يُحسب الطلب في يوم تغيّر حالته إلى «مُسلَّم».",
-    "fin.preview": "صفحة جديدة",
-    "fin.oldPage": "افتح الصفحة القديمة",
+    "fin.advanced": "الصفحة المتقدّمة",
     "fin.export": "تصدير",
     "fin.tab.summary": "الملخص",
     "fin.tab.expenses": "المصروفات",

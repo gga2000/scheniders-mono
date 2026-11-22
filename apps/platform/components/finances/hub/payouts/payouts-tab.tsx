@@ -358,7 +358,7 @@ export function PayoutsTab() {
             {/* Helpful links */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <HelperLink
-                    href="/finances?tab=cash"
+                    href="/finances/advanced?tab=cash"
                     title={t("finances.payouts.link.cash")}
                     sub={t("finances.payouts.link.cashSub")}
                     Icon={Wallet}
@@ -370,7 +370,7 @@ export function PayoutsTab() {
                     Icon={Truck}
                 />
                 <HelperLink
-                    href="/finances?tab=expenses"
+                    href="/finances/advanced?tab=expenses"
                     title={t("finances.payouts.link.expense")}
                     sub={t("finances.payouts.link.expenseSub")}
                     Icon={FileText}
