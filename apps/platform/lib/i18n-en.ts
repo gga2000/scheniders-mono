@@ -7697,6 +7697,7 @@ export const en: Record<string, string> = {
     "login.google": "Continue with Google",
     "login.noAccount": "No account yet?",
     "login.signUp": "Try Fermi free for {count} days",
+    "login.hero.subtitle": "Iraq's strongest order system.",
     "login.welcome": "Welcome back",
     "login.resetDone": "Password changed. Sign in with the new one.",
     "login.showPassword": "Show password",

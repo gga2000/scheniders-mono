@@ -10,6 +10,7 @@ import Link from "next/link";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { AuthCaptcha, useAuthCaptcha } from "@/components/auth/auth-captcha";
 import { AuthCardHeading, AuthCardShell } from "@/components/auth/auth-card-shell";
+import { AuthHero } from "@/components/auth/auth-hero";
 import { GoogleMark } from "@/components/auth/google-mark";
 import { emailProblem, loginErrorKey } from "@/lib/login-errors";
 import { TRIAL_DAYS } from "@/lib/trial";
@@ -428,7 +429,7 @@ function LoginForm() {
 
 export default function LoginPage() {
     return (
-        <AuthCardShell showBack={false}>
+        <AuthCardShell showBack={false} aside={<AuthHero variant="login" />} asideOnPhones={false}>
             <LoginForm />
         </AuthCardShell>
     );

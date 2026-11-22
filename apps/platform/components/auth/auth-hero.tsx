@@ -9,11 +9,13 @@ import { TRIAL_DAYS } from "@/lib/trial";
 import { cn } from "@/lib/utils";
 
 /**
- * The sign-up page's brand panel: Fermi's promise in lime light on ink. On
- * phones it shrinks to a short band (logo, trial pill, one-line promise) so
- * the form, often already filled from usefermi.com, stays near the top.
+ * The auth pages' brand panel: Fermi's promise in lime light on ink.
+ * - `signup`: trial pill and three proof points; on phones a short band (logo,
+ *   pill, one-line promise) so the form, often already filled from
+ *   usefermi.com, stays near the top.
+ * - `login`: the promise only. A returning owner needs the door, not the pitch.
  */
-export function SignupHero() {
+export function AuthHero({ variant }: { variant: "signup" | "login" }) {
     const { t } = useLanguage();
     const dir = useTextDir();
     const points = [
@@ -30,24 +32,28 @@ export function SignupHero() {
                 <div className="flex items-center justify-between gap-3">
                     {/* The wordmark file is ink; inverted it reads as cream on the dark panel. */}
                     <Image src="/brand/fermi-wordmark.svg" alt="Fermi" width={92} height={28} unoptimized priority className="invert" />
-                    <span className="inline-flex items-center gap-2 rounded-full border border-white/15 px-3 py-1.5 text-[12px] font-medium text-[#F4EFE9]">
-                        <span className="h-1.5 w-1.5 rounded-full bg-[#EFFF00]" aria-hidden />
-                        {t("signup.hero.badge", { count: TRIAL_DAYS })}
-                    </span>
+                    {variant === "signup" && (
+                        <span className="inline-flex items-center gap-2 rounded-full border border-white/15 px-3 py-1.5 text-[12px] font-medium text-[#F4EFE9]">
+                            <span className="h-1.5 w-1.5 rounded-full bg-[#EFFF00]" aria-hidden />
+                            {t("signup.hero.badge", { count: TRIAL_DAYS })}
+                        </span>
+                    )}
                 </div>
             }
             lines={[t("signup.hero.line1"), t("signup.hero.line2"), t("signup.hero.line3")]}
-            subtitle={t("signup.hero.subtitle")}
+            subtitle={t(variant === "signup" ? "signup.hero.subtitle" : "login.hero.subtitle")}
             subtitleClassName="hidden sm:block"
         >
-            <ul className="hidden max-w-md flex-col border-t border-white/10 lg:flex">
-                {points.map(({ icon: Icon, text }) => (
-                    <li key={text} className="flex items-center gap-3.5 border-b border-white/10 py-3.5 text-[15px] text-[#F4EFE9]">
-                        <Icon className="h-[18px] w-[18px] shrink-0 text-[#EFFF00]" aria-hidden />
-                        {text}
-                    </li>
-                ))}
-            </ul>
+            {variant === "signup" && (
+                <ul className="hidden max-w-md flex-col border-t border-white/10 lg:flex">
+                    {points.map(({ icon: Icon, text }) => (
+                        <li key={text} className="flex items-center gap-3.5 border-b border-white/10 py-3.5 text-[15px] text-[#F4EFE9]">
+                            <Icon className="h-[18px] w-[18px] shrink-0 text-[#EFFF00]" aria-hidden />
+                            {text}
+                        </li>
+                    ))}
+                </ul>
+            )}
         </AnimatedShaderHero>
     );
 }

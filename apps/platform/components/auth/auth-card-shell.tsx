@@ -1,5 +1,6 @@
 "use client";
 
+import { balooArabic } from "@/app/fonts/baloo";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft, ShieldCheck } from "lucide-react";
@@ -7,26 +8,29 @@ import { useLanguage, useTextDir } from "@/hooks/use-language";
 
 /**
  * Shared frame for every auth page (login, sign-up, forgot, choose new): brand row,
- * white card with the neon top strip, optional "back to sign in", and the
+ * white card, optional "back to sign in", and the
  * encryption footer. Keeps the auth screens visually identical.
  *
- * `aside` (sign-up) adds a brand panel: beside the card on wide screens,
- * pinned while the form scrolls, and a short band above the card on phones.
+ * `aside` adds a brand panel beside the card on wide screens, pinned while the
+ * form scrolls. On phones it is a short band above the card, or nothing at all
+ * with `asideOnPhones={false}` (sign-in: the form comes first).
  */
 export function AuthCardShell({
     children,
     showBack = true,
     aside,
+    asideOnPhones = true,
 }: {
     children: React.ReactNode;
     showBack?: boolean;
     aside?: React.ReactNode;
+    asideOnPhones?: boolean;
 }) {
     if (!aside) return <AuthCardFrame showBack={showBack}>{children}</AuthCardFrame>;
     return (
         <div className="min-h-screen lg:grid lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
-            <div className="lg:sticky lg:top-0 lg:h-screen">{aside}</div>
-            <AuthCardFrame showBack={showBack} besideAside>
+            <div className={asideOnPhones ? "lg:sticky lg:top-0 lg:h-screen" : "hidden lg:sticky lg:top-0 lg:block lg:h-screen"}>{aside}</div>
+            <AuthCardFrame showBack={showBack} wordmark={asideOnPhones ? "never" : "phones"} besideAside>
                 {children}
             </AuthCardFrame>
         </div>
@@ -37,10 +41,13 @@ function AuthCardFrame({
     children,
     showBack,
     besideAside = false,
+    wordmark = "always",
 }: {
     children: React.ReactNode;
     showBack: boolean;
     besideAside?: boolean;
+    /** The brand panel already shows the wordmark wherever the panel itself is on screen. */
+    wordmark?: "always" | "phones" | "never";
 }) {
     const { t } = useLanguage();
     const dir = useTextDir();
@@ -48,8 +55,8 @@ function AuthCardFrame({
         <div
             className={
                 besideAside
-                    ? "flex items-start lg:items-center justify-center px-4 py-6 lg:py-12 relative overflow-hidden lg:min-h-screen"
-                    : "min-h-screen flex items-center justify-center px-4 py-10 relative overflow-hidden"
+                    ? `${balooArabic.variable} flex lg:items-center justify-center px-4 py-6 lg:py-12 relative overflow-hidden lg:min-h-screen ${wordmark === "phones" ? "min-h-screen items-center" : "items-start"}`
+                    : `${balooArabic.variable} min-h-screen flex items-center justify-center px-4 py-10 relative overflow-hidden`
             }
         >
             <div className="absolute inset-0 pointer-events-none" aria-hidden>
@@ -67,15 +74,13 @@ function AuthCardFrame({
             {/* No entry fade: it started at opacity 0 in the server HTML, so the
                 card stayed invisible until all JS had run (6 s on a slow phone). */}
             <div className="w-full max-w-[440px] relative z-10">
-                {/* Beside the brand panel the wordmark is already on screen. */}
-                {!besideAside && (
-                    <div className="flex items-center justify-center mb-7">
+                {wordmark !== "never" && (
+                    <div className={`flex items-center justify-center mb-7 ${wordmark === "phones" ? "lg:hidden" : ""}`}>
                         <Image src="/brand/fermi-wordmark.svg" alt="Fermi" width={92} height={28} unoptimized priority />
                     </div>
                 )}
 
                 <div className="bg-white rounded-[28px] border border-[#ECE8DD] shadow-[0_1px_2px_rgba(30,30,30,0.04),0_24px_60px_-24px_rgba(30,30,30,0.18)] overflow-hidden">
-                    <div className="h-1.5 bg-[#EFFF00]" />
                     {showBack && (
                         <div className="px-6 sm:px-8 pt-7">
                             <Link
@@ -107,7 +112,7 @@ export function AuthCardHeading({ icon, title, subtitle }: { icon: React.ReactNo
                 {icon}
             </span>
             <div>
-                <h1 dir={dir} className="text-left text-[22px] leading-tight font-bold tracking-tight text-[#1E1E1E]">{title}</h1>
+                <h1 dir={dir} className="text-left font-[family-name:var(--font-fermi-display),var(--font-geist-sans)] text-[24px] leading-snug font-bold tracking-tight text-[#1E1E1E]">{title}</h1>
                 <p dir={dir} className="text-left text-[13px] text-[#8A847A] mt-1">{subtitle}</p>
             </div>
         </div>

@@ -8548,6 +8548,7 @@ export const ar: Record<string, string> = {
     "login.google": "المتابعة بحساب غوغل",
     "login.noAccount": "ما عندك حساب؟",
     "login.signUp": "جرّب فيرمي {count} أيام ببلاش",
+    "login.hero.subtitle": "أقوى نظام طلبات بالعراق.",
     "login.welcome": "أهلاً بيك",
     "login.resetDone": "تغيّرت كلمة المرور. سجّل دخولك بالجديدة.",
     "login.showPassword": "إظهار كلمة المرور",
