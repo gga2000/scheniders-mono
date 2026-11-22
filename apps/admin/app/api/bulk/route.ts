@@ -5,13 +5,12 @@ import { createAdminClient } from "@/lib/admin-supabase";
 import { forbidden, requireAdminPermission } from "@/lib/api-auth";
 import { logAdminActivityBatch } from "@/lib/activity-logger";
 import { hasPermission } from "@/lib/admin-permissions";
-import { topUpWallet, topupAmountSchema } from "@/lib/wallet-topup";
+import { topUpWallet } from "@/lib/wallet-topup";
+import { bulkTopupAmountSchema } from "@/lib/topup-queue";
 import { extendTrial, MAX_TRIAL_EXTENSION_DAYS } from "@/lib/trial-extension";
 import { staffReasonSchema, staffRequestIdSchema } from "@/lib/staff-reason";
 import { updateShop, type ShopChange, type ShopUpdateActor } from "@/lib/shop-update";
 import { tooManyShops } from "@/lib/bulk-not-done";
-
-const bulkTopupAmountSchema = topupAmountSchema.min(1000);
 
 type Failure = { tenant_id: string; error: string };
 

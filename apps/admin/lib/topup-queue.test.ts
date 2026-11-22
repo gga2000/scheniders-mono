@@ -140,7 +140,13 @@ describe("topupDecisionSchema", () => {
     expect(topupDecisionSchema.parse({ approve: true, amount: 9000 })).toEqual({ approve: true, amount: 9000 });
   });
 
-  it("needs a reason of 3 to 300 characters to refuse, and trims it", () => {
+  // Round 21 (UX new 7): "Qi 12" passed as a reason; the box's rule counts letters.
+  it("needs a reason with 3 letters in any script to refuse", () => {
+    expect(topupDecisionSchema.safeParse({ approve: false, reason: "Qi 12" }).success).toBe(false);
+    expect(topupDecisionSchema.safeParse({ approve: false, reason: "خطأ" }).success).toBe(true);
+  });
+
+  it("needs a reason of up to 300 characters to refuse, and trims it", () => {
     expect(topupDecisionSchema.parse({ approve: false, reason: "  Wrong account " })).toEqual({
       approve: false,
       reason: "Wrong account",
