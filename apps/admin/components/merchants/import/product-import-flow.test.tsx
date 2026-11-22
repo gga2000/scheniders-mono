@@ -148,11 +148,23 @@ describe("ProductImportFlow", () => {
     fireEvent.click(screen.getByText("Check the rows"));
     fireEvent.click(screen.getByText("Import 1 product"));
     await waitFor(() => expect(consoleApi.posts.map((p) => p.url)).toContain("/api/merchants/s1/product-import/images"));
+    // Round 23: a link off the page asks first while the run goes on.
+    const sidebar = document.createElement("a");
+    sidebar.href = "/merchants";
+    document.body.append(sidebar);
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    expect(fireEvent.click(sidebar)).toBe(false);
+    expect(confirm.mock.calls[0]?.[0]).toMatch(/^Products are still being imported\. Leave this page\?/);
+    confirm.mockRestore();
+    sidebar.remove();
     view.unmount();
+    // Gone from the page, a reload still asks until the run ends.
+    expect(leaving()).toBe(true);
     open();
     await waitFor(() => expect(toasts.error).toHaveLength(1));
     expect(toasts.error[0]?.[0]).toBe("Kawkab: import done. Added 1 of 1 product. Images: 1 of 2 saved.");
     expect(toasts.success).toHaveLength(0);
+    expect(leaving()).toBe(false);
   });
 
   it("gives the file's photos to a product the shop has with none, with nothing new to add", async () => {

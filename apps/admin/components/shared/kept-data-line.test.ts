@@ -10,14 +10,13 @@ import { describe, expect, it } from "vitest";
  * the lead page went on showing old numbers as today's. Each place that keeps
  * data now draws the load-failed line with `shownFrom`, which says the
  * refresh failed and how old the numbers are. The support desk's files are
- * that thread's, and the one-trial checks panel is Fermi's (B5; asked 22 Nov).
+ * that thread's.
  */
 
 const ROOT = join(__dirname, "..", "..");
 const SKIP = [
   join(ROOT, "app", "(dashboard)", "support"),
   join(ROOT, "components", "support"),
-  join(ROOT, "components", "trials", "trial-checks-panel.tsx"),
 ];
 
 function sources(dir: string): string[] {

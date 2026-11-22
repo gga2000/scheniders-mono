@@ -411,7 +411,15 @@ describe("the reader's temporary files", () => {
   it("refuses links with no Relationships element, before any sheet is read", async () => {
     const broken = sheetXml('<row r="1"></sheetData>');
     const fine = sheetXml(TWO_ROWS);
-    for (const links of ["", XML, `${XML}<!-- <Relationships> -->`, `${XML}<r:Relationships xmlns:r="${RELS}"/>`]) {
+    // Round 23: the tag's text inside an instruction or a DOCTYPE is no element either.
+    for (const links of [
+      "",
+      XML,
+      `${XML}<!-- <Relationships> -->`,
+      `${XML}<r:Relationships xmlns:r="${RELS}"/>`,
+      `${XML}<?links <Relationships ?>`,
+      `${XML}<!DOCTYPE r [<!ENTITY e "<Relationships">]><r/>`,
+    ]) {
       const book = bookEntries([broken, fine, fine]).map((entry) =>
         entry.name === "xl/_rels/workbook.xml.rels" ? { ...entry, data: utf8(links) } : entry,
       );
@@ -427,7 +435,13 @@ describe("the reader's temporary files", () => {
     expect(hasLinksRoot(`${XML}<Relationships xmlns="${RELS}"></Relationships>`)).toBe(true);
     expect(hasLinksRoot("<Relationships/>")).toBe(true);
     expect(hasLinksRoot("<Relationships\n xmlns='x'>")).toBe(true);
+    expect(hasLinksRoot(`${XML}\r\n<!-- saved by hand -->\n<Relationships xmlns="${RELS}"/>`)).toBe(true);
     expect(hasLinksRoot("<!-- <Relationships> --><RelationshipsX/>")).toBe(false);
+    expect(hasLinksRoot("<!-- a -- b --><Relationships/>")).toBe(false);
+    expect(hasLinksRoot(`${XML}<?pi <Relationships ?><x/>`)).toBe(false);
+    expect(hasLinksRoot(`${XML}<?pi x?><Relationships/>`)).toBe(false);
+    expect(hasLinksRoot(`<!DOCTYPE r [<!ENTITY e "<Relationships>">]><r>&e;</r>`)).toBe(false);
+    expect(hasLinksRoot(`<x><Relationships/></x>`)).toBe(false);
     expect(hasLinksRoot("")).toBe(false);
   });
 });

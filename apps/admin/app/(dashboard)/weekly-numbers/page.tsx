@@ -23,9 +23,14 @@ const weeklyResponseSchema = z.object({
   ),
 });
 
-/** The share of new shops with a real order in their first 72 hours, or why there is none. */
+/**
+ * The share of new shops with a real order in their first 72 hours, or why
+ * there is none: no new shop that week, or none whose 72 hours are over yet
+ * (console audit round 23: a closed week with no new shops said "None due yet").
+ */
 function firstOrderRate(week: WeekSummary): string {
-  return week.first_order_72h_rate === null ? "None due yet" : `${week.first_order_72h_rate}%`;
+  if (week.first_order_72h_rate !== null) return `${week.first_order_72h_rate}%`;
+  return week.new_shops === 0 ? "No new shops" : "None due yet";
 }
 
 /**

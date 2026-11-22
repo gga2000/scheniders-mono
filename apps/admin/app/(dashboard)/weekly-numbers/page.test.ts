@@ -90,6 +90,18 @@ describe("Weekly numbers", () => {
     expect(html).not.toContain(">0%<");
   });
 
+  it("says No new shops for a week without any, not None due yet", () => {
+    const html = render([
+      row("2026-11-21", { running: true, new_shops: 0, trials_started: 0, first_order_due: 0, first_order_72h: 0 }),
+      row("2026-11-14", { new_shops: 0, trials_started: 0, first_order_due: 0, first_order_72h: 0 }),
+    ]);
+    const at = html.indexOf('data-testid="weekly-numbers"');
+    expect(html.slice(0, at)).toContain("No new shops");
+    const body = html.slice(html.indexOf("<tbody>"));
+    expect(body.split("No new shops")).toHaveLength(3);
+    expect(html).not.toContain("None due yet");
+  });
+
   it("names each number the same in the strip and the table, New shops included", () => {
     const html = render(weeks);
     const at = html.indexOf('data-testid="weekly-numbers"');

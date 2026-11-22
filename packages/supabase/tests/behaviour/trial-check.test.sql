@@ -256,6 +256,10 @@ SELECT pg_temp.check(
   AND NOT has_table_privilege('authenticated', 'public.trial_customer_sweep_state', 'SELECT')
   AND (SELECT bool_and(relrowsecurity) FROM pg_class
         WHERE oid IN ('public.trial_customer_digests'::regclass, 'public.trial_customer_sweep_state'::regclass))
+  AND NOT has_table_privilege('authenticated', 'public.trial_customer_left', 'SELECT')
+  AND NOT has_table_privilege('anon', 'public.trial_customer_left', 'INSERT')
+  AND (SELECT relrowsecurity FROM pg_class WHERE oid = 'public.trial_customer_left'::regclass)
+  AND NOT has_function_privilege('authenticated', 'public.trial_customer_first_order(uuid, text)', 'EXECUTE')
   AND NOT has_function_privilege('authenticated', 'public.trial_customer_sweep()', 'EXECUTE')
   AND NOT has_function_privilege('authenticated', 'public.trial_customer_overlap(uuid)', 'EXECUTE'),
   'merchants cannot read customer digests or run the sweep, and RLS is on');
@@ -293,7 +297,7 @@ SELECT pg_temp.orders('c0000000-0000-4000-8000-000000000001',
                       now() - interval '50 minutes');
 
 SELECT pg_temp.check(
-  (public.trial_customer_sweep()) = jsonb_build_object('recorded', 40 + 40 + 29, 'checked', 1),
+  (public.trial_customer_sweep()) = jsonb_build_object('recorded', 40 + 40 + 29, 'removed', 0, 'checked', 1),
   'the first sweep records F''s, J''s and G''s delivered customers, and checks only F (G has 29 delivered orders)');
 SELECT pg_temp.check(
   (SELECT count(*) = 40 AND bool_and(digest ~ '^[0-9a-f]{64}$') FROM public.trial_customer_digests
@@ -431,3 +435,101 @@ SELECT pg_temp.check(
   AND NOT EXISTS (SELECT 1 FROM public.trial_customer_digests
                    WHERE tenant_id = 'c0000000-0000-4000-8000-000000000008' AND digest = pg_temp.customer(5001)),
   'once P has 30 delivered orders it is checked, and the fake orders never end its trial');
+
+-- Round 23: a customer stays on a store's list only while that store has a
+-- counted order with that phone. Q's trial ended unpaid; it delivered to
+-- customers 7001-7009, to 7010 twice (3 and 2 days ago), to 7011, and to
+-- 7013 twice.
+SELECT pg_temp.shop('c0000000-0000-4000-8000-000000000009', 'trial', interval '20 days', '07910000010', 'q@example.com');
+SELECT pg_temp.orders('c0000000-0000-4000-8000-000000000009', array(SELECT generate_series(7001, 7009)), now() - interval '10 minutes');
+SELECT pg_temp.orders('c0000000-0000-4000-8000-000000000009', ARRAY[7010], now() - interval '3 days');
+SELECT pg_temp.orders('c0000000-0000-4000-8000-000000000009', ARRAY[7010], now() - interval '2 days');
+SELECT pg_temp.orders('c0000000-0000-4000-8000-000000000009', ARRAY[7011, 7013, 7013], now() - interval '1 day');
+SELECT public.trial_customer_sweep();
+SELECT pg_temp.check(
+  (SELECT count(*) = 12 FROM public.trial_customer_digests WHERE tenant_id = 'c0000000-0000-4000-8000-000000000009'),
+  'Q''s 12 delivered customers are recorded');
+
+-- Changes that leave every customer in place queue nothing: a delivered order
+-- marked completed, one deleted (deleted orders count), one in transit edited,
+-- a delivered test order moved back.
+UPDATE public.orders SET status = 'delivered'
+ WHERE tenant_id = 'c0000000-0000-4000-8000-000000000009' AND phone = '07800007001';
+UPDATE public.orders SET deleted_at = now()
+ WHERE tenant_id = 'c0000000-0000-4000-8000-000000000009' AND phone = '07800007002';
+UPDATE public.orders SET phone = '07800000076' WHERE phone = '07800000076';
+UPDATE public.orders SET status = 'in_transit' WHERE phone = '07800000099';
+UPDATE public.orders SET deleted_at = now()
+ WHERE id = (SELECT id FROM public.orders WHERE tenant_id = 'c0000000-0000-4000-8000-000000000009'
+                AND phone = '07800007013' ORDER BY created_at LIMIT 1);
+SELECT pg_temp.check(NOT EXISTS (SELECT 1 FROM public.trial_customer_left), 'changes that keep every customer queue nothing');
+
+-- Q moves the 9 back to in transit, the earlier of 7010's two orders back,
+-- and rewrites 7011's phone to 7012.
+UPDATE public.orders SET status = 'in_transit'
+ WHERE tenant_id = 'c0000000-0000-4000-8000-000000000009' AND phone BETWEEN '07800007001' AND '07800007009';
+UPDATE public.orders SET status = 'in_transit'
+ WHERE tenant_id = 'c0000000-0000-4000-8000-000000000009' AND phone = '07800007010' AND created_at < now() - interval '60 hours';
+UPDATE public.orders SET phone = '+964 780 000 7012'
+ WHERE tenant_id = 'c0000000-0000-4000-8000-000000000009' AND phone = '07800007011';
+-- 7013's order that was not deleted goes back too; the deleted one still counts.
+UPDATE public.orders SET status = 'in_transit'
+ WHERE tenant_id = 'c0000000-0000-4000-8000-000000000009' AND phone = '07800007013' AND deleted_at IS NULL;
+SELECT pg_temp.check((SELECT count(*) = 12 FROM public.trial_customer_left), 'each change that takes a customer away is queued');
+SELECT pg_temp.check(
+  (SELECT r->'removed' = '10' AND r->'recorded' = '2' FROM public.trial_customer_sweep() r),
+  'the next sweep removes the 9 moved back and the old phone, adds the new phone and dates 7010 again');
+SELECT pg_temp.check(
+  (SELECT array_agg(digest ORDER BY digest) FROM public.trial_customer_digests WHERE tenant_id = 'c0000000-0000-4000-8000-000000000009')
+    = (SELECT array_agg(d ORDER BY d) FROM unnest(ARRAY[pg_temp.customer(7010), pg_temp.customer(7012), pg_temp.customer(7013)]) d)
+  AND NOT EXISTS (SELECT 1 FROM public.trial_customer_left),
+  'Q keeps only customers it still delivered to (a deleted delivered order counts), and the queue is empty');
+SELECT pg_temp.check(
+  (SELECT first_order_at = (SELECT created_at FROM public.orders
+                             WHERE tenant_id = 'c0000000-0000-4000-8000-000000000009' AND phone = '07800007010' AND status = 'completed')
+     FROM public.trial_customer_digests
+    WHERE tenant_id = 'c0000000-0000-4000-8000-000000000009' AND digest = pg_temp.customer(7010)),
+  'a customer still delivered to keeps the date of the delivered order left');
+
+-- R signs up after: its first 30 delivered orders are Q's 9 old customers and
+-- 21 new ones. Q no longer delivered to those 9, so nothing matches.
+SELECT pg_temp.shop('c0000000-0000-4000-8000-000000000010', 'trial', interval '1 hour', '07910000011', 'r@example.com');
+SELECT pg_temp.orders('c0000000-0000-4000-8000-000000000010',
+                      array(SELECT generate_series(7001, 7009)) || array(SELECT generate_series(8001, 8021)),
+                      now() - interval '30 minutes');
+SELECT public.trial_customer_sweep();
+SELECT pg_temp.check(
+  pg_temp.verdict('c0000000-0000-4000-8000-000000000010') IS NULL AND pg_temp.running('c0000000-0000-4000-8000-000000000010'),
+  '9 customers whose orders went back to in transit end no trial');
+
+-- A merchant changing an order queues it too (the trigger's check runs as the
+-- owner), and an order removed for good takes its customer with it.
+GRANT SELECT, UPDATE, DELETE ON public.orders TO authenticated;
+SET ROLE authenticated;
+UPDATE public.orders SET status = 'returned'
+ WHERE tenant_id = 'c0000000-0000-4000-8000-000000000009' AND phone = '07800007010' AND status = 'completed';
+DELETE FROM public.orders WHERE tenant_id = 'c0000000-0000-4000-8000-000000000009' AND phone = '+964 780 000 7012';
+RESET ROLE;
+REVOKE SELECT, UPDATE, DELETE ON public.orders FROM authenticated;
+SELECT pg_temp.check((SELECT r->'removed' = '2' FROM public.trial_customer_sweep() r), 'the next sweep removes both');
+SELECT pg_temp.check(
+  (SELECT array_agg(digest) FROM public.trial_customer_digests WHERE tenant_id = 'c0000000-0000-4000-8000-000000000009')
+    = ARRAY[pg_temp.customer(7013)],
+  'an order a merchant moves out of delivered, or deletes for good, takes its customer off the list');
+
+-- An order made a test, practice, return or replacement order stops counting;
+-- a customer whose only delivered order is dated later keeps the later date.
+SELECT pg_temp.orders('c0000000-0000-4000-8000-000000000009', ARRAY[7014, 7015, 7016, 7017, 7018], now() - interval '2 days');
+SELECT public.trial_customer_sweep();
+UPDATE public.orders SET is_test = true WHERE phone = '07800007014';
+UPDATE public.orders SET guide_practice = true WHERE phone = '07800007016';
+UPDATE public.orders SET is_return = true WHERE phone = '07800007017';
+UPDATE public.orders SET is_replacement = true WHERE phone = '07800007018';
+UPDATE public.orders SET created_at = now() - interval '1 hour' WHERE phone = '07800007015';
+SELECT pg_temp.check(
+  (SELECT r->'removed' = '4' AND r->'recorded' = '1' FROM public.trial_customer_sweep() r),
+  'four orders that stopped counting go, one dated later is dated again');
+SELECT pg_temp.check(
+  (SELECT first_order_at > now() - interval '2 hours' FROM public.trial_customer_digests
+    WHERE tenant_id = 'c0000000-0000-4000-8000-000000000009' AND digest = pg_temp.customer(7015)),
+  'the customer keeps the later date');
