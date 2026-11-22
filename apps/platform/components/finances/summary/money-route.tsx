@@ -309,10 +309,7 @@ export function MoneyRoute({ summary, delivery }: MoneyRouteProps) {
                                                             <span className="min-w-0 text-left" dir={dir}>
                                                                 {line.label}
                                                             </span>
-                                                            <span className="shrink-0 whitespace-nowrap tabular-nums" dir="ltr">
-                                                                {line.sign && line.amount > 0 && "+"}
-                                                                <Money value={line.amount} />
-                                                            </span>
+                                                            <Money value={line.amount} plus={line.sign} className="shrink-0" />
                                                         </li>
                                                     ))}
                                                 </ul>

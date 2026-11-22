@@ -4,7 +4,7 @@ import type { Locale } from "@/lib/i18n";
 
 const en: Record<string, string> = {
     "fin.title": "Finances",
-    "fin.subtitle": "What you sold, what it cost, and what is left for you.",
+    "fin.subtitle": "Each order counts on the day its status changed to delivered.",
     "fin.advanced": "Advanced page",
     "fin.export": "Export",
     "fin.tab.summary": "Summary",
@@ -28,7 +28,7 @@ const en: Record<string, string> = {
     "fin.strip.onRoad.note": "{n} parcels",
     "fin.strip.onRoad.note.one": "1 parcel",
     "fin.strip.stuck": "Stuck parcels",
-    "fin.strip.stuck.hint": "Parcels on the road for 15 days or more.",
+    "fin.strip.stuck.hint": "Parcels on the road for 15 days or more, not counting the refused ones Prime is bringing back (the Orders page counts those too).",
     "fin.strip.vsBefore": "against the period before",
 
     "fin.statement.title": "Profit statement",
@@ -308,7 +308,7 @@ const en: Record<string, string> = {
     "fin.error.retry": "Try again",
     "fin.info": "Explain",
     "fin.money.reached.tip": "The price of this period's delivered orders that reached you, after the delivery fee.",
-    "fin.money.road.tip": "Parcels with the delivery companies now, from any date, at sale price. They count as sales once delivered.",
+    "fin.money.road.tip": "Parcels with the delivery companies now, from any date, at sale price. They count as sales once delivered. The refused ones Prime is bringing back are listed apart, below.",
     "fin.money.returning.tip": "Goods, not money, and not in this amount. Receive them in Orders under “Coming back” when they arrive.",
     "fin.ads.evenTip": "Ads pay off when each 1,000 of them brings more sales than this, if all your sales came from ads.",
     "fin.ads.noLiftTip": "Your ads were almost zero in the period before. Try pausing your weakest campaign for a week and watch your new orders.",
@@ -317,7 +317,7 @@ const en: Record<string, string> = {
 
 const ar: Record<string, string> = {
     "fin.title": "المالية",
-    "fin.subtitle": "ما بعته، وكم كلّفك، وكم بقي لك.",
+    "fin.subtitle": "يُحسب كل طلب في يوم تغيّر حالته إلى «مُسلَّم».",
     "fin.advanced": "الصفحة المتقدّمة",
     "fin.export": "تصدير",
     "fin.tab.summary": "الملخص",
@@ -347,7 +347,7 @@ const ar: Record<string, string> = {
     "fin.strip.onRoad.note.few": "{n} طرود",
     "fin.strip.onRoad.note.many": "{n} طرداً",
     "fin.strip.stuck": "طرود عالقة",
-    "fin.strip.stuck.hint": "طرود على الطريق منذ 15 يوماً أو أكثر.",
+    "fin.strip.stuck.hint": "طرود على الطريق منذ 15 يوماً أو أكثر، عدا المرفوضة التي ترجعها برايم (صفحة الطلبات تعدّها معها).",
     "fin.strip.vsBefore": "مقارنة بالفترة السابقة",
 
     "fin.statement.title": "حساب الربح",
@@ -735,7 +735,7 @@ const ar: Record<string, string> = {
     "fin.error.retry": "حاول مرة أخرى",
     "fin.info": "شرح",
     "fin.money.reached.tip": "ثمن الطلبات المسلّمة في هذه الفترة التي وصلتك، بعد أجرة التوصيل.",
-    "fin.money.road.tip": "الطرود التي عند شركات التوصيل الآن، من كل التواريخ، بسعر البيع. تُحسب في المبيعات حين تُسلَّم.",
+    "fin.money.road.tip": "الطرود التي عند شركات التوصيل الآن، من كل التواريخ، بسعر البيع. تُحسب في المبيعات حين تُسلَّم. والمرفوضة التي ترجعها برايم معدودة وحدها أدناه.",
     "fin.money.returning.tip": "ترجع بضاعةً لا نقوداً، وليست ضمن هذا المبلغ. استلمها في الطلبات تحت «راجع» حين تصلك.",
     "fin.ads.evenTip": "يربح الإعلان إذا جلبت كل 1,000 دينار منه مبيعات أكثر من هذا، إن كانت كل مبيعاتك منه.",
     "fin.ads.noLiftTip": "كانت إعلاناتك شبه صفر في الفترة السابقة. جرّب إيقاف أضعف حملة أسبوعاً وراقب الطلبات الجديدة.",
