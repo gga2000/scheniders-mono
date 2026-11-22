@@ -6,6 +6,7 @@ import {
   importBatchResultSchema,
   type ColumnMapping,
   type ImportField,
+  type PhotosOnly,
   type PlannedProduct,
   type RowNote,
   fieldTakesManyColumns,
@@ -15,15 +16,22 @@ import {
  * The console side of a product import (Fermi B12 item 7), once the plan is
  * shown: the products go to the shop 100 at a time, one batch after another,
  * then each new product's images are fetched and saved, a few products at a
- * time. A refused batch stops the run, with what was added before it; a
- * failed image link is named and the run goes on.
+ * time, with the photos of products the shop already has with none. A
+ * refused batch stops the run, with what was added before it; a failed image
+ * link is named and the run goes on. A lost answer is never called a
+ * refusal: the step may have been done. Reading the file again finishes the
+ * run, since a product in the shop with no photo gets the file's photos.
  */
 
 /** Products being fetched images for at once (each fetches its own links at once). */
 export const IMAGE_PRODUCTS_AT_ONCE = 3;
 
-/** What one call to the console answers: its JSON, or the error the route gave. */
-export type Answer = { ok: true; body: unknown } | { ok: false; error: string };
+/**
+ * What one call to the console answers: its JSON, or why not. `lost`: no
+ * answer came back (a dropped connection, a gateway 5xx with no words), so
+ * the step may have been done.
+ */
+export type Answer = { ok: true; body: unknown } | { ok: false; error: string; lost: boolean };
 
 export interface ImportCalls {
   importBatch(body: { fileName: string; products: PlannedProduct[] }): Promise<Answer>;
@@ -46,11 +54,15 @@ export interface ImportProgress {
   skippedInShop: number;
   /** Why the run stopped before every batch went, or null. */
   stopped: string | null;
-  /** Image links of the products added, and how many were tried, saved, failed. */
+  /** The stopping batch's answer was lost: it may have been added, so `added` is at least that. */
+  stoppedLost: boolean;
+  /** Image links of the products added (and of in-shop products with no photo), and how many were tried, saved, failed. */
   imagesTotal: number;
   imagesTried: number;
   imagesSaved: number;
   imageFailures: ImageFailure[];
+  /** File rows of products whose images answer was lost: they may have been saved. */
+  imagesNotKnown: number[];
 }
 
 const imagesAnswerSchema = z.object({
@@ -71,12 +83,16 @@ export function batches<T>(items: readonly T[], size = IMPORT_BATCH): T[][] {
   return out;
 }
 
-/** The images to fetch: the products that were added and have links, each under its new id. */
-export function imageJobs(products: readonly PlannedProduct[], created: ReadonlyMap<string, string>) {
-  return products.flatMap((product) => {
+/**
+ * The images to fetch: the products that were added and have links, each
+ * under its new id, then the in-shop products with no photo, by file row.
+ */
+export function imageJobs(products: readonly PlannedProduct[], created: ReadonlyMap<string, string>, photosOnly: readonly PhotosOnly[] = []) {
+  const added = products.flatMap((product) => {
     const productId = created.get(product.key);
     return productId && product.images.length > 0 ? [{ productId, row: product.rows[0] ?? Number(product.key), links: product.images }] : [];
   });
+  return [...added, ...photosOnly.map(({ productId, row, links }) => ({ productId, row, links }))].sort((a, b) => a.row - b.row);
 }
 
 /**
@@ -86,10 +102,11 @@ export function imageJobs(products: readonly PlannedProduct[], created: Readonly
 export async function runProductImport(input: {
   fileName: string;
   products: readonly PlannedProduct[];
+  photosOnly?: readonly PhotosOnly[];
   calls: ImportCalls;
   onProgress: (progress: ImportProgress) => void;
 }): Promise<ImportProgress> {
-  const { fileName, products, calls, onProgress } = input;
+  const { fileName, products, photosOnly = [], calls, onProgress } = input;
   let progress: ImportProgress = {
     phase: "products",
     productsTotal: products.length,
@@ -97,10 +114,12 @@ export async function runProductImport(input: {
     added: 0,
     skippedInShop: 0,
     stopped: null,
+    stoppedLost: false,
     imagesTotal: 0,
     imagesTried: 0,
     imagesSaved: 0,
     imageFailures: [],
+    imagesNotKnown: [],
   };
   const report = (next: Partial<ImportProgress>) => {
     progress = { ...progress, ...next };
@@ -114,11 +133,20 @@ export async function runProductImport(input: {
     const answer = await calls.importBatch({ fileName, products: batch });
     const result = answer.ok ? importBatchResultSchema.safeParse(answer.body) : null;
     if (!result?.success) {
-      const why = sentence(answer.ok ? "The answer could not be read" : answer.error);
-      const before = progress.added > 0 ? ` The ${progress.added} added before it stay.` : "";
-      report({
-        stopped: `Batch ${n + 1} of ${all.length} was not added. ${why}${before} Read the file again to add the rest: products already in the shop are left out.`,
-      });
+      const before = progress.added > 0 ? ` The ${formatCount(progress.added)} added before it stay.` : "";
+      // A batch goes in whole or not at all; an answer that came back but
+      // could not be read, or none at all, leaves it unknown.
+      const lost = answer.ok || answer.lost;
+      report(
+        lost
+          ? {
+              stopped: `Batch ${n + 1} of ${all.length}: ${answer.ok ? "its answer could not be read" : "no answer came back"}, so it may have been added.${before} Check the shop's products, then read the file again: products already in the shop are left out, and the ones still without a photo get the file's photos.`,
+              stoppedLost: true,
+            }
+          : {
+              stopped: `Batch ${n + 1} of ${all.length} was not added. ${sentence(answer.error)}${before} Read the file again to add the rest: products already in the shop are left out.`,
+            },
+      );
       break;
     }
     for (const { key, product_id } of result.data.created) created.set(key, product_id);
@@ -129,7 +157,7 @@ export async function runProductImport(input: {
     });
   }
 
-  const jobs = imageJobs(products, created);
+  const jobs = imageJobs(products, created, photosOnly);
   report({ phase: "images", imagesTotal: jobs.reduce((sum, job) => sum + job.links.length, 0) });
 
   let next = 0;
@@ -139,13 +167,19 @@ export async function runProductImport(input: {
       if (!job) return;
       const answer = await calls.saveImages({ productId: job.productId, links: job.links });
       const result = answer.ok ? imagesAnswerSchema.safeParse(answer.body) : null;
+      // No readable answer: the images may have been saved, so they are not
+      // called failed (a refusal with words is).
+      const notKnown = !result?.success && (answer.ok || answer.lost);
       const failures: ImageFailure[] = result?.success
         ? result.data.failed.map((f) => ({ row: job.row, link: f.link, reason: f.reason }))
-        : job.links.map((link) => ({ row: job.row, link, reason: answer.ok ? "The answer could not be read" : answer.error }));
+        : !answer.ok && !answer.lost
+          ? job.links.map((link) => ({ row: job.row, link, reason: answer.error }))
+          : [];
       report({
         imagesTried: progress.imagesTried + job.links.length,
         imagesSaved: progress.imagesSaved + (result?.success ? result.data.saved : 0),
         imageFailures: [...progress.imageFailures, ...failures].sort((a, b) => a.row - b.row),
+        imagesNotKnown: notKnown ? [...progress.imagesNotKnown, job.row].sort((a, b) => a - b) : progress.imagesNotKnown,
       });
     }
   };
@@ -153,6 +187,21 @@ export async function runProductImport(input: {
 
   report({ phase: "done" });
   return progress;
+}
+
+/** How a run ended, for staff who left the page while it ran. */
+export function importOutcome(shopName: string, done: ImportProgress): { ok: boolean; title: string; description?: string } {
+  const added = `${done.stoppedLost ? "at least " : ""}${formatCount(done.added)} of ${formatCount(done.productsTotal)} ${done.productsTotal === 1 ? "product" : "products"}`;
+  const images =
+    done.imagesTotal > 0
+      ? ` Images: ${formatCount(done.imagesSaved)} of ${formatCount(done.imagesTotal)} saved${done.imagesNotKnown.length > 0 ? `, ${formatCount(done.imagesNotKnown.length)} ${done.imagesNotKnown.length === 1 ? "product" : "products"} not known` : ""}.`
+      : "";
+  const ok = done.stopped === null && done.imageFailures.length === 0 && done.imagesNotKnown.length === 0;
+  return {
+    ok,
+    title: `${shopName}: import ${done.stopped === null ? "done" : "stopped"}. Added ${added}.${images}`,
+    description: done.stopped ?? (ok ? undefined : "Open the shop's import and read the file again: products already in the shop are left out, and the ones still without a photo get the file's photos."),
+  };
 }
 
 /**
@@ -190,7 +239,12 @@ export const readAnswerSchema = z.object({
     firstRow: z.number().int(),
   }),
   mapping: z.array(z.enum(IMPORT_FIELDS).nullable()),
-  shop: z.object({ names: z.array(z.string()), skus: z.array(z.string()), barcodes: z.array(z.string()) }),
+  shop: z.object({
+    names: z.array(z.string()),
+    skus: z.array(z.string()),
+    barcodes: z.array(z.string()),
+    noImages: z.array(z.object({ id: z.string().uuid(), name: z.string() })),
+  }),
 });
 
 export type ReadAnswer = z.infer<typeof readAnswerSchema>;

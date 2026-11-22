@@ -35,15 +35,15 @@ beforeEach(() => {
 });
 
 describe("GET /api/trials/follow-up", () => {
-  it("adds each shop's follow-up facts, its day since signup on the Baghdad calendar, and its follow-up groups", async () => {
+  it("adds each shop's follow-up facts, its day since signup on the Baghdad calendar (Day 0 on signup, as the support plan counts), and its follow-up groups", async () => {
     stub.state.tables.tenants = [
-      // Signed up at 23:30 Baghdad last night: day 2 today, not day 1.
+      // Signed up at 23:30 Baghdad last night: Day 1 today, the plan's store-check day.
       trial(1, "2026-11-22T20:30:00Z", { created_at: "2026-11-15T20:30:00Z" }),
-      // Signed up at 01:00 Baghdad today (22:00 UTC the day before): day 1.
+      // Signed up at 01:00 Baghdad today (22:00 UTC the day before): Day 0.
       trial(2, "2026-11-23T22:00:00Z", { created_at: "2026-11-15T22:00:00Z" }),
-      // Day 3, paused while on trial.
-      trial(3, "2026-11-21T09:00:00Z", { created_at: "2026-11-14T09:00:00Z", status: "limited", restrictions: { status_before: "trial" } }),
-      // Day 7: its trial ends at 06:21 tomorrow, the day the trial-end call is due.
+      // Day 3, the plan's first-order call, paused while on trial.
+      trial(3, "2026-11-20T09:00:00Z", { created_at: "2026-11-13T09:00:00Z", status: "limited", restrictions: { status_before: "trial" } }),
+      // Day 6: its trial ends at 06:21 tomorrow, the day the trial-end call is due.
       trial(4, "2026-11-17T03:21:00Z", { created_at: "2026-11-10T03:21:00Z" }),
       // Ended this morning, unpaid: locked.
       trial(5, "2026-11-16T03:21:00Z", { created_at: "2026-11-09T03:21:00Z" }),
@@ -67,11 +67,11 @@ describe("GET /api/trials/follow-up", () => {
     const byId = new Map<string, Listed>(body.trials.map((t: Listed) => [t.id, t]));
 
     expect([...byId.values()].map((t) => [t.id, t.trial_day, t.groups])).toEqual([
-      ["shop-00005", 8, ["locked"]],
-      ["shop-00004", 7, ["last_day"]],
+      ["shop-00005", 7, ["locked"]],
+      ["shop-00004", 6, ["last_day"]],
       ["shop-00003", 3, ["day_3", "paused"]],
-      ["shop-00001", 2, []],
-      ["shop-00002", 1, ["day_1"]],
+      ["shop-00001", 1, ["day_1"]],
+      ["shop-00002", 0, []],
     ]);
     expect(byId.get("shop-00001")?.follow_up).toEqual({
       tenant_id: "shop-00001",

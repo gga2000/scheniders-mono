@@ -40,10 +40,10 @@ export type TrialFollowUp = z.infer<typeof trialFollowUpSchema>;
 
 /**
  * The follow-up groups staff filter by. A shop can be in more than one: a
- * paused shop on its last day is in both.
- *   day_1, day_3: the day of the shop's life (lib/baghdad-day dayNumber), for
- *     the first-week calls;
- *   last_day: the trial ends today or tomorrow and has not ended, the same
+ * paused shop near its end is in both.
+ *   day_1, day_3: the shop's day (lib/trial-shops: Day 0 on signup), the
+ *     days the support plan's Day 1 and Day 3 calls fall due;
+ *   last_day: the trial ends today or tomorrow and has not ended, from the
  *     day the support plan's trial_end call falls due (trial end less a day);
  *   locked: the trial ended unpaid;
  *   paused: staff paused the shop while on trial.
@@ -92,7 +92,7 @@ export const TRIAL_FILTER_LABEL: Record<TrialFilter, string> = {
   all: "All",
   day_1: "Day 1",
   day_3: "Day 3",
-  last_day: "Last day",
+  last_day: "Ends today or tomorrow",
   locked: "Locked",
   paused: "Paused",
   not_called: "Not called",
@@ -140,16 +140,16 @@ export interface TrialFact {
 /**
  * The follow-up line under a shop on Trials, in the order a caller reads it:
  * where the trial is, what the shop has done, and who called last.
- * `ago` words a time as "2 hours ago".
+ * `ago` words a time as "2 hours ago". The day is the support plan's (Day 0
+ * on signup); the row above it already says when the trial ends, so the day
+ * has no moving "of 8" (audit round 22), and "last day" is the end day only.
  */
 export function trialFacts(row: TrialFollowUpRow, ago: (at: string) => string): TrialFact[] {
   const f = row.follow_up;
-  const day: TrialFact = row.is_expired
-    ? { label: "Day", value: `${row.trial_day}, trial over` }
-    : {
-        label: "Day",
-        value: `${row.trial_day} of ${Math.max(row.trial_day, row.trial_day + row.days_remaining - 1)}${row.groups.includes("last_day") ? ", last day" : ""}`,
-      };
+  const day: TrialFact = {
+    label: "Day",
+    value: `${row.trial_day}${row.is_expired ? ", trial over" : row.days_remaining === 0 ? ", last day" : ""}`,
+  };
   if (!f) return [day];
   const check =
     f.trial_check === null

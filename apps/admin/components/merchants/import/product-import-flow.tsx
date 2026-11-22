@@ -1,22 +1,27 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { postJson } from "@/components/merchants/detail/action-ui";
+import { toast } from "sonner";
+import { AnswerLost, postJson, useStillDrawn } from "@/components/merchants/detail/action-ui";
 import { useLeaveGuard } from "@/hooks/use-leave-guard";
 import { planImport, type ColumnMapping } from "@/lib/product-import";
-import { checkRows, runProductImport, type Answer, type ImportProgress, type ReadAnswer } from "@/lib/product-import-run";
+import { checkRows, importOutcome, runProductImport, type Answer, type ImportProgress, type ReadAnswer } from "@/lib/product-import-run";
 import { ImportCheckStep } from "./import-check-step";
 import { ImportColumnsStep } from "./import-columns-step";
 import { ImportFileStep } from "./import-file-step";
 import { ImportRunPanel } from "./import-run-panel";
 import { ImportStepChips, type ImportStep } from "./import-step-chips";
 
-/** One console call, as the run reads it: its JSON, or the route's own error. */
+/** One console call, as the run reads it: its JSON, the route's own error, or a lost answer. */
 async function answer(url: string, body: unknown): Promise<Answer> {
   try {
     return { ok: true, body: await postJson(url, body) };
   } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : "Something went wrong." };
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Something went wrong.",
+      lost: error instanceof AnswerLost,
+    };
   }
 }
 
@@ -33,6 +38,9 @@ export function ProductImportFlow({ shopId, shopName }: { shopId: string; shopNa
 
   const running = progress !== null && progress.phase !== "done";
   useLeaveGuard(running);
+  // Leaving by the sidebar keeps the run going (nothing doubles); how it
+  // ended is then said where staff are, as a toast.
+  const stillDrawn = useStillDrawn();
 
   const plan = useMemo(() => {
     if (!read) return null;
@@ -47,15 +55,20 @@ export function ProductImportFlow({ shopId, shopName }: { shopId: string; shopNa
 
   async function startImport() {
     if (!plan || !read || locked) return;
-    await runProductImport({
+    const done = await runProductImport({
       fileName: read.fileName,
       products: plan.products,
+      photosOnly: plan.photosOnly,
       calls: {
         importBatch: (body) => answer(`/api/merchants/${shopId}/product-import`, body),
         saveImages: (body) => answer(`/api/merchants/${shopId}/product-import/images`, body),
       },
       onProgress: setProgress,
     });
+    if (!stillDrawn()) {
+      const outcome = importOutcome(shopName, done);
+      (outcome.ok ? toast.success : toast.error)(outcome.title, outcome.description ? { description: outcome.description } : undefined);
+    }
   }
 
   function startOver() {
@@ -106,6 +119,7 @@ export function ProductImportFlow({ shopId, shopName }: { shopId: string; shopNa
             shopName={shopName}
             lines={lines}
             withChoices={plan.products.filter((product) => product.variants.length > 0).length}
+            photosFor={plan.photosOnly.length}
             importing={running}
             done={locked}
             onImport={() => void startImport()}

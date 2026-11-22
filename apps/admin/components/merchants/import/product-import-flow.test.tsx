@@ -8,6 +8,15 @@ const consoleApi = vi.hoisted(() => ({
   readAnswer: null as unknown,
   posts: [] as Array<{ url: string; body: Record<string, unknown> }>,
   refuseImport: null as string | null,
+  /** A promise the images call waits on, so a test can leave mid-run. */
+  imagesGate: null as Promise<void> | null,
+}));
+const toasts = vi.hoisted(() => ({ success: [] as unknown[][], error: [] as unknown[][] }));
+vi.mock("sonner", () => ({
+  toast: {
+    success: (...args: unknown[]) => toasts.success.push(args),
+    error: (...args: unknown[]) => toasts.error.push(args),
+  },
 }));
 vi.mock("@/lib/admin-fetch", () => ({
   adminFetch: async (url: string, init: RequestInit) => {
@@ -16,7 +25,20 @@ vi.mock("@/lib/admin-fetch", () => ({
     return new Response(JSON.stringify(consoleApi.readAnswer), { status: 200 });
   },
 }));
-vi.mock("@/components/merchants/detail/action-ui", () => ({
+vi.mock("@/components/merchants/detail/action-ui", async () => {
+  const { useEffect, useRef } = await import("react");
+  return {
+  AnswerLost: class AnswerLost extends Error {},
+  useStillDrawn: () => {
+    const drawn = useRef(true);
+    useEffect(() => {
+      drawn.current = true;
+      return () => {
+        drawn.current = false;
+      };
+    }, []);
+    return () => drawn.current;
+  },
   postJson: async (url: string, body: Record<string, unknown>) => {
     consoleApi.posts.push({ url, body });
     if (url.endsWith("/product-import")) {
@@ -24,9 +46,11 @@ vi.mock("@/components/merchants/detail/action-ui", () => ({
       const products = body.products as Array<{ key: string }>;
       return { created: products.map((p, n) => ({ key: p.key, product_id: `00000000-0000-4000-8000-00000000000${n}` })), skipped: [] };
     }
+    if (consoleApi.imagesGate) await consoleApi.imagesGate;
     return { saved: 1, imageUrl: "x", failed: [{ link: "https://a.example/page", reason: "The link is not a JPEG, PNG, WebP or GIF image" }] };
   },
-}));
+  };
+});
 
 import { ProductImportFlow } from "./product-import-flow";
 
@@ -39,6 +63,9 @@ function leaving(): boolean {
 beforeEach(() => {
   consoleApi.posts = [];
   consoleApi.refuseImport = null;
+  consoleApi.imagesGate = null;
+  toasts.success = [];
+  toasts.error = [];
   consoleApi.readAnswer = {
     file: {
       sheet: "Sheet1",
@@ -52,17 +79,18 @@ beforeEach(() => {
       firstRow: 2,
     },
     mapping: ["name", "price", "size", "images", null],
-    shop: { names: ["بخور"], skus: [], barcodes: [] },
+    shop: { names: ["بخور"], skus: [], barcodes: [], noImages: [] },
   };
 });
 afterEach(cleanup);
 
 async function readTheFile() {
-  render(createElement(ProductImportFlow, { shopId: "s1", shopName: "Kawkab" }));
+  const view = render(createElement(ProductImportFlow, { shopId: "s1", shopName: "Kawkab" }));
   const input = document.querySelector('input[type="file"]');
   if (!(input instanceof HTMLInputElement)) throw new Error("no file input");
   fireEvent.change(input, { target: { files: [new File(["x"], "products.xlsx")] } });
   await screen.findByText("Match the file's columns");
+  return view;
 }
 
 describe("ProductImportFlow", () => {
@@ -109,6 +137,38 @@ describe("ProductImportFlow", () => {
     });
     expect(screen.queryByText("Import 1 product")).toBeNull();
     expect(screen.getByText("Import another file")).toBeTruthy();
+  });
+
+  it("keeps going after staff leave by the sidebar, and says how it ended where they are", async () => {
+    let open = () => {};
+    consoleApi.imagesGate = new Promise((resolve) => {
+      open = resolve;
+    });
+    const view = await readTheFile();
+    fireEvent.click(screen.getByText("Check the rows"));
+    fireEvent.click(screen.getByText("Import 1 product"));
+    await waitFor(() => expect(consoleApi.posts.map((p) => p.url)).toContain("/api/merchants/s1/product-import/images"));
+    view.unmount();
+    open();
+    await waitFor(() => expect(toasts.error).toHaveLength(1));
+    expect(toasts.error[0]?.[0]).toBe("Kawkab: import done. Added 1 of 1 product. Images: 1 of 2 saved.");
+    expect(toasts.success).toHaveLength(0);
+  });
+
+  it("gives the file's photos to a product the shop has with none, with nothing new to add", async () => {
+    consoleApi.readAnswer = {
+      file: { sheet: null, headers: ["الاسم", "السعر", "صورة"], rows: [["بخور", "8000", "https://a.example/b.jpg"]], firstRow: 2 },
+      mapping: ["name", "price", "images"],
+      shop: { names: ["بخور"], skus: [], barcodes: [], noImages: [{ id: "00000000-0000-4000-8000-0000000000b1", name: "بخور" }] },
+    };
+    await readTheFile();
+    fireEvent.click(screen.getByText("Check the rows"));
+    expect(screen.getByText("Already in the shop with no photo: only its photos are added")).toBeTruthy();
+    fireEvent.click(screen.getByText("Add photos to 1 product"));
+    await screen.findByText("Images: 1 of 1 saved.");
+    expect(consoleApi.posts).toEqual([
+      { url: "/api/merchants/s1/product-import/images", body: { productId: "00000000-0000-4000-8000-0000000000b1", links: ["https://a.example/b.jpg"] } },
+    ]);
   });
 
   it("says why the shop refused a batch", async () => {

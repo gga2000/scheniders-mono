@@ -55,6 +55,14 @@ describe("Copy report for WhatsApp", () => {
     expect(toast.error).toHaveBeenCalledWith("Merchant not found");
   });
 
+  it("says so when no answer comes back, and stops the spinner", async () => {
+    fetchMock.mockReturnValue(Promise.reject(new TypeError("Failed to fetch")));
+    await press();
+    expect(writeText).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith("The report did not load: no answer came back. Try again.");
+    expect((screen.getByRole("button", { name: "Copy report for WhatsApp" }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
   it("says so when the browser refuses the copy", async () => {
     fetchMock.mockReturnValue(answer(200, { text: TEXT }));
     writeText.mockReturnValue(Promise.reject(new Error("denied")));

@@ -234,12 +234,27 @@ export interface RowNote {
   text: string;
 }
 
+/**
+ * A product the shop already has, with no image yet, whose rows in the file
+ * have image links: the import fetches them for it. That is how a second
+ * read of a file finishes a run whose images were cut short (a lost answer,
+ * a closed tab).
+ */
+export interface PhotosOnly {
+  productId: string;
+  /** Its first file row with links. */
+  row: number;
+  links: string[];
+}
+
 export interface ImportPlan {
   products: PlannedProduct[];
   /** Rows left out because something in them is wrong. */
   problems: RowNote[];
   /** Rows left out because the product is already in the shop. */
   inShop: RowNote[];
+  /** Products already in the shop that get the file's photos. */
+  photosOnly: PhotosOnly[];
   /** Rows imported with something dropped (an image cell bit that is not a link). */
   warnings: RowNote[];
 }
@@ -250,7 +265,13 @@ export interface ShopProducts {
   /** SKUs of its products and their choices. */
   skus: readonly string[];
   barcodes: readonly string[];
+  /** Its products (not archived) with no image yet. */
+  noImages: readonly { id: string; name: string }[];
 }
+
+/** The words for a row left out because its name is in the shop. */
+export const IN_SHOP_NOTE = "A product with this name is already in the shop: left out";
+export const IN_SHOP_PHOTOS_NOTE = "Already in the shop with no photo: only its photos are added";
 
 interface ParsedRow {
   row: number;
@@ -388,6 +409,15 @@ export function planImport(input: {
   const warnings: RowNote[] = [];
 
   const shopNames = new Set(shop.names.map(foldText));
+  // A name the shop has once, on a product with no image: the file's links
+  // for it are fetched. Two shop products with one name: neither, as the
+  // file cannot say which.
+  const nameCount = new Map<string, number>();
+  for (const name of shop.names) nameCount.set(foldText(name), (nameCount.get(foldText(name)) ?? 0) + 1);
+  const noImage = new Map(
+    shop.noImages.filter((p) => nameCount.get(foldText(p.name)) === 1).map((p) => [foldText(p.name), p.id] as const),
+  );
+  const photos = new Map<string, PhotosOnly>();
   const shopSkus = new Set(shop.skus);
   const shopBarcodes = new Set(shop.barcodes);
   const skuRow = new Map<string, number>();
@@ -422,7 +452,15 @@ export function planImport(input: {
     }
     const folded = foldText(read.name);
     if (shopNames.has(folded)) {
-      inShop.push({ row, text: "A product with this name is already in the shop: left out" });
+      const productId = noImage.get(folded);
+      if (productId !== undefined && read.images.length > 0) {
+        const entry = photos.get(folded) ?? { productId, row, links: [] };
+        for (const link of read.images) if (!entry.links.includes(link) && entry.links.length < IMPORT_MAX_IMAGES) entry.links.push(link);
+        photos.set(folded, entry);
+        inShop.push({ row, text: IN_SHOP_PHOTOS_NOTE });
+      } else {
+        inShop.push({ row, text: IN_SHOP_NOTE });
+      }
       return;
     }
     const clash = codeClash(read, row);
@@ -550,7 +588,13 @@ export function planImport(input: {
   }
 
   const byRow = (a: RowNote, b: RowNote) => a.row - b.row;
-  return { products, problems: problems.sort(byRow), inShop: inShop.sort(byRow), warnings: warnings.sort(byRow) };
+  return {
+    products,
+    problems: problems.sort(byRow),
+    inShop: inShop.sort(byRow),
+    photosOnly: [...photos.values()],
+    warnings: warnings.sort(byRow),
+  };
 }
 
 /** What the database answers for one batch. */

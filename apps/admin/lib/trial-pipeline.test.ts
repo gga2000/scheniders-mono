@@ -56,7 +56,7 @@ describe("trialFacts", () => {
       }),
     });
     expect(words(shop)).toEqual([
-      "Day 3 of 7",
+      "Day 3",
       "Orders 4, 1 delivered",
       "Shipped yes",
       "WhatsApp 12/200",
@@ -67,9 +67,9 @@ describe("trialFacts", () => {
   });
 
   it("says a shop's last day, a trial that is over, and a shop with nothing yet", () => {
-    const last = row({ trial_day: 7, days_remaining: 1, groups: ["last_day"], follow_up: followUp({ trial_check: "no_trial" }) });
+    const last = row({ trial_day: 7, days_remaining: 0, groups: ["last_day"], follow_up: followUp({ trial_check: "no_trial" }) });
     expect(words(last)).toEqual([
-      "Day 7 of 7, last day",
+      "Day 7, last day",
       "Orders none yet",
       "Shipped no",
       "WhatsApp 0/200",
@@ -77,9 +77,12 @@ describe("trialFacts", () => {
       "One-trial check matches a shop",
       "Last call none",
     ]);
-    // The end day itself, before the hour: still its last day, not "day 8 of 7".
-    expect(words(row({ trial_day: 8, days_remaining: 0, groups: ["last_day"] }))[0]).toBe("Day 8 of 8, last day");
-    expect(words(row({ trial_day: 9, days_remaining: -1, is_expired: true, groups: ["locked"] }))[0]).toBe("Day 9, trial over");
+    // Audit round 22: the day before the end is no "last day", and no day
+    // carries a total that moves ("of 7", then "of 8").
+    expect(words(row({ trial_day: 6, days_remaining: 1, groups: ["last_day"] }))[0]).toBe("Day 6");
+    expect(words(row({ trial_day: 8, days_remaining: -1, is_expired: true, groups: ["locked"] }))[0]).toBe("Day 8, trial over");
+    // The end day after the hour: over, not its last day.
+    expect(words(row({ trial_day: 7, days_remaining: 0, is_expired: true, groups: ["locked"] }))[0]).toBe("Day 7, trial over");
   });
 
   it("names the one-trial decision and how the last call went", () => {
@@ -95,7 +98,7 @@ describe("trialFacts", () => {
   });
 
   it("gives only the day for a shop whose facts are not read yet", () => {
-    expect(words(row({ follow_up: null }))).toEqual(["Day 3 of 7"]);
+    expect(words(row({ follow_up: null }))).toEqual(["Day 3"]);
   });
 });
 

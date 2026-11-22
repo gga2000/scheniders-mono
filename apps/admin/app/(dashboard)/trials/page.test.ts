@@ -91,10 +91,11 @@ describe("a paused trial on Trials", () => {
 describe("the follow-up line on Trials", () => {
   it("adds the chips and a line of facts under the unchanged row, with WhatsApp and Mark contacted", () => {
     const html = render("support_staff", [FOLLOW_UP]);
-    for (const chip of ["All", "Day 1", "Day 3", "Last day", "Locked", "Paused", "Not called"]) expect(html).toContain(`>${chip}<`);
+    for (const chip of ["All", "Day 1", "Day 3", "Ends today or tomorrow", "Locked", "Paused", "Not called"]) expect(html).toContain(`>${chip}<`);
     expect(html).toContain('aria-pressed="true"');
     expect(html).toContain("Day <span");
-    expect(html).toContain("5 of 7");
+    expect(html).toMatch(/Day <span[^>]*>5<\/span>/);
+    expect(html).not.toContain("5 of");
     expect(html).toContain("4, 1 delivered");
     expect(html).toContain("12/200");
     expect(html).toContain('href="https://wa.me/9647701234567"');

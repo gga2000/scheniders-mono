@@ -13,6 +13,9 @@ const errorAnswerSchema = z.object({ error: z.string() });
  * "Copy report for WhatsApp" on a shop on trial (Fermi B12 item 2): the
  * shop's trial report as one Arabic message, in the same words the merchant
  * reads on Home (GET /api/merchants/[id]/trial-report), ready to paste.
+ * A read that gets no answer (a dropped connection) is said too, never left
+ * as a spinner that stops in silence (audit round 22). It only reads, so
+ * trying again is safe.
  */
 export function CopyTrialReport({ shopId, shopName }: { shopId: string; shopName: string }) {
   const [busy, setBusy] = useState(false);
@@ -35,6 +38,8 @@ export function CopyTrialReport({ shopId, shopName }: { shopId: string; shopName
       } catch {
         toast.error("The browser did not let the report be copied. Try again.");
       }
+    } catch {
+      toast.error("The report did not load: no answer came back. Try again.");
     } finally {
       setBusy(false);
     }

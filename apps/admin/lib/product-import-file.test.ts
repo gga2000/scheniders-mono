@@ -10,6 +10,7 @@ import {
   PART_LIMITS,
   cellText,
   decodeText,
+  hasLinksRoot,
   parseCsv,
   readImportFile,
   zipUnpacked,
@@ -402,6 +403,32 @@ describe("the reader's temporary files", () => {
     for (const name of ["xl/workbook.xml", "xl/_rels/workbook.xml.rels"]) {
       expect(await readImportFile(zip(book.filter((entry) => entry.name !== name)), "partial.xlsx")).toEqual(CANNOT_OPEN);
     }
+  });
+
+  // Audit round 22: a links part with no Relationships element leaves the
+  // reader without the links, so it wrote each sheet to a temporary file, and
+  // a broken first sheet left the rest behind.
+  it("refuses links with no Relationships element, before any sheet is read", async () => {
+    const broken = sheetXml('<row r="1"></sheetData>');
+    const fine = sheetXml(TWO_ROWS);
+    for (const links of ["", XML, `${XML}<!-- <Relationships> -->`, `${XML}<r:Relationships xmlns:r="${RELS}"/>`]) {
+      const book = bookEntries([broken, fine, fine]).map((entry) =>
+        entry.name === "xl/_rels/workbook.xml.rels" ? { ...entry, data: utf8(links) } : entry,
+      );
+      expect(await readImportFile(zip(book), "emptyrels.xlsx")).toEqual(CANNOT_OPEN);
+      expect(readdirSync(dir)).toEqual([]);
+    }
+    // Stored, not deflated, the same links read as they do deflated.
+    const stored = bookEntries([fine]).map((entry) => (entry.name === "xl/_rels/workbook.xml.rels" ? { ...entry, stored: true } : entry));
+    expect(await readImportFile(zip(stored), "stored.xlsx")).toMatchObject({ ok: true, file: { sheet: "Sheet1" } });
+  });
+
+  it("finds the Relationships element as the reader does", () => {
+    expect(hasLinksRoot(`${XML}<Relationships xmlns="${RELS}"></Relationships>`)).toBe(true);
+    expect(hasLinksRoot("<Relationships/>")).toBe(true);
+    expect(hasLinksRoot("<Relationships\n xmlns='x'>")).toBe(true);
+    expect(hasLinksRoot("<!-- <Relationships> --><RelationshipsX/>")).toBe(false);
+    expect(hasLinksRoot("")).toBe(false);
   });
 });
 
