@@ -46,7 +46,7 @@ CREATE TABLE public.tenant_public_stats (
 
 CREATE TABLE public.cron_refresh_state (
     job text PRIMARY KEY,
-    fingerprint bigint,
+    fingerprint bigint NOT NULL,
     refreshed_at timestamptz NOT NULL DEFAULT now()
 );
 INSERT INTO public.cron_refresh_state (job, fingerprint) VALUES ('tenant_public_stats', 1), ('customer_aggregates', 1);
