@@ -27,6 +27,12 @@ vi.mock("@/hooks/use-billing-lock", () => ({
 }));
 vi.mock("@/hooks/use-toast", () => ({ toast: vi.fn() }));
 vi.mock("@/components/providers/language-provider", () => ({ useLanguage: () => ({ t: (k: string) => k }) }));
+// The report under the lock card decides for itself whether it shows (trial-report-slot.test.tsx).
+vi.mock("./trial-report-slot", () => ({
+    TrialReportSlot: ({ place, lockReason }: { place: string; lockReason: string | null }) => (
+        <p data-testid="trial-report-slot">{`${place}:${lockReason}`}</p>
+    ),
+}));
 
 const { BillingLockGate } = await import("./billing-lock-gate");
 const { useSupportStore } = await import("@/store/use-support-store");
@@ -103,6 +109,16 @@ describe("BillingLockGate", () => {
         show();
         expect(screen.getByText("billing.lock.titleTrial")).toBeTruthy();
         expect(screen.queryByTestId("billing-lock-previous-store")).toBeNull();
+    });
+
+    // Fermi B12 item 2: the lock screen carries the trial report under its card.
+    it("puts the trial report under the lock card, with the lock's reason", () => {
+        show();
+        expect(screen.getByTestId("trial-report-slot").textContent).toBe("lock:trial_ended");
+        cleanup();
+        state.lock = { ...LOCKED, reason: "unpaid" };
+        show();
+        expect(screen.getByTestId("trial-report-slot").textContent).toBe("lock:unpaid");
     });
 
     it("renders the page while the lock is still loading", () => {

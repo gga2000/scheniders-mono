@@ -8584,6 +8584,10 @@ export const ar: Record<string, string> = {
     "billing.lock.topUp": "اشحن المحفظة",
     "billing.lock.askOwner": "صاحب المتجر يقدر يدفع من صفحة الفوترة.",
     "billing.lock.goToOrders": "روح للطلبات",
+    // The trial report card (Fermi B12 item 2); its lines come from @scheniders/shared/trial-report.
+    "trialReport.title": "تقرير تجربتك",
+    "trialReport.hideToday": "إخفاء لليوم",
+    "trialReport.choosePlan": "اختر باقتك",
     "billing.lock.stillOpen": "الطلبات والشحن والطباعة والتصدير شغالة.",
     "billing.lock.paid": "تم الدفع. رجعت كل الميزات.",
     "billing.lock.payFailed": "ما تم الدفع. رصيد المحفظة ما يكفي.",
