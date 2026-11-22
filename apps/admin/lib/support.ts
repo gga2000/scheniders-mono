@@ -112,8 +112,20 @@ export interface SupportCaseRow {
 
 /** A row of the inbox list. */
 export interface SupportInboxRow extends SupportCaseRow {
-  /** The conversation holds a change request ("Need a change?" in the merchant header), promised within 24 hours. */
-  change_request: boolean;
+  /**
+   * When the merchant first asked for a change ("Need a change?" in the
+   * merchant header) in this conversation, or null when they did not. We
+   * promise it within CHANGE_REQUEST_HOURS.
+   */
+  change_requested_at: string | null;
+}
+
+/** "Need a change?" promises the change inside the app within 24 hours. */
+export const CHANGE_REQUEST_HOURS = 24;
+
+/** When a change request asked at `requestedAt` is due. */
+export function changeRequestDueAt(requestedAt: string): string {
+  return new Date(Date.parse(requestedAt) + CHANGE_REQUEST_HOURS * 3_600_000).toISOString();
 }
 
 /** What the merchant was looking at when they wrote (apps/platform lib/support/context). */
