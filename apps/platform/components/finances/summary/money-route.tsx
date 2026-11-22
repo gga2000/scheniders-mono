@@ -10,6 +10,7 @@ import type { CostLine, FinanceSummary } from "@/lib/finance/summary";
 import { COST_COLORS, PROFIT_COLOR } from "./colors";
 import { Money, formatWhole, useMoneyText } from "./money";
 import { COURIER_PAYMENTS_ID } from "./courier-payments";
+import { InfoTip } from "./info-tip";
 import { CARD_LINK, SummaryCard } from "./summary-card";
 import { UnpaidOrders } from "./unpaid-orders";
 
@@ -35,13 +36,15 @@ type Part = keyof typeof FILLS;
 interface PartRowProps {
     part: Part | "road";
     label: string;
-    note: string;
+    /** A short count under the label; the why sits in `tip`, one hover or tap away. */
+    note?: string;
+    tip?: string;
     amount: number;
     textDir: "rtl" | "ltr";
     children?: ReactNode;
 }
 
-function PartRow({ part, label, note, amount, textDir, children }: PartRowProps) {
+function PartRow({ part, label, note, tip, amount, textDir, children }: PartRowProps) {
     const swatch: CSSProperties | undefined = part === "road" ? undefined : { background: FILLS[part] };
     return (
         <li className="grid grid-cols-[12px_minmax(0,1fr)_auto] items-start gap-x-3 py-3 first:pt-0 last:pb-0" data-testid={`money-${part}`}>
@@ -51,8 +54,11 @@ function PartRow({ part, label, note, amount, textDir, children }: PartRowProps)
                 aria-hidden="true"
             />
             <div className="min-w-0">
-                <div className="text-left text-[15px] font-semibold text-foreground" dir={textDir}>{label}</div>
-                <p className="mt-0.5 text-left text-[13px] leading-relaxed text-muted" dir={textDir}>{note}</p>
+                <div className="flex items-center gap-1">
+                    <span className="text-left text-[15px] font-semibold text-foreground" dir={textDir}>{label}</span>
+                    {tip && <InfoTip text={tip} textDir={textDir} testId={`money-${part}-info`} />}
+                </div>
+                {note && <p className="mt-0.5 text-left text-[13px] leading-relaxed text-muted" dir={textDir}>{note}</p>}
             </div>
             <Money value={amount} className="text-[18px] font-bold tracking-[-0.01em] text-foreground" />
             {/* Spans the amount column too, so every amount on the card ends at the same edge. */}
@@ -237,10 +243,11 @@ export function MoneyRoute({ summary, delivery }: MoneyRouteProps) {
                         <PartRow
                             part="reached"
                             label={t("fin.money.reached")}
-                            note={
-                                t("fin.money.reached.note", { n: formatWhole(split.reached_orders), count: split.reached_orders }) +
-                                // Said up front, so "paid to you" is not read as the cash the statements finally sent.
-                                (nowGap > 0 && split.reached_orders > 0 ? t("fin.money.reached.taken", { where: t("fin.money.from.nowMatch") }) : "")
+                            note={t("fin.money.reached.note", { n: formatWhole(split.reached_orders), count: split.reached_orders })}
+                            tip={
+                                t("fin.money.reached.tip") +
+                                // Said in the tip, so "paid to you" is not read as the cash the statements finally sent.
+                                (nowGap > 0 && split.reached_orders > 0 ? t("fin.money.reached.taken") : "")
                             }
                             amount={split.reached}
                             textDir={dir}
@@ -253,7 +260,7 @@ export function MoneyRoute({ summary, delivery }: MoneyRouteProps) {
                                         <div className="flex items-baseline justify-between gap-4 text-[13px]">
                                             <dt className="min-w-0 text-left text-muted" dir={dir}>
                                                 {source.label}
-                                                {source.note && <span className="block text-[12px]">{source.note}</span>}
+                                                {source.note && <InfoTip text={source.note} textDir={dir} className="ms-1" testId={`money-from-${source.key}-info`} />}
                                                 {/* The statement part is what the courier payments card takes apart: link the two,
                                                     or, when the same statements took something off, fold the lines that match them. */}
                                                 {!(source.lines && source.lines.length > 0) && source.href && (
@@ -320,16 +327,12 @@ export function MoneyRoute({ summary, delivery }: MoneyRouteProps) {
                         <PartRow
                             part="fee"
                             label={t("fin.money.fee")}
-                            note={summary.courier.prime_fee > 0 ? t("fin.money.fee.note") : t("fin.money.fee.noteCourier")}
+                            tip={[summary.courier.prime_fee > 0 ? t("fin.money.fee.note") : t("fin.money.fee.noteCourier"), deliveryNote]
+                                .filter(Boolean)
+                                .join(" ")}
                             amount={split.fee}
                             textDir={dir}
-                        >
-                            {deliveryNote && (
-                                <p className="mt-0.5 text-left text-[13px] leading-relaxed text-muted" dir={dir} data-testid="money-fee-statement">
-                                    {deliveryNote}
-                                </p>
-                            )}
-                        </PartRow>
+                        />
                         <PartRow part="unpaid" label={t("fin.money.unpaid")} note={unpaidNote} amount={split.unpaid} textDir={dir}>
                             <UnpaidOrders orders={summary.cash.unpaid_list} total={split.unpaid_orders} totalPrime={split.unpaid_prime} />
                             {/* Shown whenever Prime holds unpaid orders, link row or not (the demo store has none). */}
@@ -350,6 +353,7 @@ export function MoneyRoute({ summary, delivery }: MoneyRouteProps) {
                         part="road"
                         label={t("fin.money.road")}
                         note={t("fin.money.road.note", { n: formatWhole(road.count), count: road.count })}
+                        tip={t("fin.money.road.tip")}
                         amount={road.amount}
                         textDir={dir}
                     >
@@ -370,8 +374,9 @@ export function MoneyRoute({ summary, delivery }: MoneyRouteProps) {
                             </Link>
                         )}
                         {returning.count > 0 && (
-                            <p className="mt-0.5 text-left text-[13px] leading-relaxed text-muted" dir={dir} data-testid="money-returning">
+                            <p className="mt-0.5 flex items-center gap-1 text-left text-[13px] leading-relaxed text-muted" dir={dir} data-testid="money-returning">
                                 {t("fin.money.returning", { n: formatWhole(returning.count), count: returning.count })}
+                                <InfoTip text={t("fin.money.returning.tip")} textDir={dir} testId="money-returning-info" />
                             </p>
                         )}
                         {returning.count > 0 && (
