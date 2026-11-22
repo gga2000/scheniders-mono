@@ -7,6 +7,7 @@ import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { bulkDates, profitPath, scaleMarks, type FinanceSummaryDay, type PathPoint } from "@/lib/finance/summary";
 import { LOSS_COLOR, PROFIT_COLOR } from "./colors";
 import { Money, formatWhole, useMoneyText } from "./money";
+import { InfoTip } from "./info-tip";
 import { SummaryCard } from "./summary-card";
 
 interface ProfitPathProps {
@@ -322,7 +323,13 @@ export function ProfitPath({ daily }: ProfitPathProps) {
                     </div>
                 </div>
                 {bigDays && (
-                    <p className="mt-3 text-left text-[12.5px] leading-relaxed text-muted" dir={dir} data-testid="profit-path-big">{[bigDays, bulkLine, restLine].filter(Boolean).join(" ")}</p>
+                    <p className="mt-3 text-left text-[12.5px] leading-relaxed text-muted" dir={dir} data-testid="profit-path-big">
+                        {bigDays}
+                        {/* Whether those days were bulk marking, and what the other days added: one tap away. */}
+                        {(bulkLine || restLine) && (
+                            <InfoTip text={[bulkLine, restLine].filter(Boolean).join(" ")} textDir={dir} className="ms-1" testId="profit-path-big-info" />
+                        )}
+                    </p>
                 )}
             </div>
         </SummaryCard>

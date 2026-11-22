@@ -8,6 +8,7 @@ import { formatChange, isShownChange } from "./change-chip";
 import { LOSS_COLOR, PROFIT_COLOR } from "./colors";
 import type { FinanceTab } from "./finance-tabs";
 import { formatWhole, useMoneyText } from "./money";
+import { InfoTip } from "./info-tip";
 import { CARD_FIGURE, CARD_LINK, SummaryCard } from "./summary-card";
 
 interface DailyCostsProps {
@@ -66,6 +67,25 @@ export function DailyCosts({ summary, statement, previous, bulkBefore, onOpenTab
         const need = Number(rate(even.needed));
         const have = Number(rate(even.delivered));
         const above = have >= need;
+        // How the bar is worked out, and when its daily average is rough: behind an icon, so the card leads with the bar.
+        const how = [
+            t("fin.even.how", {
+                items: costItems.join(t("fin.even.item.and")),
+                left: money(even.leftPerOrder),
+                bill: money(even.dailyBill),
+                after: money(perOrder(statement.netProfit, statement.orders) ?? 0),
+            }),
+            bulk
+                ? t("fin.even.bulk", {
+                      n: formatWhole(bulk.orders),
+                      total: formatWhole(bulk.total),
+                      days: t("fin.even.bulk.days", { n: String(bulk.days), count: bulk.days }),
+                  })
+                : null,
+        ]
+            .filter(Boolean)
+            .join(" ");
+        const howTip = <InfoTip text={how} textDir={dir} testId="break-even-info" />;
         cover = (
             <div data-testid="break-even-bar" data-state={above ? "above" : "below"}>
                 <div className="flex items-center justify-between gap-3 text-[12.5px] font-medium text-foreground">
@@ -74,6 +94,7 @@ export function DailyCosts({ summary, statement, previous, bulkBefore, onOpenTab
                             <span className={label}>
                                 <span className={`${dot} bg-stone-900 dark:bg-stone-100`} aria-hidden="true" />
                                 <span dir={dir}>{t("fin.even.cover", { n: rate(need), ...countOf(rate(need)) })}</span>
+                                {howTip}
                             </span>
                             <span className={label}>
                                 <span className={dot} style={{ background: PROFIT_COLOR }} aria-hidden="true" />
@@ -85,6 +106,7 @@ export function DailyCosts({ summary, statement, previous, bulkBefore, onOpenTab
                             <span className={label}>
                                 <span className={dot} style={{ background: LOSS_COLOR }} aria-hidden="true" />
                                 <span dir={dir}>{t("fin.even.have", { have: rate(have) })}</span>
+                                {howTip}
                             </span>
                             <span className={label}>
                                 <span className={`${dot} border border-dashed border-stone-400`} aria-hidden="true" />
@@ -106,23 +128,6 @@ export function DailyCosts({ summary, statement, previous, bulkBefore, onOpenTab
                         </>
                     )}
                 </div>
-                <p className="mt-2.5 text-left text-[12.5px] leading-relaxed text-muted" dir={dir}>
-                    {t("fin.even.how", {
-                        items: costItems.join(t("fin.even.item.and")),
-                        left: money(even.leftPerOrder),
-                        bill: money(even.dailyBill),
-                        after: money(perOrder(statement.netProfit, statement.orders) ?? 0),
-                    })}
-                </p>
-                {bulk && (
-                    <p className="mt-1.5 text-left text-[12.5px] leading-relaxed text-muted" dir={dir} data-testid="break-even-bulk">
-                        {t("fin.even.bulk", {
-                            n: formatWhole(bulk.orders),
-                            total: formatWhole(bulk.total),
-                            days: t("fin.even.bulk.days", { n: String(bulk.days), count: bulk.days }),
-                        })}
-                    </p>
-                )}
             </div>
         );
     }
@@ -158,15 +163,25 @@ export function DailyCosts({ summary, statement, previous, bulkBefore, onOpenTab
                     <p className="mt-2.5 text-left text-[13.5px] leading-relaxed text-muted" dir={dir}>
                         {t("fin.ads.spent", { spent: money(spent) })}
                         {/* The line to judge the figure by, from this period's own goods, delivery and refunds. */}
-                        {evenAds !== null && <> {t("fin.ads.even", { n: formatWhole(evenAds), count: evenAds })}</>}
+                        {evenAds !== null && (
+                            <>
+                                {" "}
+                                {t("fin.ads.even", { n: formatWhole(evenAds), count: evenAds })}
+                                <InfoTip text={t("fin.ads.evenTip")} textDir={dir} className="ms-1" testId="ad-even-info" />
+                            </>
+                        )}
                     </p>
                     {/* That line assumes every sale came from the ads; when sales did not rise as the ads began, say so beside it. */}
                     {noLift !== null && (
                         <p className="mt-2.5 border-s-2 border-amber-400 ps-3 text-left text-[13px] leading-relaxed text-foreground" dir={dir} data-testid="ads-no-lift">
-                            {/* Bulk-marked days in either period move sales between dates, so the comparison is rough: say so and point to new orders. */}
-                            {isShownChange(-noLift)
-                                ? t(bulk || bulkBefore ? "fin.ads.noLiftBulk" : "fin.ads.noLift", { pct: formatChange(noLift) })
-                                : t(bulk || bulkBefore ? "fin.ads.noLiftSameBulk" : "fin.ads.noLiftSame")}
+                            {isShownChange(-noLift) ? t("fin.ads.noLift", { pct: formatChange(noLift) }) : t("fin.ads.noLiftSame")}
+                            {/* What to try, and (when bulk-marked days in either period move sales between dates) why the comparison is rough. */}
+                            <InfoTip
+                                text={t(bulk || bulkBefore ? "fin.ads.noLiftTipBulk" : "fin.ads.noLiftTip")}
+                                textDir={dir}
+                                className="ms-1"
+                                testId="ads-no-lift-info"
+                            />
                         </p>
                     )}
                 </div>

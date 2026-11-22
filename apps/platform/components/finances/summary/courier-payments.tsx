@@ -197,11 +197,20 @@ export function CourierPayments({ summary, onAddPayment }: CourierPaymentsProps)
     return (
         <SummaryCard
             title={t("fin.money.cash.title")}
-            sub={payments.payments > 0 ? counted("fin.money.cash.count", payments.payments) : t("fin.money.payments.none")}
+            sub={link ?? undefined}
             textDir={dir}
             testId="money-payments"
             id={COURIER_PAYMENTS_ID}
-            action={payments.payments > 0 && <Money value={payments.amount} className="text-[22px] font-bold tracking-[-0.01em] text-foreground" />}
+            action={
+                payments.payments > 0 && (
+                    <div className="text-right">
+                        <Money value={payments.amount} className="text-[22px] font-bold tracking-[-0.01em] text-foreground" />
+                        <p className="mt-0.5 text-[12.5px] text-muted" dir={dir} data-testid="money-payments-count">
+                            {counted("fin.money.cash.count", payments.payments)}
+                        </p>
+                    </div>
+                )
+            }
             footer={
                 <button type="button" onClick={onAddPayment} className={CARD_LINK} data-testid="money-add-payment">
                     <FileUp className="size-3.5" aria-hidden="true" />
@@ -209,13 +218,13 @@ export function CourierPayments({ summary, onAddPayment }: CourierPaymentsProps)
                 </button>
             }
         >
-            {link && (
-                <p className="text-left text-[13px] leading-relaxed text-muted" dir={dir} data-testid="money-payments-link">
-                    {link}
+            {payments.payments === 0 && (
+                <p className="text-left text-[13px] text-muted" dir={dir}>
+                    {t("fin.money.payments.none")}
                 </p>
             )}
             {parts.length > 0 && (
-                <dl className="mt-3 divide-y divide-[var(--card-border)]" data-testid="money-payments-parts">
+                <dl className="divide-y divide-[var(--card-border)]" data-testid="money-payments-parts">
                     {parts.map((part) => {
                         // A quiet line with something behind it folds; a line the shop must act on stays open.
                         const folds = part.quiet === true && (part.note !== undefined || (part.orders?.length ?? 0) > 0);
