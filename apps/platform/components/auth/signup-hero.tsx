@@ -9,9 +9,9 @@ import { TRIAL_DAYS } from "@/lib/trial";
 import { cn } from "@/lib/utils";
 
 /**
- * The sign-up page's brand panel: Fermi's promise over the light shader. On
- * phones it shrinks to a short band (headline only) so the form, often
- * already filled from usefermi.com, stays near the top.
+ * The sign-up page's brand panel: Fermi's promise in lime light on ink. On
+ * phones it shrinks to a short band (logo, trial pill, one-line promise) so
+ * the form, often already filled from usefermi.com, stays near the top.
  */
 export function SignupHero() {
     const { t } = useLanguage();
@@ -24,13 +24,14 @@ export function SignupHero() {
     return (
         <AnimatedShaderHero
             dir={dir}
-            className={cn(balooArabic.variable, "h-full min-h-[190px] lg:min-h-screen")}
-            headlineClassName="font-[family-name:var(--font-fermi-display),var(--font-geist-sans)] text-[28px] sm:text-[44px] lg:text-[64px] xl:text-[72px]"
+            className={cn(balooArabic.variable, "h-full lg:min-h-screen")}
+            headlineClassName="font-[family-name:var(--font-fermi-display),var(--font-geist-sans)] text-[26px] sm:text-[40px] lg:text-[68px] lg:leading-[1.22] xl:text-[80px]"
             badge={
-                <div className="flex items-center gap-3">
-                    <Image src="/brand/fermi-wordmark.svg" alt="Fermi" width={79} height={24} unoptimized priority className="hidden lg:block" />
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-[#1E1E1E]/10 bg-white/70 px-3 py-1.5 text-[12px] font-semibold text-[#1E1E1E] backdrop-blur-md">
-                        <span className="h-1.5 w-1.5 rounded-full bg-[#3BB273]" aria-hidden />
+                <div className="flex items-center justify-between gap-3">
+                    {/* The wordmark file is ink; inverted it reads as cream on the dark panel. */}
+                    <Image src="/brand/fermi-wordmark.svg" alt="Fermi" width={92} height={28} unoptimized priority className="invert" />
+                    <span className="inline-flex items-center gap-2 rounded-full border border-white/15 px-3 py-1.5 text-[12px] font-medium text-[#F4EFE9]">
+                        <span className="h-1.5 w-1.5 rounded-full bg-[#EFFF00]" aria-hidden />
                         {t("signup.hero.badge", { count: TRIAL_DAYS })}
                     </span>
                 </div>
@@ -39,15 +40,10 @@ export function SignupHero() {
             subtitle={t("signup.hero.subtitle")}
             subtitleClassName="hidden sm:block"
         >
-            <ul className="hidden lg:flex flex-col gap-2.5 max-w-md">
+            <ul className="hidden max-w-md flex-col border-t border-white/10 lg:flex">
                 {points.map(({ icon: Icon, text }) => (
-                    <li
-                        key={text}
-                        className="flex items-center gap-3 rounded-2xl border border-white/70 bg-white/65 px-4 py-3 text-[14px] font-medium text-[#1E1E1E] shadow-[0_10px_30px_-18px_rgba(30,30,30,0.35)] backdrop-blur-md"
-                    >
-                        <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#1E1E1E] text-[#E5F23A]">
-                            <Icon className="h-4 w-4" aria-hidden />
-                        </span>
+                    <li key={text} className="flex items-center gap-3.5 border-b border-white/10 py-3.5 text-[15px] text-[#F4EFE9]">
+                        <Icon className="h-[18px] w-[18px] shrink-0 text-[#EFFF00]" aria-hidden />
                         {text}
                     </li>
                 ))}

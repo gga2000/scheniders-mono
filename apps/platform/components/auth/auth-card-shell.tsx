@@ -48,7 +48,7 @@ function AuthCardFrame({
         <div
             className={
                 besideAside
-                    ? "flex items-start lg:items-center justify-center px-4 py-8 lg:py-12 relative overflow-hidden lg:min-h-screen"
+                    ? "flex items-start lg:items-center justify-center px-4 py-6 lg:py-12 relative overflow-hidden lg:min-h-screen"
                     : "min-h-screen flex items-center justify-center px-4 py-10 relative overflow-hidden"
             }
         >
@@ -71,9 +71,12 @@ function AuthCardFrame({
             {/* No entry fade: it started at opacity 0 in the server HTML, so the
                 card stayed invisible until all JS had run (6 s on a slow phone). */}
             <div className="w-full max-w-[440px] relative z-10">
-                <div className="flex items-center justify-center mb-7">
-                    <Image src="/brand/fermi-wordmark.svg" alt="Fermi" width={92} height={28} unoptimized priority />
-                </div>
+                {/* Beside the brand panel the wordmark is already on screen. */}
+                {!besideAside && (
+                    <div className="flex items-center justify-center mb-7">
+                        <Image src="/brand/fermi-wordmark.svg" alt="Fermi" width={92} height={28} unoptimized priority />
+                    </div>
+                )}
 
                 <div className="bg-white rounded-[28px] border border-[#ECE8DD] shadow-[0_1px_2px_rgba(30,30,30,0.04),0_24px_60px_-24px_rgba(30,30,30,0.18)] overflow-hidden">
                     <div className="h-1.5 bg-[#EFFF00]" />

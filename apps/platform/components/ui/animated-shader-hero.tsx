@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 /*
  * Animated shader hero, adapted from 21st.dev "animated-shader-hero"
  * (shader by Matthias Hurrle, @atzedent). Changes from the original:
- * - Fermi palette as uniforms (cream paper, lime light, ink cores) instead of
+ * - Fermi palette as uniforms (ink ground, lime light, pale cores) instead of
  *   orange-on-black, and half the original speed so the eye can rest on it.
  * - Sized to its own box (not the window), rendered at a capped resolution,
  *   paused when off screen or the tab is hidden, 30 fps on small screens.
@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
  */
 
 export interface ShaderPalette {
-    /** The paper the light sits on. */
+    /** The ground the light sits on. */
     base: string;
     /** The glow colour. */
     glow: string;
@@ -24,7 +24,7 @@ export interface ShaderPalette {
     core: string;
 }
 
-export const FERMI_LIGHT_PALETTE: ShaderPalette = { base: "#F4EFE9", glow: "#E5F23A", core: "#1E1E1E" };
+export const FERMI_INK_PALETTE: ShaderPalette = { base: "#17170F", glow: "#EFFF00", core: "#FCFFE0" };
 
 const VERTEX_SRC = `#version 300 es
 precision highp float;
@@ -67,9 +67,9 @@ void main(void){
     col=mix(col,vec3(bg*.25,bg*.137,bg*.05),d);
   }
   float g=dot(col,vec3(.4,.4,.2));
-  vec3 paper=mix(baseColor,baseColor*.93,clamp(bg*.35,0.,1.));
-  vec3 lit=mix(paper,glowColor,smoothstep(.04,.5,g));
-  O=vec4(mix(lit,coreColor,smoothstep(.9,2.4,g)*.18),1);
+  vec3 ground=baseColor+glowColor*.05*clamp(bg,0.,1.);
+  vec3 lit=mix(ground,glowColor,smoothstep(.1,1.,g)*.9);
+  O=vec4(mix(lit,coreColor,smoothstep(.9,2.2,g)*.8),1);
 }`;
 
 function hexToRgb(hex: string): [number, number, number] {
@@ -134,7 +134,7 @@ const SPEED = 0.5;
 const STILL_TIME = 6;
 
 /** A full-bleed canvas running the Fermi shader, sized to its parent. */
-export function ShaderCanvas({ palette = FERMI_LIGHT_PALETTE, className }: { palette?: ShaderPalette; className?: string }) {
+export function ShaderCanvas({ palette = FERMI_INK_PALETTE, className }: { palette?: ShaderPalette; className?: string }) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
     useEffect(() => {
@@ -210,9 +210,9 @@ export function ShaderCanvas({ palette = FERMI_LIGHT_PALETTE, className }: { pal
 }
 
 export interface AnimatedShaderHeroProps {
-    /** Small pill above the headline. */
+    /** Top row: brand mark, a small pill. */
     badge?: ReactNode;
-    /** Headline, one entry per line; the last line is highlighted. */
+    /** Headline, one entry per line; the last line sits on a lime block. */
     lines: string[];
     subtitle?: string;
     /** Anything under the subtitle: proof points, a call to action. */
@@ -226,51 +226,58 @@ export interface AnimatedShaderHeroProps {
     subtitleClassName?: string;
 }
 
-/** The shader with a staggered headline, subtitle and slot over it. */
+/** The shader on ink with a staggered headline, subtitle and slot over it. */
 export function AnimatedShaderHero({ badge, lines, subtitle, children, dir, className, headlineClassName, subtitleClassName }: AnimatedShaderHeroProps) {
     return (
         <section
             className={cn(
-                "relative isolate overflow-hidden bg-[#F4EFE9] bg-[radial-gradient(60%_50%_at_30%_30%,rgba(229,242,58,0.45),transparent),radial-gradient(50%_40%_at_75%_80%,rgba(229,242,58,0.3),transparent)]",
+                "relative isolate overflow-hidden bg-[#17170F] bg-[radial-gradient(70%_55%_at_20%_100%,rgba(239,255,0,0.28),transparent)]",
                 className,
             )}
         >
             <ShaderCanvas />
-            {/* Paper grain + a soft vignette keep the copy readable over the light. */}
+            {/* An ink wash from the copy's side keeps the text on calm ground; the light plays on the far side. */}
             <div
                 aria-hidden
-                className="pointer-events-none absolute inset-0 bg-[radial-gradient(120%_90%_at_50%_50%,transparent_40%,rgba(244,239,233,0.75)),linear-gradient(rgba(244,239,233,0.35),rgba(244,239,233,0.35))]"
+                className={cn(
+                    "pointer-events-none absolute inset-0",
+                    dir === "rtl"
+                        ? "bg-[linear-gradient(to_left,rgba(23,23,15,0.92)_0%,rgba(23,23,15,0.7)_45%,rgba(23,23,15,0.15)_100%)]"
+                        : "bg-[linear-gradient(to_right,rgba(23,23,15,0.92)_0%,rgba(23,23,15,0.7)_45%,rgba(23,23,15,0.15)_100%)]",
+                )}
             />
-            <div dir={dir} className="relative z-10 flex h-full flex-col justify-center gap-3 px-6 py-6 sm:gap-6 sm:px-12 sm:py-10 lg:px-14">
+            <div dir={dir} className="relative z-10 flex h-full flex-col px-6 py-6 sm:px-12 sm:py-10 lg:px-16 lg:py-14">
                 {badge && <div className="shader-hero-rise [animation-delay:0ms]">{badge}</div>}
-                <h2 className={cn("text-[#1E1E1E] font-extrabold leading-[1.05] tracking-tight", headlineClassName)}>
-                    {lines.map((line, i) => (
-                        <span
-                            key={line}
-                            className="shader-hero-rise block"
-                            style={{ animationDelay: `${120 + i * 110}ms` }}
+                <div className="flex flex-1 flex-col justify-center gap-4 pt-5 sm:gap-7 lg:pt-0">
+                    <h2 className={cn("text-[#F4EFE9] font-extrabold leading-[1.25] tracking-tight", headlineClassName)}>
+                        {lines.map((line, i) => (
+                            <span
+                                key={line}
+                                className="shader-hero-rise me-[0.3em] inline-block lg:me-0 lg:block"
+                                style={{ animationDelay: `${120 + i * 110}ms` }}
+                            >
+                                {i === lines.length - 1 ? (
+                                    <span className="inline-block rounded-[0.18em] bg-[#EFFF00] px-[0.22em] text-[#17170F]">{line}</span>
+                                ) : (
+                                    line
+                                )}
+                            </span>
+                        ))}
+                    </h2>
+                    {subtitle && (
+                        <p
+                            className={cn("shader-hero-rise max-w-md text-[16px] leading-relaxed text-[#C9C4B8]", subtitleClassName)}
+                            style={{ animationDelay: `${160 + lines.length * 110}ms` }}
                         >
-                            {i === lines.length - 1 ? (
-                                <span className="bg-[linear-gradient(transparent_62%,#E5F23A_62%,#E5F23A_92%,transparent_92%)] px-1">{line}</span>
-                            ) : (
-                                line
-                            )}
-                        </span>
-                    ))}
-                </h2>
-                {subtitle && (
-                    <p
-                        className={cn("shader-hero-rise max-w-md text-[15px] leading-relaxed text-[#4A463F]", subtitleClassName)}
-                        style={{ animationDelay: `${160 + lines.length * 110}ms` }}
-                    >
-                        {subtitle}
-                    </p>
-                )}
-                {children && (
-                    <div className="shader-hero-rise" style={{ animationDelay: `${260 + lines.length * 110}ms` }}>
-                        {children}
-                    </div>
-                )}
+                            {subtitle}
+                        </p>
+                    )}
+                    {children && (
+                        <div className="shader-hero-rise" style={{ animationDelay: `${260 + lines.length * 110}ms` }}>
+                            {children}
+                        </div>
+                    )}
+                </div>
             </div>
         </section>
     );
