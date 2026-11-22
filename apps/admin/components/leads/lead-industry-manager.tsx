@@ -17,6 +17,7 @@ import {
 import type { Industry } from "@/types/leads";
 import { industryChanges, industryForm, type IndustryForm } from "@/lib/industry-edit";
 import { LoadError } from "@/components/shared/load-error";
+import { StaleLine } from "@/components/shared/stale-line";
 import {
   X,
   Settings,
@@ -87,6 +88,9 @@ interface LeadIndustryManagerProps {
 
 // ── New Industry Form ──────────────────────────────────────────────────
 
+/** One empty list for every render before the first read, so the sort below keeps its input. */
+const NO_INDUSTRIES: Industry[] = [];
+
 const INITIAL_FORM: IndustryForm = {
   name: "",
   name_ar: "",
@@ -98,7 +102,9 @@ const INITIAL_FORM: IndustryForm = {
 // ── Component ──────────────────────────────────────────────────────────
 
 export function LeadIndustryManager({ isOpen, onClose }: LeadIndustryManagerProps) {
-  const { data: industries = [], isLoading, isError, error, refetch, isFetching } = useIndustries();
+  const industriesRead = useIndustries();
+  const { data: read, isLoading, isError, error, refetch, isFetching } = industriesRead;
+  const industries = read ?? NO_INDUSTRIES;
   const createIndustry = useCreateIndustry();
   const updateIndustry = useUpdateIndustry();
   const moveIndustry = useMoveIndustry();
@@ -398,7 +404,8 @@ export function LeadIndustryManager({ isOpen, onClose }: LeadIndustryManagerProp
 
               {/* ── Industry List ───────────────────────────── */}
               <div className="px-6 py-4">
-                {isError ? (
+                <StaleLine read={industriesRead} what="the industries" kept="list" className="mb-2" />
+                {isError && !read ? (
                   <LoadError compact what="the industries" error={error} onRetry={() => refetch()} retrying={isFetching} />
                 ) : isLoading ? (
                   <div className="py-12 text-center">

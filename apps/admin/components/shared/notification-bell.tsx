@@ -16,6 +16,7 @@ import { activityKind } from "@/lib/activity-kinds";
 import { useRecentSteps, type RecentStep } from "@/hooks/use-recent-steps";
 import { isNewStep, useBellReadMark } from "@/hooks/use-bell-read-mark";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
+import { StaleLine } from "@/components/shared/stale-line";
 
 // Icon and tint per kind of step (lib/activity-kinds), keyed on the names the
 // console writes; the words come from staffActionText, as on the Team page.
@@ -200,7 +201,8 @@ export function NotificationBell() {
 
             {/* Notifications list */}
             <div className="max-h-[360px] overflow-y-auto">
-              {recent.isError ? (
+              <StaleLine read={recent} what="the recent steps" kept="list" className="px-4 pt-3" />
+              {recent.isError && !recent.data ? (
                 <div role="alert" className="px-4 py-6 text-center text-sm text-foreground/70">
                   <p>Could not load the recent steps.</p>
                   <button
