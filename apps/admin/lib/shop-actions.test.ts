@@ -235,7 +235,9 @@ describe("what turning renewal on says", () => {
     expect(renewalOnWords(facts({ onTrial: true, status: "trial" }), now)).toBe(
       "Renewal turns on. When the trial ends, the first month is charged from the wallet as usual.",
     );
-    expect(renewalOnWords(facts({ status: "cancelled" }), now)).toBe("Renewal turns on. The shop is cancelled, so nothing is charged.");
+    expect(renewalOnWords(facts({ status: "cancelled" }), now)).toBe(
+      "Renewal turns on. The shop is cancelled, so nothing is charged until it is made active again.",
+    );
   });
 
   it("for the demo store: never charged", () => {
@@ -295,6 +297,25 @@ describe("what turning renewal on says", () => {
         "The shop is paused, so nothing is charged until the pause lifts. This month ended Sat 21 Nov. It is not charged, and the shop locks until the shop pays the month on its lock screen, or staff turn renewal on and the wallet pays it.",
       );
       expect(renewalOffWords(facts({ onTrial: true, status: "limited" }), now)).toMatch(/^The shop is paused, so nothing is charged until the pause lifts\. When the trial ends/);
+    });
+
+    /*
+     * Round 24 structure new 4: Stop renewing had its own table of away
+     * statuses, which left out cancelled. On a cancelled shop the switch
+     * said "nothing is charged" turning on and "this month runs to its end"
+     * turning off. No job charges any status but trial and active.
+     */
+    it("says the same about a shop that is away whichever way the switch goes", () => {
+      for (const status of ["limited", "suspended", "cancelled"]) {
+        const on = renewalOnWords(facts({ status }), now).replace("Renewal turns on. ", "");
+        expect(renewalOffWords(facts({ status }), now).startsWith(on)).toBe(true);
+      }
+      expect(renewalOffWords(facts({ status: "cancelled" }), now)).toBe(
+        `The shop is cancelled, so nothing is charged until it is made active again. ${RENEWAL_STOP_WORDS}`,
+      );
+      expect(renewalOffWords(facts({ ...locked, status: "cancelled" }), now)).toMatch(
+        /^The shop is cancelled, so nothing is charged and nothing opens the lock until it is made active again\. Then it stays locked/,
+      );
     });
   });
 });

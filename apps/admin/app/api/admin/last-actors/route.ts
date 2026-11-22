@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminFromRequest } from "@/lib/api-auth";
+import { AUTOMATIC, logActor } from "@/lib/shop-timeline";
 
 const BodySchema = z.object({
   tenant_ids: z.array(z.string().uuid()).min(1).max(200),
@@ -57,9 +58,17 @@ export async function POST(request: NextRequest) {
         .from("user_profiles")
         .select("id, display_name, email, avatar_url")
         .in("id", adminIds);
-      // A failed read must not name every step "system".
+      // A failed read must not name every staff step "Automatic".
       if (profileError) throw profileError;
       profilesById = new Map((profiles ?? []).map((p) => [p.id, p]));
+    }
+
+    // The shop's timeline names a staff member by their name, else their own
+    // email (round 24 structure new 4).
+    const names = new Map<string, string>();
+    for (const profile of profilesById.values()) {
+      const name = profile.display_name?.trim() || profile.email;
+      if (name) names.set(profile.id, name);
     }
 
     const actors: Record<
@@ -75,18 +84,15 @@ export async function POST(request: NextRequest) {
     > = {};
     for (const [tenantId, entry] of Object.entries(latestByTenant)) {
       const profile = entry.admin_user_id ? profilesById.get(entry.admin_user_id) : null;
-      // As the shop's timeline names a row (logActor): the staff member's
-      // name, else the email the row kept, else its label; "system" only for
-      // the system's own steps (round 23 data new 3).
-      const label = entry.admin_label && entry.admin_label !== "system" ? entry.admin_label : null;
-      const email = profile?.email ?? entry.actor_email;
+      // Named as the shop's timeline names the same row, from the same rule.
+      const who = logActor(entry, names);
       actors[tenantId] = {
-        display_name: profile?.display_name ?? entry.actor_email ?? label ?? "system",
-        email,
+        display_name: who,
+        email: profile?.email ?? entry.actor_email,
         avatar_url: profile?.avatar_url ?? null,
         action: entry.action,
         when: entry.created_at,
-        is_system: !profile && !entry.actor_email && !label,
+        is_system: who === AUTOMATIC,
       };
     }
 
