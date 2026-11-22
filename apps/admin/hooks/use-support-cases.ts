@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   CaseAction,
@@ -21,6 +22,7 @@ import type { ShopCheck } from "@/lib/support-shop-check";
 import type { SupportSpike } from "@/lib/support-spike";
 import { SHELL_READ, useAfterPageReads } from "@/hooks/use-after-page-reads";
 import { adminFetch } from "@/lib/admin-fetch";
+import { writesOnce } from "@/lib/support";
 
 async function readJson<T>(res: Response): Promise<T> {
   const body: unknown = await res.json().catch(() => null);
@@ -32,6 +34,77 @@ async function readJson<T>(res: Response): Promise<T> {
     throw new Error(message);
   }
   return body as T;
+}
+
+/**
+ * What staff read when a send got no answer back (the connection dropped, or
+ * a gateway answered 502 or 504 with no words). It may have gone through;
+ * pressing again is safe, because the send keeps its id (round 22, N8).
+ */
+export const SEND_ANSWER_LOST = "No answer came back, so this may have been done. Press again: it is done once at most.";
+
+/**
+ * One id per ask, kept until it goes through. The ask is what staff send (the
+ * conversation, the words, the outcome): pressing again after an error or a
+ * lost answer sends the same id, and the database writes once. Once it goes
+ * through, the same words again are a new ask. Kept for the page's life: the
+ * words of a send are not kept across a reload either.
+ *
+ * Unlike money asks (lib/request-ids.ts), the words are the ask here: a reply
+ * in other words is another message, never a retry of the first.
+ */
+function useAskIds() {
+  const ids = useRef(new Map<string, string>());
+  return useMemo(
+    () => ({
+      askId(ask: unknown): { key: string; id: string } {
+        const key = JSON.stringify(ask);
+        const known = ids.current.get(key);
+        if (known) return { key, id: known };
+        const id = crypto.randomUUID();
+        ids.current.set(key, id);
+        return { key, id };
+      },
+      done(key: string) {
+        ids.current.delete(key);
+      },
+    }),
+    [],
+  );
+}
+
+/** POSTs one send with its id; a lost answer reads as SEND_ANSWER_LOST, not as "not done". */
+async function sendOnce<T>(url: string, body: unknown): Promise<T> {
+  const res = await adminFetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  }).catch((error: unknown) => {
+    // The browser rejects with a TypeError when the network fails after the request left.
+    if (error instanceof TypeError) throw new Error(SEND_ANSWER_LOST);
+    throw error;
+  });
+  const answer: unknown = await res.json().catch(() => null);
+  if (res.ok) return answer as T;
+  const words =
+    answer && typeof answer === "object" && "error" in answer && typeof answer.error === "string" ? answer.error : null;
+  if (words !== null) throw new Error(words);
+  throw new Error(res.status >= 500 ? SEND_ANSWER_LOST : "Request failed");
+}
+
+/**
+ * A send that keeps its id until it goes through: `run(ask)` posts the ask
+ * with its id, and a success ends that ask.
+ */
+function useSendOnce<A, T>(url: string, withId: (ask: A) => boolean = () => true) {
+  const ids = useAskIds();
+  return async (ask: A): Promise<T> => {
+    if (!withId(ask)) return sendOnce<T>(url, ask);
+    const { key, id } = ids.askId([url, ask]);
+    const answer = await sendOnce<T>(url, { ...ask, request_id: id });
+    ids.done(key);
+    return answer;
+  };
 }
 
 /** The inbox list. Polls so a new merchant message shows up without a reload. */
@@ -65,17 +138,12 @@ export function useSupportCase(caseId: string | null) {
   });
 }
 
+/** A step on one conversation; a reply or a note is sent once however often it is pressed. */
 export function useSupportCaseAction(caseId: string) {
   const queryClient = useQueryClient();
+  const send = useSendOnce<CaseAction, { success: true }>(`/api/support/cases/${caseId}`, writesOnce);
   return useMutation({
-    mutationFn: async (action: CaseAction) =>
-      readJson<{ success: true }>(
-        await adminFetch(`/api/support/cases/${caseId}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(action),
-        }),
-      ),
+    mutationFn: send,
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["admin", "support"] }),
   });
 }
@@ -138,15 +206,9 @@ export function useSupportNeedsUs() {
 /** Write first to a shop that needs us; answers the conversation it went into. */
 export function useSupportStartConversation() {
   const queryClient = useQueryClient();
+  const send = useSendOnce<StartConversation, { caseId: string; started: boolean }>("/api/support/needs-us");
   return useMutation({
-    mutationFn: async (input: StartConversation) =>
-      readJson<{ caseId: string; started: boolean }>(
-        await adminFetch("/api/support/needs-us", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(input),
-        }),
-      ),
+    mutationFn: send,
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["admin", "support"] }),
   });
 }
@@ -163,15 +225,9 @@ export function useSupportTasks() {
 /** Record a call on a first-week task. */
 export function useSupportLogTask() {
   const queryClient = useQueryClient();
+  const send = useSendOnce<TaskLogInput, { success: true }>("/api/support/tasks");
   return useMutation({
-    mutationFn: async (input: TaskLogInput) =>
-      readJson<{ success: true }>(
-        await adminFetch("/api/support/tasks", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(input),
-        }),
-      ),
+    mutationFn: send,
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["admin", "support"] }),
   });
 }
@@ -179,15 +235,9 @@ export function useSupportLogTask() {
 /** Record a call on a shop with no task (Trials, "Mark contacted"): the shop's last call shows it. */
 export function useSupportLogShopCall() {
   const queryClient = useQueryClient();
+  const send = useSendOnce<ShopCallInput, { success: true }>("/api/support/calls");
   return useMutation({
-    mutationFn: async (input: ShopCallInput) =>
-      readJson<{ success: true }>(
-        await adminFetch("/api/support/calls", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(input),
-        }),
-      ),
+    mutationFn: send,
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "support"] });
       queryClient.invalidateQueries({ queryKey: TRIAL_FOLLOW_UP_KEY });
@@ -254,15 +304,9 @@ export function useSupportSpike() {
 /** Post a notice to every merchant (replaces the live one). */
 export function useSupportNoticePost() {
   const queryClient = useQueryClient();
+  const send = useSendOnce<NoticePostInput, { notice: SupportNotice }>("/api/support/notices");
   return useMutation({
-    mutationFn: async (input: NoticePostInput) =>
-      readJson<{ notice: SupportNotice }>(
-        await adminFetch("/api/support/notices", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(input),
-        }),
-      ),
+    mutationFn: send,
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["admin", "support", "notice"] }),
   });
 }

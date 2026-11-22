@@ -88,9 +88,17 @@ function req(pathname: string, method: string, token: string | null, body?: unkn
 
 const caseParams = { params: Promise.resolve({ id: CASE_ID }) };
 
+/** The id the console sends with each write (round 22, N8). */
+const SEND_ID = "5e5e5e5e-5e5e-4e5e-8e5e-5e5e5e5e5e5e";
+
+/** A body as the console sends it: with its send's id, unless the test says otherwise. */
+function withId(body: unknown): unknown {
+  return body && typeof body === "object" && !("request_id" in body) ? { ...body, request_id: SEND_ID } : body;
+}
+
 async function post(token: string | null, body: unknown, params = caseParams): Promise<Response> {
   const { POST } = await import("./[id]/route");
-  return POST(req(`/api/support/cases/${CASE_ID}`, "POST", token, body), params);
+  return POST(req(`/api/support/cases/${CASE_ID}`, "POST", token, withId(body)), params);
 }
 
 const rpcCall = () => dbCalls.find((c) => c.method === "rpc");
@@ -196,7 +204,7 @@ describe("support case actions", () => {
     expect(res.status).toBe(200);
     expect(rpcCall()?.args).toEqual([
       "support_staff_reply",
-      { p_case_id: CASE_ID, p_admin_id: SUPPORT_ID, p_admin_name: "Noor", p_body: "on it" },
+      { p_case_id: CASE_ID, p_admin_id: SUPPORT_ID, p_admin_name: "Noor", p_body: "on it", p_request_id: SEND_ID },
     ]);
   });
 
@@ -287,7 +295,7 @@ describe("support staff notes and hand-over", () => {
     expect(res.status).toBe(200);
     expect(rpcCall()?.args).toEqual([
       "support_case_add_note",
-      { p_case_id: CASE_ID, p_admin_id: SUPPORT_ID, p_admin_name: "Noor", p_body: "asked Prime" },
+      { p_case_id: CASE_ID, p_admin_id: SUPPORT_ID, p_admin_name: "Noor", p_body: "asked Prime", p_request_id: SEND_ID },
     ]);
     // A note is its own record; nothing goes to the activity log.
     expect(dbCalls.some((c) => c.method === "insert")).toBe(false);
@@ -699,7 +707,7 @@ describe("support needs us", () => {
 
   async function start(token: string | null, body: unknown): Promise<Response> {
     const { POST } = await import("../needs-us/route");
-    return POST(req("/api/support/needs-us", "POST", token, body));
+    return POST(req("/api/support/needs-us", "POST", token, withId(body)));
   }
 
   it("turns away a caller with no session", async () => {
@@ -741,7 +749,7 @@ describe("support needs us", () => {
     expect(await res.json()).toEqual({ caseId: CASE_ID, started: true });
     expect(rpcCall()?.args).toEqual([
       "support_staff_start",
-      { p_tenant_id: TENANT, p_admin_id: SUPPORT_ID, p_admin_name: "Noor", p_body: "هلا" },
+      { p_tenant_id: TENANT, p_admin_id: SUPPORT_ID, p_admin_name: "Noor", p_body: "هلا", p_request_id: SEND_ID },
     ]);
     expect(dbCalls.find((c) => c.method === "insert")?.args[0]).toMatchObject({
       admin_user_id: SUPPORT_ID,
@@ -792,7 +800,7 @@ describe("support first-week calls", () => {
 
   async function log(token: string | null, body: unknown): Promise<Response> {
     const { POST } = await import("../tasks/route");
-    return POST(req("/api/support/tasks", "POST", token, body));
+    return POST(req("/api/support/tasks", "POST", token, withId(body)));
   }
 
   it("turns away a caller with no session", async () => {
@@ -846,6 +854,7 @@ describe("support first-week calls", () => {
         p_outcome: "no_answer",
         p_note: "رن ولا جواب",
         p_actor_email: "agent@example.com",
+        p_request_id: SEND_ID,
       },
     ]);
     // The database writes the activity row with the call; the route writes none.
@@ -870,7 +879,7 @@ describe("support shop call with no task", () => {
 
   async function call(token: string | null, body: unknown): Promise<Response> {
     const { POST } = await import("../calls/route");
-    return POST(req("/api/support/calls", "POST", token, body));
+    return POST(req("/api/support/calls", "POST", token, withId(body)));
   }
 
   it("turns away a caller with no session", async () => {
@@ -906,6 +915,7 @@ describe("support shop call with no task", () => {
         p_outcome: "no_answer",
         p_note: "التجربة تخلص باچر",
         p_actor_email: "agent@example.com",
+        p_request_id: SEND_ID,
       },
     ]);
     // The database writes the activity row with the call; the route writes none.
@@ -1110,7 +1120,7 @@ describe("support notices", () => {
 
   async function call(method: "GET" | "POST" | "DELETE", token: string | null, body?: unknown): Promise<Response> {
     const route = await import("../notices/route");
-    return route[method](req("/api/support/notices", method, token, body));
+    return route[method](req("/api/support/notices", method, token, method === "POST" ? withId(body) : body));
   }
 
   it("turns away a caller with no session", async () => {
@@ -1147,7 +1157,7 @@ describe("support notices", () => {
     expect((await res.json()).notice).toEqual(NOTICE);
     expect(rpcCall()?.args).toEqual([
       "support_notice_post",
-      { p_admin_id: SUPPORT_ID, p_admin_name: "Noor", p_body: "برايم متأخر اليوم", p_hours: 6 },
+      { p_admin_id: SUPPORT_ID, p_admin_name: "Noor", p_body: "برايم متأخر اليوم", p_hours: 6, p_request_id: SEND_ID },
     ]);
     expect(dbCalls.find((c) => c.method === "insert")?.args[0]).toMatchObject({
       admin_user_id: SUPPORT_ID,
@@ -1242,5 +1252,85 @@ describe("one conversation and its shop card", () => {
     const res = await get("not-a-case");
     expect(res.status).toBe(404);
     expect(dbCalls).toHaveLength(0);
+  });
+});
+
+describe("support writes carry their send's id (round 22, N8)", () => {
+  const TASK = "44444444-4444-4444-8444-444444444444";
+  const NO_ID = { request_id: undefined };
+
+  it.each([
+    ["a reply", () => post("support", { action: "reply", body: "hi", ...NO_ID })],
+    ["a note", () => post("support", { action: "note", body: "hi", ...NO_ID })],
+    [
+      "a first message",
+      async () =>
+        (await import("../needs-us/route")).POST(
+          req("/api/support/needs-us", "POST", "support", { tenantId: TENANT, body: "hi" }),
+        ),
+    ],
+    [
+      "a task call",
+      async () =>
+        (await import("../tasks/route")).POST(
+          req("/api/support/tasks", "POST", "support", { taskId: TASK, outcome: "done" }),
+        ),
+    ],
+    [
+      "a shop call",
+      async () =>
+        (await import("../calls/route")).POST(
+          req("/api/support/calls", "POST", "support", { tenantId: TENANT, outcome: "done" }),
+        ),
+    ],
+    [
+      "a notice",
+      async () => (await import("../notices/route")).POST(req("/api/support/notices", "POST", "support", { body: "hi", hours: 2 })),
+    ],
+  ])("refuses %s with no id, asking for a reload, and writes nothing", async (_name, send) => {
+    const res = await send();
+    expect(res.status).toBe(400);
+    expect(JSON.stringify(await res.json())).toContain("Reload");
+    expect(dbCalls.some((c) => c.method === "rpc")).toBe(false);
+  });
+
+  it("solves, takes and marks seen with no id: those do nothing twice anyway", async () => {
+    dbQueue.push({ data: { display_name: "Noor", email: null }, error: null }, { data: { tenant_id: TENANT }, error: null });
+    const res = await post("support", { action: "solve", reason: "orders", ...NO_ID });
+    expect(res.status).toBe(200);
+  });
+
+  it("logs a first message once: a repeat of the same send logs nothing", async () => {
+    dbQueue.push(
+      { data: { display_name: "Noor", email: null }, error: null },
+      { data: { case_id: CASE_ID, tenant_id: TENANT, message_id: "m1", started: true, repeat: true }, error: null },
+    );
+    const res = await (await import("../needs-us/route")).POST(
+      req("/api/support/needs-us", "POST", "support", withId({ tenantId: TENANT, body: "hi" })),
+    );
+    expect(await res.json()).toEqual({ caseId: CASE_ID, started: true });
+    expect(dbCalls.some((c) => c.method === "insert")).toBe(false);
+  });
+
+  it("logs a notice once: a repeat of the same post logs nothing", async () => {
+    dbQueue.push(
+      { data: { display_name: "Noor", email: null }, error: null },
+      {
+        data: {
+          id: "88888888-8888-4888-8888-888888888888",
+          body: "hi",
+          created_by_name: "Noor",
+          created_at: "2026-11-16T12:00:00+00:00",
+          ends_at: "2026-11-16T14:00:00+00:00",
+          repeat: true,
+        },
+        error: null,
+      },
+    );
+    const res = await (await import("../notices/route")).POST(
+      req("/api/support/notices", "POST", "support", withId({ body: "hi", hours: 2 })),
+    );
+    expect(res.status).toBe(200);
+    expect(dbCalls.some((c) => c.method === "insert")).toBe(false);
   });
 });
