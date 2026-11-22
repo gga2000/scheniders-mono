@@ -1170,11 +1170,11 @@ export const en: Record<string, string> = {
     "orders.card.noResponse": "No response",
     "orders.card.refundDelivered": "Refund delivered",
     "orders.card.refundFailed": "Refund failed",
-    "orders.chip.refunds": "Returns",
+    "orders.chip.refunds": "Refunds",
     "orders.chip.refunded": "Refunded",
     "orders.chip.refundPending": "Refund pending",
     "orders.chip.replacements": "Replacements",
-    "orders.chip.suspended": "On hold",
+    "orders.chip.suspended": "Suspended",
     "orders.dupOnly": "Showing duplicates only",
     "orders.removeFilter": "Remove filter",
     "orders.source.shop": "Shop",
@@ -1660,7 +1660,7 @@ export const en: Record<string, string> = {
     "orders.bulk.inTransit": "In Transit",
     "orders.bulk.new": "New",
     "orders.bulk.contacted": "Contacted",
-    "orders.bulk.suspended": "Suspended Request",
+    "orders.bulk.suspended": "Suspended",
     "orders.bulk.sendTemplate": "Send WhatsApp message",
     "orders.bulk.updating": "Updating {count} orders...",
     "orders.bulk.archiving": "Archiving {count} orders...",
@@ -7024,7 +7024,6 @@ export const en: Record<string, string> = {
 
     // ── Sticky Filter Bar ──
     "orders.filter.refunds": "Refunds",
-    "orders.filter.suspended": "Suspended Order",
     "orders.filter.duplicates": "Duplicates",
     "orders.filter.dueToday": "Due today",
 
