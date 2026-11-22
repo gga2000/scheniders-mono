@@ -15,7 +15,7 @@ import { ExportButton } from "@/components/shared/export-button";
 import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
 import { LoadError } from "@/components/shared/load-error";
 import { okOrLoadFailure } from "@/lib/load-failure";
-import { createRequestIds } from "@/lib/request-ids";
+import { keptRequestIds } from "@/lib/request-ids";
 import { STAFF_REASON_MAX } from "@/lib/billing-lock-tools";
 import { quickTopUpPlan } from "@/lib/quick-top-up";
 import { formatCount, formatIQD, formatWhen } from "@/lib/format";
@@ -109,7 +109,8 @@ export default function BillingPage() {
   const [topupTenantId, setTopupTenantId] = useState("");
   const [topupAmount, setTopupAmount] = useState<number | "">("");
   const [topupDescription, setTopupDescription] = useState("");
-  const [requestIds] = useState(createRequestIds);
+  // Shared with the shop page's Add money: one id for one shop and amount.
+  const [requestIds] = useState(() => keptRequestIds("topup"));
 
   const topupMutation = useMutation({
     mutationFn: async (payload: {

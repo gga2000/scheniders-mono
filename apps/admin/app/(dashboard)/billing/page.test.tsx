@@ -18,6 +18,7 @@ vi.mock("@/hooks/use-admin-auth", () => ({ useCan: () => () => true, useAdminAut
 vi.mock("@/components/shared/export-button", () => ({ ExportButton: () => null }));
 
 const { default: BillingPage } = await import("./page");
+const { keptRequestIds } = await import("@/lib/request-ids");
 
 const wallet = (tenant_id: string, business_name: string, balance_iqd: number) => ({
   tenant_id,
@@ -55,6 +56,7 @@ async function fill(shop: string, amount: string) {
 
 afterEach(() => {
   cleanup();
+  localStorage.clear();
   send.mockReset();
 });
 
@@ -114,6 +116,17 @@ describe("Quick Top-Up when the answer is lost or repeated", () => {
     await fill("t-kut", "50000");
     fireEvent.click(screen.getByRole("button", { name: "Add 50,000 IQD" }));
     expect(await screen.findByText(ANSWER_LOST)).toBeTruthy();
+  });
+
+  it("keeps a lost top-up's id where the shop page's Add money finds it", async () => {
+    serve(() => Promise.resolve(new Response("upstream timed out", { status: 504 })));
+    await fill("t-kut", "50000");
+    fireEvent.click(screen.getByRole("button", { name: "Add 50,000 IQD" }));
+    await screen.findByText(ANSWER_LOST);
+    const posted = send.mock.calls.find(([, init]) => init?.method === "POST");
+    const sent = JSON.parse(String((posted?.[1] as RequestInit).body)).request_id;
+    // Add money on Kut's page asks for the id of "Kut, 50,000" the same way.
+    expect(keptRequestIds("topup").idFor("t-kut:50000")).toBe(sent);
   });
 
   it("says a repeat was not added again", async () => {

@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { PLAN_LABELS, PLAN_TIERS, type PlanTier } from "@/types/admin";
 import { X, Loader2, AlertTriangle, CheckCircle } from "lucide-react";
-import { createRequestIds } from "@/lib/request-ids";
+import { keptRequestIds } from "@/lib/request-ids";
 import { isStaffReason } from "@/lib/billing-lock-tools";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
 import { isBulkFailureList, notDoneLines, tooManyShops, type BulkFailure } from "@/lib/bulk-not-done";
@@ -143,7 +143,7 @@ export function BulkActionDialog({
   const [error, setError] = useState<string | null>(null);
   // Set when the server did the action for some shops and not for others.
   const [partial, setPartial] = useState<BulkOutcome | null>(null);
-  const [requestIds] = useState(createRequestIds);
+  const [requestIds] = useState(() => keptRequestIds("bulk"));
   const stillDrawn = useStillDrawn();
   const title = action ? (ACTION_TITLES[action] ?? action) : "";
 

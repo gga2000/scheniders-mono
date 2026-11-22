@@ -23,9 +23,10 @@ const NO_WALLET = "No wallet found";
 export const TOPUP_NO_WALLET = "This shop has no wallet yet, so nothing was added.";
 /**
  * The call failed or its answer was lost. The request id makes a retry add the
- * money once at most, so that is what staff are told.
+ * money once at most; the browser keeps that id for an hour (round 21), so
+ * that is where and when staff are told a retry is safe.
  */
-export const TOPUP_NOT_CONFIRMED = "The top-up could not be confirmed. Trying again adds it once at most.";
+export const TOPUP_NOT_CONFIRMED = "The top-up could not be confirmed. Check the wallet before trying again: a retry from this browser within the hour adds it once at most.";
 
 /**
  * Credit a tenant's prepaid wallet through the `admin_topup_wallet` RPC, which

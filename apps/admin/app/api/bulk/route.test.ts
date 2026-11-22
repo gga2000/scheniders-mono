@@ -113,7 +113,7 @@ describe("POST /api/bulk top_up", () => {
       {
         tenant_id: T2,
         name: "Najaf Gifts",
-        error: "The top-up could not be confirmed. Trying again adds it once at most.",
+        error: "The top-up could not be confirmed. Check the wallet before trying again: a retry from this browser within the hour adds it once at most.",
       },
     ]);
     expect(JSON.stringify(body)).not.toMatch(/deadlock/);

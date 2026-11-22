@@ -6,7 +6,7 @@ import { CalendarPlus, ChevronDown, ChevronLeft, Wallet } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@scheniders/ui";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { hasPermission } from "@/lib/admin-permissions";
-import { createRequestIds } from "@/lib/request-ids";
+import { keptRequestIds } from "@/lib/request-ids";
 import {
   CONVERT_ACTION,
   freeDaysKind,
@@ -94,9 +94,9 @@ export function ShopActions({
   const [open, setOpen] = useState<ShopForm | "more" | null>(startOpen);
   const [view, setView] = useState<MoreAction | null>(null);
   const [requestIds] = useState(() => ({
-    money: createRequestIds(),
-    days: createRequestIds(),
-    convert: createRequestIds(),
+    money: keptRequestIds("topup"),
+    days: keptRequestIds("free-days"),
+    convert: keptRequestIds("convert"),
   }));
   const writing = useIsMutating({ mutationKey: shopActionKey(shopId) }) > 0;
 

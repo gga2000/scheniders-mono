@@ -53,6 +53,7 @@ const confirmWaits = () => screen.getByRole("button", { name: "Confirm" }).match
 
 afterEach(() => {
   cleanup();
+  localStorage.clear();
   send.mockReset();
   vi.mocked(toast.error).mockReset();
   vi.mocked(toast.success).mockReset();
@@ -206,6 +207,19 @@ describe("a bulk write whose answer is lost", () => {
     answer(new Response("upstream timed out", { status: 504 }));
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith(`Top Up Wallets: ${ANSWER_LOST_SHOPS}`));
     expect(vi.mocked(toast.error).mock.calls.flat().join(" ")).not.toMatch(/not done/);
+  });
+
+  it("sends the same top-up with the same id after Merchants was left and opened again", async () => {
+    send.mockRejectedValue(new TypeError("Failed to fetch"));
+    const first = dialog(IDS, "top-up");
+    topUp("Cash at the office");
+    await screen.findByText(ANSWER_LOST_SHOPS);
+    first.unmount();
+
+    dialog(IDS, "top-up");
+    topUp("Cash, office");
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(2));
+    expect(sentBody(1).params.request_id).toBe(sentBody(0).params.request_id);
   });
 
   it("still says the server's own refusal as not done", async () => {
