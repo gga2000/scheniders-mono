@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminPermission } from "@/lib/api-auth";
 import { adminDisplayName } from "@/lib/support-admin-name";
@@ -23,6 +24,14 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const FILE_LINK_SECONDS = 15 * 60;
 
 type AdminDb = ReturnType<typeof createAdminClient>;
+
+/** Whether the shop's month renews: the card says "Renews" only when it will. */
+const subscriptionSchema = z.object({
+  status: z.string(),
+  plan: z.string(),
+  auto_renew: z.boolean(),
+  current_period_end: z.string().nullable(),
+});
 
 /** Signed links for every path in one call; a file that is gone has no link. */
 async function signPaths(supabase: AdminDb, bucket: string, paths: string[]): Promise<Map<string, string>> {
@@ -49,11 +58,11 @@ async function loadShopCard(
   const [tenant, wallet, subscription, ordersWeek, ordersTotal, team, notes, earlier, owner, calls] = await Promise.all([
     supabase
       .from("tenants")
-      .select("id, business_name, display_id, plan, status, restrictions, city, contact_phone, trial_ends_at, created_at")
+      .select("id, business_name, display_id, plan, status, restrictions, city, contact_phone, trial_ends_at, created_at, is_demo")
       .eq("id", tenantId)
       .single(),
     supabase.from("wallet").select("balance_iqd").eq("tenant_id", tenantId).maybeSingle(),
-    supabase.from("subscriptions").select("current_period_end").eq("tenant_id", tenantId).maybeSingle(),
+    supabase.from("subscriptions").select("status, plan, auto_renew, current_period_end").eq("tenant_id", tenantId).maybeSingle(),
     supabase
       .from("admin_order_facts")
       .select("tenant_id", { count: "exact", head: true })
@@ -97,8 +106,7 @@ async function loadShopCard(
   return {
     tenant: tenant.data as SupportShopCard["tenant"],
     walletBalanceIqd: balance === undefined || balance === null ? null : Number(balance),
-    subscriptionEndsAt:
-      (subscription.data as { current_period_end: string | null } | null)?.current_period_end ?? null,
+    subscription: subscriptionSchema.nullable().parse(subscription.data),
     ordersLast7Days: ordersWeek.count ?? 0,
     ordersTotal: ordersTotal.count ?? 0,
     teamSize: team.count ?? 0,
