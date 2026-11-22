@@ -7,12 +7,18 @@ interface UseMerchantKeyboardNavOptions {
   merchants: Array<{ id: string }>;
   onOpenDetail: (id: string) => void;
   onToggleShortcuts: () => void;
+  /**
+   * A dialog is open over the list (a bulk step): the list's keys wait, so
+   * Escape or x never changes the picked shops under it (round 21, UX new 8).
+   */
+  paused?: boolean;
 }
 
 export function useMerchantKeyboardNav({
   merchants,
   onOpenDetail,
   onToggleShortcuts,
+  paused = false,
 }: UseMerchantKeyboardNavOptions) {
   const {
     focusedIndex,
@@ -24,6 +30,7 @@ export function useMerchantKeyboardNav({
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
+      if (paused) return;
       // Skip when user is typing in an input or textarea
       const tag = document.activeElement?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
@@ -114,6 +121,7 @@ export function useMerchantKeyboardNav({
       }
     },
     [
+      paused,
       focusedIndex,
       merchants,
       setFocusedIndex,

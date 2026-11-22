@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { lockedBecause } from "@/lib/billing-lock-label";
+import { STAFF_REASON_MIN, STAFF_REASON_TOO_SHORT, staffReasonLetters } from "@/lib/billing-lock-tools";
 import { formatIQD } from "@/lib/format";
 import { planLabel } from "@/types/admin";
 
@@ -15,7 +16,8 @@ export const TOPUP_QUEUE_KEY = ["admin", "wallet-topup-requests"] as const;
 export const TOPUP_MIN_IQD = 1_000;
 /** The most IQD staff may add to a wallet at once; admin_topup_wallet checks it again. */
 export const TOPUP_MAX_IQD = 10_000_000;
-export const REJECT_REASON_MIN = 3;
+/** What one bulk top-up may add to each wallet: a whole number in IQD (the bulk route and dialog share it). */
+export const bulkTopupAmountSchema = z.number().int().min(TOPUP_MIN_IQD).max(TOPUP_MAX_IQD);
 export const REJECT_REASON_MAX = 300;
 
 const sameFileSchema = z.object({
@@ -74,7 +76,13 @@ export const topupDecisionSchema = z.discriminatedUnion("approve", [
   }),
   z.object({
     approve: z.literal(false),
-    reason: z.string().trim().min(REJECT_REASON_MIN).max(REJECT_REASON_MAX),
+    // At least 3 letters in any script, as the box's rule line says (round 21,
+    // UX new 7): "Qi 12" is not a reason the shop can act on.
+    reason: z
+      .string()
+      .trim()
+      .max(REJECT_REASON_MAX)
+      .refine((reason) => staffReasonLetters(reason) >= STAFF_REASON_MIN, STAFF_REASON_TOO_SHORT),
   }),
 ]);
 export type TopupDecision = z.infer<typeof topupDecisionSchema>;

@@ -188,6 +188,7 @@ export default function MerchantsPage() {
     merchants,
     onOpenDetail: handleOpenDetail,
     onToggleShortcuts: handleToggleShortcuts,
+    paused: bulkAction !== null,
   });
 
   return (

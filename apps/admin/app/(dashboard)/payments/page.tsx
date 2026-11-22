@@ -13,10 +13,10 @@ import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { hasPermission } from "@/lib/admin-permissions";
 import { LoadError } from "@/components/shared/load-error";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
+import { isStaffReason } from "@/lib/billing-lock-tools";
 import { okOrLoadFailure } from "@/lib/load-failure";
 import {
   REJECT_REASON_MAX,
-  REJECT_REASON_MIN,
   TOPUP_QUEUE_KEY,
   TOPUP_MAX_IQD,
   TOPUP_MIN_IQD,
@@ -115,7 +115,8 @@ function Decision({ row, canDecide, canAddMore }: { row: TopupQueueItem; canDeci
   if (!canDecide) return <p className="text-xs text-foreground/70">Your login can see receipts but not decide them.</p>;
 
   const amountOk = Number.isInteger(amount) && amount >= TOPUP_MIN_IQD && amount <= TOPUP_MAX_IQD;
-  const reasonOk = reason.trim().length >= REJECT_REASON_MIN && reason.trim().length <= REJECT_REASON_MAX;
+  // The rule line under the box counts letters; so does the button (round 21, UX new 7).
+  const reasonOk = isStaffReason(reason) && reason.trim().length <= REJECT_REASON_MAX;
   const differs = amountOk && amount !== row.amount_iqd;
   const overAsked = amountOk && amount > row.amount_iqd && !canAddMore;
 

@@ -10,7 +10,8 @@ import { StaffReasonInput } from "@/components/shared/staff-reason-input";
 import { isBulkFailureList, notDoneLines, tooManyShops, type BulkFailure } from "@/lib/bulk-not-done";
 import { toast } from "sonner";
 import { formatIQD } from "@/lib/format";
-import { ANSWER_LOST_SHOPS, AnswerLost, failureOf, sendJson, useStillDrawn, WillHappen } from "./detail/action-ui";
+import { ANSWER_LOST_SHOPS, AnswerLost, failureOf, PanelFields, sendJson, useStillDrawn, WillHappen } from "./detail/action-ui";
+import { bulkTopupAmountSchema, TOPUP_MAX_IQD, TOPUP_MIN_IQD } from "@/lib/topup-queue";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -221,6 +222,13 @@ export function BulkActionDialog({
           ? topUpDescription
           : null;
   const waitsForReason = reason !== null && !isStaffReason(reason);
+  // A top-up waits for an amount the server takes, as it waits for a reason:
+  // Confirm used to be ready at 500 IQD and then refuse it (round 21, UX new 4).
+  const topUpValue = topUpCustom ? Number(topUpCustom) : topUpAmount;
+  const topUpOk = bulkTopupAmountSchema.safeParse(topUpValue).success;
+  const waitsForAmount = action === "top-up" && !topUpOk;
+  // No shops left picked (the page cleared them): nothing to confirm.
+  const noShops = selectedIds.length === 0;
   const alreadyOn = selectedIds.filter((id) => planOf?.get(id) === selectedPlan).length;
 
   function close() {
@@ -231,6 +239,7 @@ export function BulkActionDialog({
   }
 
   function handleConfirm() {
+    if (selectedIds.length === 0) return;
     setError(null);
     const tooMany = tooManyShops(selectedIds.length);
     if (tooMany) {
@@ -255,15 +264,9 @@ export function BulkActionDialog({
         };
         break;
       case "top-up": {
-        const amount = topUpCustom ? Number(topUpCustom) : topUpAmount;
-        if (!Number.isFinite(amount) || amount < 1000) {
-          setError("Amount must be at least 1,000 IQD");
-          return;
-        }
-        if (amount > 10_000_000) {
-          setError("Amount cannot exceed 10,000,000 IQD");
-          return;
-        }
+        // Confirm waits for an amount the server takes; this only guards a stray press.
+        if (!topUpOk) return;
+        const amount = topUpValue;
         const description = topUpDescription.trim();
         params = {
           amount_iqd: amount,
@@ -315,159 +318,166 @@ export function BulkActionDialog({
           </button>
         </div>
 
-        {/* Content */}
-        <div className="mb-6">
-          {/* ---- Change Plan ---- */}
-          {action === "change-plan" && (
-            <div className="space-y-3">
-              <label className="text-sm font-semibold text-foreground/70">
-                New Plan
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                {PLAN_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.value}
-                    onClick={() => setSelectedPlan(opt.value)}
-                    className={`px-4 py-3 rounded-xl border cursor-pointer transition-all text-sm font-semibold text-left ${
-                      selectedPlan === opt.value
-                        ? "border-[#1E1E1E] bg-[#1E1E1E]/5 text-foreground"
-                        : "border-[var(--card-border)] text-foreground/70 hover:border-foreground/30"
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-              <label className="block text-sm font-semibold text-foreground/70">
-                Reason
-              </label>
-              <StaffReasonInput
-                value={planReason}
-                onChange={setPlanReason}
-                placeholder="Why? (each shop's timeline shows it)"
-              />
-              <WillHappen>{planMoveWords(selectedCount, alreadyOn, PLAN_LABELS[selectedPlan])}</WillHappen>
-            </div>
-          )}
-
-          {/* ---- Top Up ---- */}
-          {action === "top-up" && (
-            <div className="space-y-4">
-              <div className="space-y-2">
+        {/* Content: the choices wait while the step is written, so the sentence names what is sent (round 21, UX new 4). */}
+        <PanelFields busy={mutation.isPending}>
+          <div className="mb-6">
+            {/* ---- Change Plan ---- */}
+            {action === "change-plan" && (
+              <div className="space-y-3">
                 <label className="text-sm font-semibold text-foreground/70">
-                  Amount (IQD)
+                  New Plan
                 </label>
-                <div className="flex items-center gap-2 flex-wrap">
-                  {TOPUP_PRESETS.map((amt) => (
+                <div className="grid grid-cols-2 gap-2">
+                  {PLAN_OPTIONS.map((opt) => (
                     <button
-                      key={amt}
-                      onClick={() => { setTopUpAmount(amt); setTopUpCustom(""); }}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${
-                        !topUpCustom && topUpAmount === amt
+                      key={opt.value}
+                      onClick={() => setSelectedPlan(opt.value)}
+                      className={`px-4 py-3 rounded-xl border cursor-pointer transition-all text-sm font-semibold text-left ${
+                        selectedPlan === opt.value
+                          ? "border-[#1E1E1E] bg-[#1E1E1E]/5 text-foreground"
+                          : "border-[var(--card-border)] text-foreground/70 hover:border-foreground/30"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+                <label className="block text-sm font-semibold text-foreground/70">
+                  Reason
+                </label>
+                <StaffReasonInput
+                  value={planReason}
+                  onChange={setPlanReason}
+                  placeholder="Why? (each shop's timeline shows it)"
+                />
+                <WillHappen>{planMoveWords(selectedCount, alreadyOn, PLAN_LABELS[selectedPlan])}</WillHappen>
+              </div>
+            )}
+
+            {/* ---- Top Up ---- */}
+            {action === "top-up" && (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-foreground/70">
+                    Amount (IQD)
+                  </label>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {TOPUP_PRESETS.map((amt) => (
+                      <button
+                        key={amt}
+                        onClick={() => { setTopUpAmount(amt); setTopUpCustom(""); }}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${
+                          !topUpCustom && topUpAmount === amt
+                            ? "border-[#1E1E1E] bg-[#1E1E1E]/5 text-foreground"
+                            : "border-[var(--card-border)] bg-foreground/5 text-foreground/70 hover:bg-foreground/10 hover:text-foreground"
+                        }`}
+                      >
+                        {new Intl.NumberFormat("en-IQ").format(amt)}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="text-xs text-foreground/70">Custom:</span>
+                    <input
+                      type="number"
+                      value={topUpCustom}
+                      onChange={(e) => setTopUpCustom(e.target.value)}
+                      placeholder="e.g. 100,000"
+                      min={TOPUP_MIN_IQD}
+                      max={TOPUP_MAX_IQD}
+                      className="flex-1 px-3 py-1.5 rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] text-sm text-foreground placeholder:text-foreground/30 focus:outline-none focus:ring-2 focus:ring-[#1E1E1E]/20 transition-all"
+                    />
+                    <span className="text-xs text-foreground/70">IQD</span>
+                  </div>
+                  {topUpCustom && !topUpOk && (
+                    <p className="text-[13px] text-[var(--ink-red)]">
+                      A whole number from {formatIQD(TOPUP_MIN_IQD)} to {formatIQD(TOPUP_MAX_IQD)}.
+                    </p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-foreground/70">
+                    Reason <span className="font-normal text-foreground/70">(saved in the log)</span>
+                  </label>
+                  <StaffReasonInput
+                    value={topUpDescription}
+                    onChange={setTopUpDescription}
+                    placeholder="e.g. Monthly credit bonus"
+                  />
+                </div>
+                <div className="px-3 py-2 rounded-xl bg-green-50 dark:bg-green-400/10 border border-green-200 dark:border-green-400/20 text-xs text-green-700 dark:text-green-400">
+                  Total: <strong>{new Intl.NumberFormat("en-IQ").format((Number.isFinite(topUpValue) ? topUpValue : 0) * selectedCount)} IQD</strong> across {selectedCount} merchant{selectedCount !== 1 ? "s" : ""}
+                </div>
+              </div>
+            )}
+
+            {/* ---- Suspend ---- */}
+            {action === "suspend" && (
+              <div className="px-4 py-3 rounded-xl bg-red-50 border border-red-200 flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold text-red-800">
+                    Warning: Suspension
+                  </p>
+                  <p className="text-sm text-red-700 mt-1">
+                    This will suspend {selectedCount} merchant
+                    {selectedCount !== 1 ? "s" : ""}. They will lose access to
+                    their dashboard.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* ---- Reactivate ---- */}
+            {action === "reactivate" && (
+              <div className="px-4 py-3 rounded-xl bg-green-50 border border-green-200 flex items-start gap-3">
+                <CheckCircle className="w-5 h-5 text-green-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold text-green-800">
+                    Reactivation
+                  </p>
+                  <p className="text-sm text-green-700 mt-1">
+                    This will reactivate {selectedCount} merchant
+                    {selectedCount !== 1 ? "s" : ""}.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* ---- Extend Trial ---- */}
+            {action === "extend-trial" && (
+              <div className="space-y-3">
+                <label className="text-sm font-semibold text-foreground/70">
+                  Extension Days
+                </label>
+                <div className="flex items-center gap-2">
+                  {DAY_PRESETS.map((d) => (
+                    <button
+                      key={d}
+                      onClick={() => setExtensionDays(d)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all border ${
+                        extensionDays === d
                           ? "border-[#1E1E1E] bg-[#1E1E1E]/5 text-foreground"
                           : "border-[var(--card-border)] bg-foreground/5 text-foreground/70 hover:bg-foreground/10 hover:text-foreground"
                       }`}
                     >
-                      {new Intl.NumberFormat("en-IQ").format(amt)}
+                      +{d} days
                     </button>
                   ))}
                 </div>
-                <div className="flex items-center gap-2 mt-2">
-                  <span className="text-xs text-foreground/70">Custom:</span>
-                  <input
-                    type="number"
-                    value={topUpCustom}
-                    onChange={(e) => setTopUpCustom(e.target.value)}
-                    placeholder="e.g. 100,000"
-                    min={1000}
-                    max={10_000_000}
-                    className="flex-1 px-3 py-1.5 rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] text-sm text-foreground placeholder:text-foreground/30 focus:outline-none focus:ring-2 focus:ring-[#1E1E1E]/20 transition-all"
-                  />
-                  <span className="text-xs text-foreground/70">IQD</span>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-foreground/70">
-                  Reason <span className="font-normal text-foreground/70">(saved in the log)</span>
+                <label className="block text-sm font-semibold text-foreground/70">
+                  Reason
                 </label>
                 <StaffReasonInput
-                  value={topUpDescription}
-                  onChange={setTopUpDescription}
-                  placeholder="e.g. Monthly credit bonus"
+                  value={extensionReason}
+                  onChange={setExtensionReason}
+                  placeholder="Why? (saved in each store's log)"
                 />
               </div>
-              <div className="px-3 py-2 rounded-xl bg-green-50 dark:bg-green-400/10 border border-green-200 dark:border-green-400/20 text-xs text-green-700 dark:text-green-400">
-                Total: <strong>{new Intl.NumberFormat("en-IQ").format((topUpCustom ? (Number.isFinite(Number(topUpCustom)) ? Number(topUpCustom) : 0) : topUpAmount) * selectedCount)} IQD</strong> across {selectedCount} merchant{selectedCount !== 1 ? "s" : ""}
-              </div>
-            </div>
-          )}
+            )}
 
-          {/* ---- Suspend ---- */}
-          {action === "suspend" && (
-            <div className="px-4 py-3 rounded-xl bg-red-50 border border-red-200 flex items-start gap-3">
-              <AlertTriangle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-semibold text-red-800">
-                  Warning: Suspension
-                </p>
-                <p className="text-sm text-red-700 mt-1">
-                  This will suspend {selectedCount} merchant
-                  {selectedCount !== 1 ? "s" : ""}. They will lose access to
-                  their dashboard.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* ---- Reactivate ---- */}
-          {action === "reactivate" && (
-            <div className="px-4 py-3 rounded-xl bg-green-50 border border-green-200 flex items-start gap-3">
-              <CheckCircle className="w-5 h-5 text-green-600 shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-semibold text-green-800">
-                  Reactivation
-                </p>
-                <p className="text-sm text-green-700 mt-1">
-                  This will reactivate {selectedCount} merchant
-                  {selectedCount !== 1 ? "s" : ""}.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* ---- Extend Trial ---- */}
-          {action === "extend-trial" && (
-            <div className="space-y-3">
-              <label className="text-sm font-semibold text-foreground/70">
-                Extension Days
-              </label>
-              <div className="flex items-center gap-2">
-                {DAY_PRESETS.map((d) => (
-                  <button
-                    key={d}
-                    onClick={() => setExtensionDays(d)}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all border ${
-                      extensionDays === d
-                        ? "border-[#1E1E1E] bg-[#1E1E1E]/5 text-foreground"
-                        : "border-[var(--card-border)] bg-foreground/5 text-foreground/70 hover:bg-foreground/10 hover:text-foreground"
-                    }`}
-                  >
-                    +{d} days
-                  </button>
-                ))}
-              </div>
-              <label className="block text-sm font-semibold text-foreground/70">
-                Reason
-              </label>
-              <StaffReasonInput
-                value={extensionReason}
-                onChange={setExtensionReason}
-                placeholder="Why? (saved in each store's log)"
-              />
-            </div>
-          )}
-
-        </div>
+          </div>
+        </PanelFields>
 
         {/* Partly done: say what happened, per reason */}
         {partial && (
@@ -506,7 +516,7 @@ export function BulkActionDialog({
           {!partial && (
             <button
               onClick={handleConfirm}
-              disabled={mutation.isPending || waitsForReason}
+              disabled={mutation.isPending || waitsForReason || waitsForAmount || noShops}
               className="px-4 py-2 rounded-xl text-sm font-semibold bg-[#1E1E1E] text-white hover:bg-[#2D2D2D] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               {mutation.isPending && (

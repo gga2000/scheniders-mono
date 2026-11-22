@@ -308,3 +308,48 @@ describe("bulk reasons and outcomes", () => {
     );
   });
 });
+
+/*
+ * Round 21 (UX new 4 and 8): during a held write a click on Start changed the
+ * sentence while Internal was written; Confirm was ready at 500 IQD and then
+ * refused it; and with the picked shops emptied under the dialog, Confirm sent
+ * an empty list.
+ */
+describe("the bulk dialog waits for what it sends", () => {
+  it("holds the choices while the step is written", async () => {
+    send.mockReturnValue(new Promise<never>(() => {}));
+    dialog();
+    fireEvent.click(screen.getByRole("button", { name: "Internal (no billing)" }));
+    fireEvent.change(screen.getByLabelText("Reason"), { target: { value: "Our own test shops" } });
+    fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Start" }).matches(":disabled")).toBe(true));
+    expect(screen.getByLabelText("Reason").matches(":disabled")).toBe(true);
+    expect(screen.getByText(/2 shops move to Internal \(no billing\) now\./)).toBeTruthy();
+  });
+
+  it("keeps Confirm grey for an amount the server refuses, and says the rule", async () => {
+    send.mockReturnValue(new Promise<never>(() => {}));
+    dialog(IDS, "top-up");
+    fireEvent.change(screen.getByPlaceholderText("e.g. Monthly credit bonus"), { target: { value: "Cash at the office" } });
+    expect(confirmWaits()).toBe(false);
+    const custom = screen.getByPlaceholderText("e.g. 100,000");
+    for (const refused of ["500", "1500.5", "10000001"]) {
+      fireEvent.change(custom, { target: { value: refused } });
+      expect(confirmWaits()).toBe(true);
+      expect(screen.getByText("A whole number from 1,000 IQD to 10,000,000 IQD.")).toBeTruthy();
+    }
+    fireEvent.change(custom, { target: { value: "1000" } });
+    expect(confirmWaits()).toBe(false);
+    expect(screen.queryByText(/A whole number from/)).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(1));
+    expect(sentBody().params.amount_iqd).toBe(1000);
+  });
+
+  it("keeps Confirm grey with no shops picked", () => {
+    dialog([], "suspend");
+    expect(confirmWaits()).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
+    expect(send).not.toHaveBeenCalled();
+  });
+});
