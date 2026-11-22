@@ -1876,8 +1876,8 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
       <h3 id="shT1">شنو تبيع؟</h3>
       <p class="hp">حتى نجهّز متجرك على شغلك. تگدر تختار أكثر من وحدة.</p>
       <div class="opts2" id="types">
-        <button aria-pressed="false">ملابس وأحذية</button><button aria-pressed="false">عطور</button><button aria-pressed="false">تجميل وعناية</button><button aria-pressed="false">إكسسوارات</button>
-        <button aria-pressed="false">بيت وأثاث</button><button aria-pressed="false">إلكترونيات</button><button aria-pressed="false">هدايا وألعاب</button><button aria-pressed="false">شي ثاني</button>
+        <button aria-pressed="false" data-id="clothing">ملابس وأحذية</button><button aria-pressed="false" data-id="perfume">عطور</button><button aria-pressed="false" data-id="beauty">تجميل وعناية</button><button aria-pressed="false" data-id="accessories">إكسسوارات</button>
+        <button aria-pressed="false" data-id="home">بيت وأثاث</button><button aria-pressed="false" data-id="electronics">إلكترونيات</button><button aria-pressed="false" data-id="toys">هدايا وألعاب</button><button aria-pressed="false" data-id="other">شي ثاني</button>
       </div>
       <button class="rb" id="go0" disabled>التالي</button>
     </section>
@@ -2691,7 +2691,7 @@ if (typeof module !== 'undefined') module.exports = FermiMotion;
        parameters this page was opened with (utm_*, pain, ref, fbclid), so attribution survives. */
     var q=new URLSearchParams(),here=new URLSearchParams(location.search);
     here.forEach(function(v,k){if(/^(utm_[a-z]+|pain|ref|fbclid)$/.test(k))q.set(k,v)});
-    q.set('type',types);
+    q.set('type',types);q.set('sells',$$('#types button[aria-pressed=true]').map(function(x){return x.dataset.id}).join(','));
     q.set('name',$('#sName').value.trim());q.set('slug',slug($('#sName').value));q.set('phone',p);
     location.href=SIGNUP_URL+'?'+q.toString()});
 })();
