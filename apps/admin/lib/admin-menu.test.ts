@@ -82,6 +82,32 @@ describe("links each login may open", () => {
   });
 });
 
+// Fermi B12 items 5 and 6 (Ali's pick A, 22 Nov): two new pages, nothing existing moves.
+describe("the weekly numbers and the delivered rate", () => {
+  const place = (label: string) => {
+    const section = MENU.find((s) => s.label === label);
+    if (!section) throw new Error(`no ${label} place`);
+    return section;
+  };
+
+  it("puts Weekly numbers last under Numbers, for every login", () => {
+    expect(linksFor(place("Numbers"), "support_staff").map((l) => l.label)).toEqual(["Our fees", "Orders by hour", "Weekly numbers"]);
+    expect(pageTitle("/weekly-numbers")).toBe("Weekly numbers");
+  });
+
+  it("puts Delivered rate last under Merchants for admins only, as its read", () => {
+    expect(linksFor(place("Merchants"), "super_admin").map((l) => l.label)).toEqual([
+      "All merchants",
+      "Trials",
+      "Paying shops",
+      "Shops at risk",
+      "Delivered rate",
+    ]);
+    expect(linksFor(place("Merchants"), "support_staff").map((l) => l.label)).not.toContain("Delivered rate");
+    expect(pageTitle("/delivered-rate")).toBe("Delivered rate");
+  });
+});
+
 describe("the count beside a place", () => {
   it("counts what waits, and a 0 hides the badge", () => {
     expect(waitingBadge({ data: 3, isError: false }, "receipts to check", "the receipts")).toEqual({
