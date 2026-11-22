@@ -38,7 +38,7 @@ const PAUSED_TRIAL = {
   paused: true,
 };
 
-function render(as: AdminRole, followUps?: TrialFollowUpRow[]): string {
+function render(as: AdminRole, followUps?: TrialFollowUpRow[], failedRereads: readonly unknown[][] = []): string {
   role = as;
   const client = new QueryClient();
   client.setQueryData(["admin", "trials"], {
@@ -46,6 +46,14 @@ function render(as: AdminRole, followUps?: TrialFollowUpRow[]): string {
     summary: { total: 1, expiringSoon: 1, expired: 0, healthy: 0 },
   });
   if (followUps) client.setQueryData(TRIAL_FOLLOW_UP_KEY, followUps);
+  // A re-read that failed after a read at 20:00 in Baghdad.
+  for (const queryKey of failedRereads) {
+    client.getQueryCache().find({ queryKey })?.setState({
+      status: "error",
+      error: new TypeError("Failed to fetch"),
+      dataUpdatedAt: Date.parse("2026-11-22T17:00:00Z"),
+    });
+  }
   return renderToStaticMarkup(createElement(QueryClientProvider, { client }, createElement(TrialsPage)));
 }
 
@@ -122,5 +130,14 @@ describe("the follow-up line on Trials", () => {
     expect(html).not.toContain("WhatsApp owner");
     expect(html).toContain("Najaf Gifts");
     expect(html).toContain("Paused: ask a super admin to lift it");
+  });
+
+  it("keeps the list and its facts after a failed re-read, and says how old each is (round 22, R3-10)", () => {
+    expect(render("support_staff", [FOLLOW_UP])).not.toContain("Could not refresh");
+    const html = render("support_staff", [FOLLOW_UP], [["admin", "trials"], [...TRIAL_FOLLOW_UP_KEY]]);
+    expect(html).toMatch(/Could not refresh the trials\. These numbers are from (Sun 22 Nov, )?20:00\./);
+    expect(html).toMatch(/Could not refresh the follow-up facts\. These numbers are from (Sun 22 Nov, )?20:00\./);
+    expect(html).toContain("Najaf Gifts");
+    expect(html).not.toContain("Could not load the follow-up facts");
   });
 });

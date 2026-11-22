@@ -27,9 +27,17 @@ const row = (week_start: string, extra: Partial<WeekRow> = {}): WeekRow => ({
   ...extra,
 });
 
-function render(rows: WeekRow[]): string {
+function render(rows: WeekRow[], refreshFailed = false): string {
   const client = new QueryClient();
   client.setQueryData(["admin", "weekly-dashboard"], { weeks: rows.map(weekSummary) });
+  if (refreshFailed) {
+    // The 5-minute re-read failed after a read at 20:00 in Baghdad.
+    client.getQueryCache().find({ queryKey: ["admin", "weekly-dashboard"] })?.setState({
+      status: "error",
+      error: new TypeError("Failed to fetch"),
+      dataUpdatedAt: Date.parse("2026-11-22T17:00:00Z"),
+    });
+  }
   return renderToStaticMarkup(createElement(QueryClientProvider, { client }, createElement(WeeklyNumbersPage)));
 }
 
@@ -98,6 +106,14 @@ describe("Weekly numbers", () => {
 
   it("says 1 week, not 1 weeks", () => {
     const html = render([row("2026-11-21", { running: true })]);
+    expect(html).toContain("1 week shown.");
+  });
+
+  it("keeps the weeks after a failed re-read and says how old they are (round 22, R3-10)", () => {
+    const weeks = [row("2026-11-21", { running: true })];
+    expect(render(weeks)).not.toContain("Could not refresh");
+    const html = render(weeks, true);
+    expect(html).toMatch(/Could not refresh the weekly numbers\. These numbers are from (Sun 22 Nov, )?20:00\./);
     expect(html).toContain("1 week shown.");
   });
 });
