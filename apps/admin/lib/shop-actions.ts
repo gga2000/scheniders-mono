@@ -196,23 +196,37 @@ export function renewalOnWords(facts: RenewalOnFacts, now: Date = new Date()): s
   return `${on} The month${after} is charged from the wallet as usual.`;
 }
 
+/** Until when a paused or held shop is left alone: no job charges it, and nothing opens its lock. */
+const UNTIL_BACK: Readonly<Record<string, { shop: string; until: string }>> = {
+  limited: { shop: "The shop is paused", until: "until the pause lifts" },
+  suspended: { shop: "The shop is on hold", until: "until it comes back" },
+};
+
 /**
  * What stopping renewal does, said before it is done, from the same facts as
  * renewalOnWords (round 22). The demo store renews at no charge whatever the
  * switch says (renew_subscription_core skips renewal off for it). A shop that
  * is locked already stays locked, and no hourly run charges it any more. A
- * trial's end is not charged; otherwise this month runs to its end.
+ * trial's end is not charged; otherwise this month runs to its end. A paused
+ * or held shop is said first: nothing is charged and its lock screen opens
+ * nothing until it comes back (settle_billing_lock answers on_hold), and only
+ * then does the rest happen (round 23 data new 2).
  */
 export function renewalOffWords(facts: RenewalOnFacts, now: Date = new Date()): string {
   if (facts.demo) return "The demo store still renews each month at no charge: this switch changes nothing there.";
+  const away = UNTIL_BACK[facts.status];
   if (facts.lock) {
-    return `The shop stays locked, and no job charges it. It opens when ${renewalOffOpens(facts.lock.price_iqd)}.`;
+    const opens = `It opens when ${renewalOffOpens(facts.lock.price_iqd)}.`;
+    return away
+      ? `${away.shop}, so nothing is charged and nothing opens the lock ${away.until}. Then it stays locked, and no job charges it. ${opens}`
+      : `The shop stays locked, and no job charges it. ${opens}`;
   }
-  if (facts.onTrial) return `When the trial ends it is not charged, and the shop locks until ${renewalOffOpens()}.`;
+  const first = away ? `${away.shop}, so nothing is charged ${away.until}. ` : "";
+  if (facts.onTrial) return `${first}When the trial ends it is not charged, and the shop locks until ${renewalOffOpens()}.`;
   if (facts.periodEnd && Date.parse(facts.periodEnd) <= now.getTime()) {
-    return `This month ended ${formatDay(facts.periodEnd, now)}. It is not charged, and the shop locks until ${renewalOffOpens()}.`;
+    return `${first}This month ended ${formatDay(facts.periodEnd, now)}. It is not charged, and the shop locks until ${renewalOffOpens()}.`;
   }
-  return RENEWAL_STOP_WORDS;
+  return `${first}${RENEWAL_STOP_WORDS}`;
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
