@@ -10,7 +10,8 @@ import {
   Loader2,
 } from "lucide-react";
 import { isStaffReason } from "@/lib/billing-lock-tools";
-import { createRequestIds } from "@/lib/request-ids";
+import { keptRequestIds, requestKey, shopKey } from "@/lib/request-ids";
+import { failureOf, sendJson } from "@/components/merchants/detail/action-ui";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
 import { LoadError } from "@/components/shared/load-error";
 import { okOrLoadFailure } from "@/lib/load-failure";
@@ -114,22 +115,17 @@ function ExtendTrialButton({ tenantId }: { tenantId: string }) {
   const [reason, setReason] = useState("");
   const reasonOk = isStaffReason(reason);
   const queryClient = useQueryClient();
-  // One id per ask: a retry after a lost answer extends the trial once.
-  const [requestIds] = useState(createRequestIds);
+  // One id per ask, kept in this browser: a retry after a lost answer, a
+  // reload, or the shop page's free trial days for the same shop and days
+  // extends the trial once (round 21, structure new 7).
+  const [requestIds] = useState(() => keptRequestIds("free-days"));
 
   const mutation = useMutation({
     mutationFn: async (days: number) => {
-      const request_id = requestIds.idFor(`${tenantId}:${days}`);
-      const res = await adminFetch("/api/trials/extend", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tenant_id: tenantId, days, reason: reason.trim(), request_id }),
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Failed to extend trial");
-      }
-      return res.json();
+      const request_id = requestIds.idFor(requestKey(shopKey(tenantId), "trial", days));
+      const answer = await sendJson("/api/trials/extend", { tenant_id: tenantId, days, reason: reason.trim(), request_id });
+      if (!answer.ok) throw failureOf(answer.status, answer.data, "Failed to extend trial");
+      return answer.data;
     },
     onSuccess: () => {
       requestIds.done();

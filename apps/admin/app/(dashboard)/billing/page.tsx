@@ -15,7 +15,7 @@ import { ExportButton } from "@/components/shared/export-button";
 import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
 import { LoadError } from "@/components/shared/load-error";
 import { okOrLoadFailure } from "@/lib/load-failure";
-import { keptRequestIds } from "@/lib/request-ids";
+import { keptRequestIds, requestKey, shopKey } from "@/lib/request-ids";
 import { STAFF_REASON_MAX } from "@/lib/billing-lock-tools";
 import { quickTopUpPlan } from "@/lib/quick-top-up";
 import { formatCount, formatIQD, formatWhen } from "@/lib/format";
@@ -148,7 +148,7 @@ export default function BillingPage() {
       amount: topupPlan.amount,
       description,
       // Same shop and amount asked again (a retry, the reason reworded) reuses the id.
-      request_id: requestIds.idFor(`${topupTenantId}:${topupPlan.amount}`),
+      request_id: requestIds.idFor(requestKey(shopKey(topupTenantId), topupPlan.amount)),
     });
   }
 
