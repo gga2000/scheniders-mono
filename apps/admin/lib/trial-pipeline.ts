@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { formatCount } from "./format";
 
 /**
  * Trial follow-up (Fermi B12 item 1): what the team needs to know to call a
@@ -66,4 +67,111 @@ export function trialGroups(t: TrialGroupFacts): TrialGroup[] {
   if (t.follow_up?.lock_reason) groups.push("locked");
   if (t.paused) groups.push("paused");
   return groups;
+}
+
+/** The follow-up read's query, refreshed when a call is logged on Trials. */
+export const TRIAL_FOLLOW_UP_KEY = ["admin", "trials", "follow-up"] as const;
+
+/** What the Trials page reads from GET /api/trials/follow-up: the rest of each shop row is the list's. */
+export const trialFollowUpRowSchema = z.object({
+  id: z.string(),
+  trial_day: z.number().int(),
+  days_remaining: z.number().int(),
+  is_expired: z.boolean(),
+  groups: z.array(z.enum(TRIAL_GROUPS)),
+  follow_up: trialFollowUpSchema.nullable(),
+});
+export const trialFollowUpResponseSchema = z.object({ trials: z.array(trialFollowUpRowSchema) });
+export type TrialFollowUpRow = z.infer<typeof trialFollowUpRowSchema>;
+
+/** The chips above the Trials list (board B12 item 1, concept A): every shop, a group, or no call yet. */
+export const TRIAL_FILTERS = ["all", ...TRIAL_GROUPS, "not_called"] as const;
+export type TrialFilter = (typeof TRIAL_FILTERS)[number];
+
+export const TRIAL_FILTER_LABEL: Record<TrialFilter, string> = {
+  all: "All",
+  day_1: "Day 1",
+  day_3: "Day 3",
+  last_day: "Last day",
+  locked: "Locked",
+  paused: "Paused",
+  not_called: "Not called",
+};
+
+/**
+ * Whether a shop shows under a chip. "Not called" is a shop nobody has
+ * logged a call on yet. A shop whose facts are not read yet (it started its
+ * trial between the two reads) shows only under All.
+ */
+export function inTrialFilter(row: TrialFollowUpRow | undefined, filter: TrialFilter): boolean {
+  if (filter === "all") return true;
+  if (!row) return false;
+  if (filter === "not_called") return row.follow_up !== null && row.follow_up.last_call === null;
+  return row.groups.includes(filter);
+}
+
+/** How many shops each chip holds, of the shops listed. */
+export function trialFilterCounts(ids: readonly string[], rows: ReadonlyMap<string, TrialFollowUpRow>): Record<TrialFilter, number> {
+  const counts: Record<TrialFilter, number> = { all: 0, day_1: 0, day_3: 0, last_day: 0, locked: 0, paused: 0, not_called: 0 };
+  for (const id of ids) {
+    for (const filter of TRIAL_FILTERS) if (inTrialFilter(rows.get(id), filter)) counts[filter]++;
+  }
+  return counts;
+}
+
+const CHECK_WORDS: Record<NonNullable<TrialFollowUp["trial_check_decision"]>, string> = {
+  allow_trial: "trial given back",
+  end_trial: "trial ended by staff",
+  checked: "checked",
+};
+
+const OUTCOME_WORDS: Record<NonNullable<TrialFollowUp["last_call"]>["outcome"], string> = {
+  done: "",
+  no_answer: ", no answer",
+  later: ", call later",
+};
+
+/** One fact on a shop's follow-up line: a plain label and its value, shown bold. */
+export interface TrialFact {
+  label: string;
+  value: string;
+}
+
+/**
+ * The follow-up line under a shop on Trials, in the order a caller reads it:
+ * where the trial is, what the shop has done, and who called last.
+ * `ago` words a time as "2 hours ago".
+ */
+export function trialFacts(row: TrialFollowUpRow, ago: (at: string) => string): TrialFact[] {
+  const f = row.follow_up;
+  const day: TrialFact = row.is_expired
+    ? { label: "Day", value: `${row.trial_day}, trial over` }
+    : {
+        label: "Day",
+        value: `${row.trial_day} of ${Math.max(row.trial_day, row.trial_day + row.days_remaining - 1)}${row.groups.includes("last_day") ? ", last day" : ""}`,
+      };
+  if (!f) return [day];
+  const check =
+    f.trial_check === null
+      ? "clear"
+      : f.trial_check_decision
+        ? CHECK_WORDS[f.trial_check_decision]
+        : f.trial_check === "no_trial"
+          ? "matches a shop"
+          : "to review";
+  return [
+    day,
+    {
+      label: "Orders",
+      value: f.orders === 0 ? "none yet" : `${formatCount(f.orders)}, ${formatCount(f.delivered)} delivered`,
+    },
+    { label: "Shipped", value: f.shipped ? "yes" : "no" },
+    { label: "WhatsApp", value: `${formatCount(f.whatsapp_sent)}/${formatCount(f.whatsapp_cap)}` },
+    { label: "Prime", value: f.prime_linked ? "linked" : "no" },
+    { label: "One-trial check", value: check },
+    {
+      label: "Last call",
+      value: f.last_call ? `${f.last_call.by}, ${ago(f.last_call.at)}${OUTCOME_WORDS[f.last_call.outcome]}` : "none",
+    },
+  ];
 }

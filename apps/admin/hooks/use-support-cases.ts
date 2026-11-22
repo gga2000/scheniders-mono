@@ -12,9 +12,11 @@ import type {
   SupportNotice,
   SupportScoreboard,
   SupportTask,
+  ShopCallInput,
   SupportTeammate,
   TaskLogInput,
 } from "@/lib/support";
+import { TRIAL_FOLLOW_UP_KEY } from "@/lib/trial-pipeline";
 import type { ShopCheck } from "@/lib/support-shop-check";
 import type { SupportSpike } from "@/lib/support-spike";
 import { SHELL_READ, useAfterPageReads } from "@/hooks/use-after-page-reads";
@@ -171,6 +173,25 @@ export function useSupportLogTask() {
         }),
       ),
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["admin", "support"] }),
+  });
+}
+
+/** Record a call on a shop with no task (Trials, "Mark contacted"): the shop's last call shows it. */
+export function useSupportLogShopCall() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: ShopCallInput) =>
+      readJson<{ success: true }>(
+        await adminFetch("/api/support/calls", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(input),
+        }),
+      ),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "support"] });
+      queryClient.invalidateQueries({ queryKey: TRIAL_FOLLOW_UP_KEY });
+    },
   });
 }
 
