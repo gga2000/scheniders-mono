@@ -15,7 +15,12 @@ import { monthlyTotal } from "./plans";
  * money "saved" (no «وفّر»). The expected monthly cost (plan + fee per
  * delivered order + messages, at the trial's pace) is there so the first
  * bill is no surprise.
+ *
+ * Arabic is the report's language: the team's WhatsApp copy is always
+ * Arabic. The merchant app passes "en" when the merchant reads it in English.
  */
+
+export type TrialReportLang = "ar" | "en";
 
 export const trialReportFactsSchema = z.object({
     from_day: z.string(),
@@ -59,8 +64,10 @@ const IRAQI_MONTHS = [
     "تموز", "آب", "أيلول", "تشرين الأول", "تشرين الثاني", "كانون الأول",
 ] as const;
 
+const ENGLISH_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"] as const;
+
 const number = (n: number) => Math.round(n).toLocaleString("en-US");
-const iqd = (n: number) => `${number(n)} د.ع`;
+const iqd = (n: number, lang: TrialReportLang = "ar") => (lang === "ar" ? `${number(n)} د.ع` : `${number(n)} IQD`);
 
 /** '2026-11-12' as «12 تشرين الثاني». */
 export function arabicDay(day: string): string {
@@ -76,8 +83,18 @@ export function arabicDays(days: number): string {
     return `${days} يوم`;
 }
 
+/** '2026-11-12' as "12 Nov". */
+function englishDay(day: string): string {
+    const [, month, date] = day.split("-").map(Number);
+    return `${date} ${ENGLISH_MONTHS[(month ?? 1) - 1]}`;
+}
+
 /** The report's days: «من 12 تشرين الثاني لليوم (5 أيام)», or to the trial's last day once it ended. */
-export function trialReportPeriod(facts: TrialReportFacts): string {
+export function trialReportPeriod(facts: TrialReportFacts, lang: TrialReportLang = "ar"): string {
+    if (lang === "en") {
+        const to = facts.ended ? `to ${englishDay(facts.to_day)}` : "to today";
+        return `From ${englishDay(facts.from_day)} ${to} (${facts.days} ${facts.days === 1 ? "day" : "days"})`;
+    }
     const to = facts.ended ? `إلى ${arabicDay(facts.to_day)}` : "لليوم";
     return `من ${arabicDay(facts.from_day)} ${to} (${arabicDays(facts.days)})`;
 }
@@ -88,25 +105,60 @@ export interface TrialReportLine {
     value: string;
     /** A word under the value, such as why profit reads high. */
     note?: string;
+    /**
+     * The dinars a money line says, so the app can hide it like every other
+     * money figure until the merchant shows it. Absent on count lines.
+     */
+    amountIqd?: number;
 }
 
+const LINE_WORDS = {
+    ar: {
+        orders: "طلباتك",
+        delivered: "الواصل",
+        shield: "Shield نبّه على",
+        with_courier: "فلوسك عند المندوب",
+        profit: "ربحك تقريباً",
+        loss: "خسارتك تقريباً",
+        missingCost: "بعض المنتجات بلا كلفة، فالرقم أعلى من الحقيقي",
+    },
+    en: {
+        orders: "Your orders",
+        delivered: "Delivered",
+        shield: "Shield warned on",
+        with_courier: "Your money with the courier",
+        profit: "Your profit, roughly",
+        loss: "Your loss, roughly",
+        missingCost: "Some products have no cost, so this reads higher than it really is",
+    },
+} as const;
+
 /** The report's lines, in order, without the ones that are 0. */
-export function trialReportLines(facts: TrialReportFacts): TrialReportLine[] {
+export function trialReportLines(facts: TrialReportFacts, lang: TrialReportLang = "ar"): TrialReportLine[] {
+    const words = LINE_WORDS[lang];
     const lines: TrialReportLine[] = [];
-    if (facts.orders > 0) lines.push({ key: "orders", label: "طلباتك", value: number(facts.orders) });
-    if (facts.delivered > 0) lines.push({ key: "delivered", label: "الواصل", value: number(facts.delivered) });
-    if (facts.shield_flagged > 0) lines.push({ key: "shield", label: "Shield نبّه على", value: number(facts.shield_flagged) });
-    if (facts.with_courier_iqd > 0) lines.push({ key: "with_courier", label: "فلوسك عند المندوب", value: iqd(facts.with_courier_iqd) });
+    if (facts.orders > 0) lines.push({ key: "orders", label: words.orders, value: number(facts.orders) });
+    if (facts.delivered > 0) lines.push({ key: "delivered", label: words.delivered, value: number(facts.delivered) });
+    if (facts.shield_flagged > 0) lines.push({ key: "shield", label: words.shield, value: number(facts.shield_flagged) });
+    if (facts.with_courier_iqd > 0) {
+        lines.push({ key: "with_courier", label: words.with_courier, value: iqd(facts.with_courier_iqd, lang), amountIqd: Math.round(facts.with_courier_iqd) });
+    }
     const profit = Math.round(facts.profit_iqd);
     if (profit !== 0) {
         lines.push({
             key: "profit",
-            label: profit > 0 ? "ربحك تقريباً" : "خسارتك تقريباً",
-            value: iqd(Math.abs(profit)),
-            note: facts.missing_cost_units > 0 ? "بعض المنتجات بلا كلفة، فالرقم أعلى من الحقيقي" : undefined,
+            label: profit > 0 ? words.profit : words.loss,
+            value: iqd(Math.abs(profit), lang),
+            note: facts.missing_cost_units > 0 ? words.missingCost : undefined,
+            amountIqd: Math.abs(profit),
         });
     }
     return lines;
+}
+
+/** What the report says when the shop has no order yet. */
+export function trialReportNoOrders(lang: TrialReportLang = "ar"): string {
+    return lang === "ar" ? "ما صار عندك طلبات لهسه." : "No orders yet.";
 }
 
 export interface ExpectedMonthlyCost {
@@ -141,16 +193,32 @@ export function expectedMonthlyCost(facts: TrialReportFacts): ExpectedMonthlyCos
     };
 }
 
-/** «كلفتك الشهرية المتوقعة بهالحجم: تقريباً 36,620 د.ع», and its parts without the zero ones. */
-export function expectedCostText(cost: ExpectedMonthlyCost): { headline: string; parts: string } {
-    const parts = [`الباقة ${number(cost.planIqd)}`];
-    if (cost.deliveredPerMonth > 0) parts.push(`${number(cost.perDeliveredIqd)} × ${number(cost.deliveredPerMonth)} طلب واصل`);
-    if (cost.messagesIqd > 0) parts.push(`رسائل ${number(cost.messagesIqd)}`);
-    return { headline: `كلفتك الشهرية المتوقعة بهالحجم: تقريباً ${iqd(cost.totalIqd)}`, parts: parts.join(" + ") };
+export interface ExpectedCostText {
+    /** «كلفتك الشهرية المتوقعة بهالحجم: تقريباً 36,620 د.ع»: the label, a colon and the amount. */
+    headline: string;
+    label: string;
+    /** «تقريباً 36,620 د.ع», which the app sets in bold. */
+    amount: string;
+    /** «الباقة 9,000 + 55 × 84 طلب واصل + رسائل 23,000», without the zero parts. */
+    parts: string;
+}
+
+/** The expected monthly cost in words, and its parts without the zero ones. */
+export function expectedCostText(cost: ExpectedMonthlyCost, lang: TrialReportLang = "ar"): ExpectedCostText {
+    const en = lang === "en";
+    const parts = [en ? `Plan ${number(cost.planIqd)}` : `الباقة ${number(cost.planIqd)}`];
+    if (cost.deliveredPerMonth > 0) {
+        parts.push(`${number(cost.perDeliveredIqd)} × ${number(cost.deliveredPerMonth)} ${en ? "delivered orders" : "طلب واصل"}`);
+    }
+    if (cost.messagesIqd > 0) parts.push(en ? `messages ${number(cost.messagesIqd)}` : `رسائل ${number(cost.messagesIqd)}`);
+    const label = en ? "Your expected monthly cost at this size" : "كلفتك الشهرية المتوقعة بهالحجم";
+    const amount = en ? `about ${iqd(cost.totalIqd, lang)}` : `تقريباً ${iqd(cost.totalIqd)}`;
+    return { headline: `${label}: ${amount}`, label, amount, parts: parts.join(" + ") };
 }
 
 /** «بهالأسبوع» for a trial of a week or less, «بفترة التجربة» for a longer one. */
-export function trialReportLead(facts: TrialReportFacts): string {
+export function trialReportLead(facts: TrialReportFacts, lang: TrialReportLang = "ar"): string {
+    if (lang === "en") return facts.days <= 7 ? "This week" : "During the trial";
     return facts.days <= 7 ? "بهالأسبوع" : "بفترة التجربة";
 }
 
@@ -159,7 +227,7 @@ export function trialReportText(facts: TrialReportFacts): string {
     const lines = trialReportLines(facts);
     const said = lines.length
         ? `${trialReportLead(facts)}: ${lines.map((l) => `${l.label} ${l.value}${l.note ? ` (${l.note})` : ""}`).join("، ")}`
-        : `${trialReportLead(facts)}: ما صار عندك طلبات لهسه.`;
+        : `${trialReportLead(facts)}: ${trialReportNoOrders()}`;
     const out = [`تقرير تجربتك ${trialReportPeriod(facts)}`, said];
     const cost = expectedMonthlyCost(facts);
     if (cost) {

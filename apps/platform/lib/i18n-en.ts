@@ -7723,6 +7723,10 @@ export const en: Record<string, string> = {
     "billing.lock.topUp": "Top up wallet",
     "billing.lock.askOwner": "The store owner can pay from the billing page.",
     "billing.lock.goToOrders": "Go to orders",
+    // The trial report card (Fermi B12 item 2); its lines come from @scheniders/shared/trial-report.
+    "trialReport.title": "Your trial report",
+    "trialReport.hideToday": "Hide for today",
+    "trialReport.choosePlan": "Choose your plan",
     "billing.lock.stillOpen": "Orders, shipping, printing and export still work.",
     "billing.lock.paid": "Paid. Every feature is back.",
     "billing.lock.payFailed": "Payment didn't go through. The wallet doesn't hold enough.",
