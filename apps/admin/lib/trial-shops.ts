@@ -14,7 +14,10 @@ import { ON_TRIAL_FILTER, isPausedTrial } from "@/lib/effective-status";
  * paused. Days are on the Baghdad calendar: a trial that ends at 06:21
  * tomorrow has 1 day left, whatever the hour now; once its end has passed it
  * is expired, days_remaining 0 on the end day and below 0 after. The shop's
- * own day (1 on the day it signed up) is on the same calendar.
+ * own day is on the same calendar, counted as the support plan counts its
+ * first-week calls (lib/support.ts): Day 0 on the day it signed up, Day 1 the
+ * day its store-check call falls due, Day 3 its first-order call (audit
+ * round 22: Trials said "Day 1" on the plan's Day 0).
  */
 export async function readTrialShops(supabase: ReturnType<typeof createAdminClient>, now: Date) {
   const rows = await everyRow((from, to) =>
@@ -38,7 +41,7 @@ export async function readTrialShops(supabase: ReturnType<typeof createAdminClie
       balance_iqd: w?.balance_iqd ?? 0,
       days_remaining: clock.days,
       is_expired: clock.ended,
-      trial_day: dayNumber(t.created_at, now),
+      trial_day: dayNumber(t.created_at, now) - 1,
     };
   });
 }

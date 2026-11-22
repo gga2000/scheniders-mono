@@ -34,9 +34,10 @@ beforeEach(() => {
   vi.spyOn(console, "error").mockImplementation(() => {});
   stub.state.tables.tenants = [{ id: SHOP }, { id: OTHER }];
   stub.state.tables.products = [
-    { id: "p1", tenant_id: SHOP, name: "عطر عود", sku: "OUD-1", barcode: "111", is_archived: false },
-    { id: "p2", tenant_id: SHOP, name: "قميص قديم", sku: " OLD-1 ", barcode: null, is_archived: true },
-    { id: "p3", tenant_id: OTHER, name: "مسك", sku: "MSK", barcode: "999", is_archived: false },
+    { id: "p1", tenant_id: SHOP, name: "عطر عود", sku: "OUD-1", barcode: "111", is_archived: false, image_url: null },
+    { id: "p2", tenant_id: SHOP, name: "قميص قديم", sku: " OLD-1 ", barcode: null, is_archived: true, image_url: null },
+    { id: "p3", tenant_id: OTHER, name: "مسك", sku: "MSK", barcode: "999", is_archived: false, image_url: null },
+    { id: "p4", tenant_id: SHOP, name: "بخور", sku: null, barcode: null, is_archived: false, image_url: "https://x.supabase.co/a.jpg" },
   ];
   stub.state.tables.product_variants = [
     { id: "v1", tenant_id: SHOP, sku: "OUD-1-S", barcode: null },
@@ -55,7 +56,13 @@ describe("POST /api/merchants/[id]/product-import/read", () => {
     expect(body.file).toEqual({ sheet: null, headers: ["الاسم", "السعر", "الكمية"], rows: [["عطر", "35000", "4"]], firstRow: 2 });
     expect(body.mapping).toEqual(["name", "price", "stock"]);
     // An archived product frees its name but keeps its SKU; another shop's products are not this shop's.
-    expect(body.shop).toEqual({ names: ["عطر عود"], skus: ["OUD-1", "OLD-1", "OUD-1-S"], barcodes: ["111", "6251000000890"] });
+    // A product with no main image is listed, so a second read gives it the file's photos.
+    expect(body.shop).toEqual({
+      names: ["عطر عود", "بخور"],
+      skus: ["OUD-1", "OLD-1", "OUD-1-S"],
+      barcodes: ["111", "6251000000890"],
+      noImages: [{ id: "p1", name: "عطر عود" }],
+    });
   });
 
   it("reads every product of a shop past the 1,000 rows one answer holds", async () => {

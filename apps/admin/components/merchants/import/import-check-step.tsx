@@ -12,6 +12,7 @@ export function ImportCheckStep({
   shopName,
   lines,
   withChoices,
+  photosFor,
   importing,
   done,
   onImport,
@@ -20,6 +21,8 @@ export function ImportCheckStep({
   lines: readonly CheckRow[];
   /** Products to add that have sizes or colours. */
   withChoices: number;
+  /** Products already in the shop with no photo that get the file's photos. */
+  photosFor: number;
   importing: boolean;
   /** The import ran: the button is gone and the lines stay for reference. */
   done: boolean;
@@ -82,15 +85,18 @@ export function ImportCheckStep({
           <p className="text-[13px] leading-snug text-foreground/75">
             {toAdd > 0
               ? `Adds ${products(toAdd)} to ${shopName}, on sale in the store straight away. Rows with a problem and names already in the shop are left out. Image links are fetched and saved after the products.`
-              : "Nothing to add: every row has a problem or is already in the shop."}
+              : photosFor > 0
+                ? `Nothing new to add. ${products(photosFor)} already in ${shopName} ${photosFor === 1 ? "has" : "have"} no photo yet: the file's photos are fetched and saved on ${photosFor === 1 ? "it" : "them"}.`
+                : "Nothing to add: every row has a problem or is already in the shop."}
+            {toAdd > 0 && photosFor > 0 && ` ${products(photosFor)} already in the shop with no photo ${photosFor === 1 ? "gets" : "get"} the file's photos too.`}
           </p>
           <button
             type="button"
             onClick={onImport}
-            disabled={toAdd === 0 || importing}
+            disabled={(toAdd === 0 && photosFor === 0) || importing}
             className="rounded-lg bg-foreground px-4 py-2 text-[13px] font-semibold text-background transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Import {products(toAdd)}
+            {toAdd === 0 && photosFor > 0 ? `Add photos to ${products(photosFor)}` : `Import ${products(toAdd)}`}
           </button>
         </div>
       )}

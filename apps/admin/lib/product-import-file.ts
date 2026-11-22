@@ -210,7 +210,11 @@ interface ZipPart {
   name: string;
   start: number;
   end: number;
+  /** The workbook's links part only: its text, unpacked (see hasLinksRoot). */
+  text?: string;
 }
+
+const LINKS_PART = "xl/_rels/workbook.xml.rels";
 
 type ZipRead = { ok: true; bytes: number; parts: ZipPart[]; directory: number } | Extract<ZipUnpacked, { ok: false }>;
 
@@ -319,17 +323,21 @@ function readZip(bytes: Uint8Array, limit: number): ZipRead {
     }
 
     const name = Buffer.from(entry.name).toString("utf8");
-    parts.push({ name, start: local, end: next });
+    const part: ZipPart = { name, start: local, end: next };
+    parts.push(part);
     const partLimit = PART_LIMITS[name] ?? Number.POSITIVE_INFINITY;
     const room = Math.min(limit - total, partLimit);
     const data = bytes.subarray(dataAt, dataEnd);
     let size: number;
     if (entry.method === 0) {
       size = entry.packed;
+      if (name === LINKS_PART && size <= room) part.text = Buffer.from(data).toString("utf8");
     } else if (entry.method === 8) {
       try {
         // Never more than the room left, plus one byte to know it was passed.
-        size = inflateRawSync(data, { maxOutputLength: room + 1 }).length;
+        const unpacked = inflateRawSync(data, { maxOutputLength: room + 1 });
+        size = unpacked.length;
+        if (name === LINKS_PART && size <= room) part.text = unpacked.toString("utf8");
       } catch (error) {
         if (error instanceof RangeError && "code" in error && error.code === "ERR_BUFFER_TOO_LARGE") return { ok: false, reason: "too_big" };
         return unreadable;
@@ -352,7 +360,18 @@ function readZip(bytes: Uint8Array, limit: number): ZipRead {
  * workbook went through temporary files, and a sheet that broke the reader
  * left the files of the sheets after it behind (audit round 21).
  */
-const FIRST_PARTS = ["xl/workbook.xml", "xl/_rels/workbook.xml.rels", "xl/styles.xml", "xl/sharedStrings.xml"];
+const FIRST_PARTS = ["xl/workbook.xml", LINKS_PART, "xl/styles.xml", "xl/sharedStrings.xml"];
+
+/**
+ * Whether the links part has its Relationships element. The reader keeps the
+ * links only from that element's tag: without it (an empty part, only a
+ * header or a comment) it still writes each sheet to a temporary file
+ * (audit round 22), so such a part is refused, as Excel never saves one.
+ * Comments are dropped first, so a tag inside one does not count.
+ */
+export function hasLinksRoot(text: string): boolean {
+  return /<Relationships[\s/>]/.test(text.replace(/<!--[\s\S]*?-->/g, ""));
+}
 
 /** A stored zip entry of shared strings with none in it, for a workbook whose cells all hold their own text. */
 function emptySharedStrings(): Buffer {
@@ -372,12 +391,14 @@ function emptySharedStrings(): Buffer {
  * The same entries, the workbook, its links, styles and shared strings first,
  * the rest in file order, then the file's directory as it was: the reader
  * reads entries one after another and does not check where the directory
- * says they are. Null for a workbook without its workbook part or links:
- * no file Excel saves lacks them.
+ * says they are. Null for a workbook without its workbook part, or links
+ * with their Relationships element: no file Excel saves lacks them.
  */
 function inReaderOrder(bytes: Uint8Array, zip: Extract<ZipRead, { ok: true }>): Buffer | null {
   const named = (name: string) => zip.parts.filter((part) => part.name === name);
-  if (named("xl/workbook.xml").length === 0 || named("xl/_rels/workbook.xml.rels").length === 0) return null;
+  if (named("xl/workbook.xml").length === 0) return null;
+  const links = named(LINKS_PART);
+  if (links.length === 0 || !links.every((part) => part.text !== undefined && hasLinksRoot(part.text))) return null;
   const file = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const slice = (part: ZipPart) => file.subarray(part.start, part.end);
   return Buffer.concat([

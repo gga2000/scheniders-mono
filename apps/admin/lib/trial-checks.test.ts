@@ -123,7 +123,7 @@ describe("readTrialChecks", () => {
 
     expect(checks[0]?.matches.map(matchLine)).toEqual([
       "Owner phone matches #100100 Shop 100100 (cancelled)",
-      "9 of the first 30 customers also ordered from #100100 Shop 100100 (cancelled)",
+      "9 of the first 30 delivered customers also got deliveries from #100100 Shop 100100 (cancelled)",
     ]);
     expect(checks[0]?.matches[1]).toMatchObject({ family: "customers", shared: { matched: 9, customers: 30 } });
   });
