@@ -439,7 +439,7 @@ export function TopBar({ onMenuClick, isMobile }: TopBarProps) {
                 <div className="flex items-center w-auto md:flex-1 md:min-w-[200px]">
                     <MerchantCodeBadge />
                     {/* Desktop only, right of the store number (Ali, 22 Nov). */}
-                    <div className="ml-2 hidden md:block">
+                    <div className="ml-2 hidden shrink-0 md:block">
                         <ChangeRequestButton />
                     </div>
                     <TrialChip />
