@@ -19,17 +19,18 @@ interface LoadFailedLineProps {
    * page that keeps its last numbers never passes them off as today's.
    */
   shownFrom?: number;
-  /** What is kept on screen under the line: numbers (the default), a list, or a whole page of facts. */
+  /** What is kept on screen under the line: numbers (the default), a list, a whole page of facts, or a card of settings. */
   kept?: KeptKind;
   className?: string;
 }
 
-type KeptKind = "numbers" | "list" | "page";
+export type KeptKind = "numbers" | "list" | "page" | "settings";
 
 const KEPT_WORDS: Readonly<Record<KeptKind, string>> = {
   numbers: "These numbers are from",
   list: "This list is from",
   page: "This page is from",
+  settings: "These settings are from",
 };
 
 function failedWords(what: string, kind: LoadFailureKind, gone: string | undefined): string {

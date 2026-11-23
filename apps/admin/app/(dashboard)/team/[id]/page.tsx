@@ -24,6 +24,7 @@ import {
 import { formatDay } from "@/lib/format";
 import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
 import { LoadError } from "@/components/shared/load-error";
+import { StaleLine } from "@/components/shared/stale-line";
 import { roleLabel } from "@/lib/admin-access";
 
 const tabs = ["Actions", "Commissions", "Achievements", "Performance"] as const;
@@ -39,11 +40,14 @@ const commissionStatusStyles: Record<CommissionStatus, string> = {
 
 export default function TeamMemberDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { data, isLoading, isError, error, refetch, isFetching } = useAdminEmployeeDetail(id);
+  const detail = useAdminEmployeeDetail(id);
+  const { data, isLoading, error, refetch, isFetching } = detail;
   const [activeTab, setActiveTab] = useState<Tab>("Actions");
   const [actionPage, setActionPage] = useState(1);
   const actionsQuery = useEmployeeActions(id, actionPage);
   const actionsData = actionsQuery.data;
+  // Only steps never read show the error; a failed refresh keeps them under a stale line.
+  const actionsNeverRead = actionsQuery.isError && !actionsData;
 
   if (isLoading) {
     return (
@@ -53,9 +57,10 @@ export default function TeamMemberDetailPage() {
     );
   }
 
-  // A failed read says so (a missing person gets "Could not find"); it never
-  // draws a page of zeros or "not found" for someone who exists.
-  if (isError || !data) {
+  // A read that never landed says so (a missing person gets "Could not
+  // find"); it never draws a page of zeros or "not found" for someone who
+  // exists. A failed refresh keeps the page under its stale line.
+  if (!data) {
     return (
       <div className="p-4 md:p-6 space-y-4">
         <Link
@@ -87,6 +92,8 @@ export default function TeamMemberDetailPage() {
         <ArrowLeft className="w-4 h-4" />
         Back to Team
       </Link>
+
+      <StaleLine read={detail} what="this team member" kept="page" gone="This team member was removed." />
 
       {/* Header Card */}
       <div className="pastel-card p-5 md:p-6">
@@ -141,7 +148,7 @@ export default function TeamMemberDetailPage() {
       </div>
 
       {/* Tab Content */}
-      {activeTab === "Actions" && actionsQuery.isError && (
+      {activeTab === "Actions" && actionsNeverRead && (
         <section className="pastel-card">
           <LoadError
             compact
@@ -153,8 +160,9 @@ export default function TeamMemberDetailPage() {
         </section>
       )}
 
-      {activeTab === "Actions" && !actionsQuery.isError && (
+      {activeTab === "Actions" && !actionsNeverRead && (
         <div className="space-y-4">
+          <StaleLine read={actionsQuery} what="these steps" kept="list" />
           <TeamActionFeed actions={paginatedActions} />
           {totalPages > 1 && (
             <div className="flex items-center justify-center gap-2">

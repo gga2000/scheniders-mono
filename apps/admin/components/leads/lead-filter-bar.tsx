@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { LEAD_SORT_OPTIONS } from "@/lib/lead-sort";
 import { useLeadStore, useActiveFilterCount } from "@/store/use-lead-store";
 import { useIndustries } from "@/hooks/use-industries";
+import { StaleLine } from "@/components/shared/stale-line";
 import {
   LEAD_STATUS_CONFIG,
   LEAD_STATUS_UI,
@@ -43,7 +44,11 @@ export function LeadFilterBar({ actions }: { actions?: ReactNode }) {
     clearFilters,
   } = useLeadStore();
 
-  const { data: industries, isError: industriesFailed, refetch: refetchIndustries } = useIndustries();
+  const industriesRead = useIndustries();
+  const industries = industriesRead.data;
+  // Only a list never read says so in the box; a failed refresh keeps the
+  // list in the box and says how old it is under the dropdowns.
+  const industriesFailed = industriesRead.isError && !industries;
   const filterCount = useActiveFilterCount();
 
   return (
@@ -156,7 +161,7 @@ export function LeadFilterBar({ actions }: { actions?: ReactNode }) {
               value={industryFilter ?? ""}
               onChange={(e) => setIndustryFilter(e.target.value || null)}
               onFocus={() => {
-                if (industriesFailed) void refetchIndustries();
+                if (industriesFailed) void industriesRead.refetch();
               }}
               aria-invalid={industriesFailed || undefined}
               title={industriesFailed ? "Could not load the industries. Open the box to try again." : undefined}
@@ -186,6 +191,7 @@ export function LeadFilterBar({ actions }: { actions?: ReactNode }) {
           )}
         </div>
       </div>
+      <StaleLine read={industriesRead} what="the industries" kept="list" className="text-xs" />
 
       {/* Status Chips */}
       <div className="flex items-center gap-2 flex-wrap">

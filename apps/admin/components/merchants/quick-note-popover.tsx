@@ -9,6 +9,7 @@ import { MentionTextarea } from "@/components/shared/mention-textarea";
 import { formatWhen } from "@/lib/format";
 import { okOrLoadFailure } from "@/lib/load-failure";
 import { LoadFailedLine } from "@/components/shared/load-failed-line";
+import { StaleLine } from "@/components/shared/stale-line";
 import { postJson } from "@/components/merchants/detail/action-ui";
 import { adminFetch } from "@/lib/admin-fetch";
 import { useLeaveGuard } from "@/hooks/use-leave-guard";
@@ -27,13 +28,7 @@ export function QuickNotePopover({ merchantId }: QuickNotePopoverProps) {
   const queryClient = useQueryClient();
 
   // Fetch latest notes
-  const {
-    data: notes,
-    isError: notesFailed,
-    error: notesError,
-    refetch: refetchNotes,
-    isFetching: notesFetching,
-  } = useQuery<
+  const notesRead = useQuery<
     Array<{ id: string; content: string; created_at: string; is_pinned: boolean }>
   >({
     queryKey: ["admin", "merchant-notes", merchantId],
@@ -45,6 +40,7 @@ export function QuickNotePopover({ merchantId }: QuickNotePopoverProps) {
     enabled: open,
     staleTime: 30_000,
   });
+  const notes = notesRead.data;
 
   const addNote = useMutation({
     // A refused save keeps the typed note and says why, in the server's words.
@@ -134,14 +130,15 @@ export function QuickNotePopover({ merchantId }: QuickNotePopoverProps) {
           )}
         </div>
 
-        {/* Recent notes */}
-        {notesFailed ? (
+        {/* Recent notes. A failed refresh keeps the notes shown, under this line. */}
+        <StaleLine read={notesRead} what="the notes" kept="list" className="px-3 py-2 text-xs" />
+        {notesRead.isError && !notes ? (
           <LoadFailedLine
             className="justify-center px-3 py-4 text-xs"
             what="the notes"
-            error={notesError}
-            onRetry={() => void refetchNotes()}
-            retrying={notesFetching}
+            error={notesRead.error}
+            onRetry={() => void notesRead.refetch()}
+            retrying={notesRead.isFetching}
           />
         ) : notes && notes.length > 0 ? (
           <div className="max-h-40 overflow-y-auto">

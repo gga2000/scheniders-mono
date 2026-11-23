@@ -6,6 +6,8 @@ import { z } from "zod";
 import { ExternalLink, Loader2, LogIn, RotateCcw, Store } from "lucide-react";
 import { adminFetch } from "@/lib/admin-fetch";
 import { okOrLoadFailure } from "@/lib/load-failure";
+import { LoadFailedLine } from "@/components/shared/load-failed-line";
+import { StaleLine } from "@/components/shared/stale-line";
 import {
   demoCountsLine,
   demoCountsSchema,
@@ -48,11 +50,13 @@ async function post(action: DemoAction): Promise<unknown> {
 export function DemoStoreCard() {
   const queryClient = useQueryClient();
   const [confirmReset, setConfirmReset] = useState(false);
-  const { data, isLoading, isError } = useQuery({
+  const read = useQuery({
     queryKey: KEY,
     queryFn: async () =>
       demoStatusSchema.parse(await okOrLoadFailure(await adminFetch("/api/demo-store"), "the demo store").json()),
   });
+
+  const { data, isLoading } = read;
 
   const create = useMutation({
     mutationFn: async () => demoCreatedSchema.parse(await post("create")).counts,
@@ -101,6 +105,8 @@ export function DemoStoreCard() {
         </div>
       </div>
 
+      {/* A failed refresh keeps the store's line and buttons, under this line. */}
+      <StaleLine read={read} what="the demo store" className="mb-3" />
       {isLoading ? (
         // The store's own layout in outline, so its line, buttons and note
         // arrive without pushing the cards below down.
@@ -112,8 +118,8 @@ export function DemoStoreCard() {
           </div>
           <p className="text-xs text-foreground/70">{RESET_NOTE}</p>
         </div>
-      ) : isError || !data ? (
-        <p className="text-xs text-[var(--ink-red)]">Could not load the demo store. Reload the page.</p>
+      ) : !data ? (
+        <LoadFailedLine what="the demo store" error={read.error} onRetry={() => void read.refetch()} retrying={read.isFetching} />
       ) : !data.store ? (
         <div className="flex items-center justify-between gap-3">
           <p className="text-xs text-foreground/70">No demo store yet.</p>

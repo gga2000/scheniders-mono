@@ -1,7 +1,7 @@
 "use client";
 
 import type { UseQueryResult } from "@tanstack/react-query";
-import { LoadFailedLine } from "@/components/shared/load-failed-line";
+import { LoadFailedLine, type KeptKind } from "@/components/shared/load-failed-line";
 
 type KeptRead = Pick<UseQueryResult<unknown, unknown>, "isRefetchError" | "error" | "dataUpdatedAt" | "isFetching" | "refetch">;
 
@@ -10,8 +10,8 @@ interface StaleLineProps {
   read: KeptRead;
   /** What failed to refresh, as it reads after "Could not refresh": "the payments". */
   what: string;
-  /** What is kept under the line: numbers (the default), a list, or a page. */
-  kept?: "numbers" | "list" | "page";
+  /** What is kept under the line: numbers (the default), a list, a page, or a card of settings. */
+  kept?: KeptKind;
   /** What to say when the thing is no longer there (404). */
   gone?: string;
   className?: string;
