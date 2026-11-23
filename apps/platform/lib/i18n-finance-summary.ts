@@ -238,7 +238,7 @@ const en: Record<string, string> = {
     "fin.products.showLess": "Show fewer",
 
     "fin.failed.title": "Refused orders",
-    "fin.failed.sub": "Of every 100 orders that reached the customer's door, this many were refused. They are not counted as sales, and their goods come back to you.",
+    "fin.failed.sub": "Of every 100 orders that reached the customer's door, this many were refused. Counted on the day of refusal, and including parcels Prime sent back that are not marked refused yet, so it can differ from Orders and Reports. They are not counted as sales, and their goods come back to you.",
     "fin.failed.share": "Out of every 100 orders that reached the door, {n} were refused.",
     "fin.failed.lessThanOne": "Under 1",
     "fin.failed.ofHundred": "of every 100",
@@ -354,8 +354,8 @@ const ar: Record<string, string> = {
 
     "fin.statement.title": "حساب الربح",
     "fin.statement.sub": "كل شريط ملوّن يقتطع من المبيعات، وما يبقى في الآخر هو صافي ربحك. اضغط على بند بجانبه علامة › لترى تفاصيله.",
-    "fin.statement.keep": "يبقى لك {n} من كل 1,000 دينار تبيعها.",
-    "fin.statement.lose": "تخسر {n} من كل 1,000 دينار تبيعها.",
+    "fin.statement.keep": "يبقى لك {n} د.ع من كل 1,000 د.ع تبيعها.",
+    "fin.statement.lose": "تخسر {n} د.ع من كل 1,000 د.ع تبيعها.",
     "fin.statement.none": "لا شيء مسجّل في {lines}.",
     "fin.statement.none.or": " ولا في ",
     "fin.statement.addExpense": "أضف مصروفاً",
@@ -637,7 +637,7 @@ const ar: Record<string, string> = {
     "fin.products.showLess": "اعرض أقل",
 
     "fin.failed.title": "الطلبات المرفوضة",
-    "fin.failed.sub": "من كل 100 طلب وصل إلى باب الزبون، هذا عدد ما رفضه. لا تُحسب مبيعات، وبضاعتها ترجع إليك.",
+    "fin.failed.sub": "من كل 100 طلب وصل إلى باب الزبون، هذا عدد ما رفضه. يُحسب في يوم الرفض، ويشمل طروداً أرجعتها برايم ولم تُعلَّم مرفوضة بعد، لذا قد يختلف عن الطلبات والتقارير. لا تُحسب مبيعات، وبضاعتها ترجع إليك.",
     "fin.failed.share": "من كل 100 طلب وصل إلى الباب رُفض {n}.",
     "fin.failed.lessThanOne": "أقل من 1",
     "fin.failed.ofHundred": "من كل 100",
@@ -655,7 +655,7 @@ const ar: Record<string, string> = {
 
     "fin.costs.title": "الإعلانات والمصروفات اليومية",
     "fin.costs.sub": "مبيعاتك مقابل ما صرفته على الإعلان، وكم طلباً يغطي مصروفات اليوم الواحد.",
-    "fin.ads.unit": "مبيعات لكل 1,000 دينار إعلان",
+    "fin.ads.unit": "مبيعات لكل 1,000 د.ع إعلان",
     "fin.ads.spent": "صرفت\u00a0{spent}.",
     "fin.ads.even": "يربح الإعلان ما دام هذا الرقم فوق {n}.",
     "fin.ads.evenIf": "يربح الإعلان فوق {n} فقط إن جاءت منه كل مبيعاتك.",
@@ -741,7 +741,7 @@ const ar: Record<string, string> = {
     "fin.money.reached.tip": "ثمن الطلبات المسلّمة في هذه الفترة المدفوعة لك، بعد أجرة التوصيل.",
     "fin.money.road.tip": "الطرود التي عند شركات التوصيل الآن، من كل التواريخ، بسعر البيع. تُحسب في المبيعات حين تُسلَّم. والمرفوضة التي ترجعها برايم معدودة وحدها أدناه.",
     "fin.money.returning.tip": "ترجع بضاعةً لا نقوداً، وليست ضمن هذا المبلغ. استلمها في الطلبات تحت «راجع» حين تصلك.",
-    "fin.ads.evenTip": "يربح الإعلان إذا جلبت كل 1,000 دينار منه مبيعات أكثر من هذا، إن كانت كل مبيعاتك منه.",
+    "fin.ads.evenTip": "يربح الإعلان إذا جلبت كل 1,000 د.ع منه مبيعات أكثر من هذا، إن كانت كل مبيعاتك منه.",
     "fin.ads.noLiftTip": "كانت إعلاناتك شبه صفر في الفترة السابقة. الرقم أعلاه يفترض أن كل مبيعاتك من الإعلان، فلا تحكم به وحده.",
     "fin.ads.noLiftTipBulk": "كانت إعلاناتك شبه صفر في الفترة السابقة. الرقم أعلاه يفترض أن كل مبيعاتك من الإعلان، فلا تحكم به وحده. والمقارنة تقريبية لأن كثيراً من الطلبات صارت «مُسلَّم» دفعةً واحدة.",
 };

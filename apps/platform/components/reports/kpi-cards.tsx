@@ -34,6 +34,9 @@ const item = {
     show: { y: 0, opacity: 1 }
 };
 
+/** A rate with no base reads «—» (nothing finished, nobody contacted), never 0.0%. */
+const percent = (rate: number | null) => (rate === null ? "—" : `${rate.toFixed(1)}%`);
+
 export function KPICards({ metrics, returnsCount }: KPICardsProps) {
     const { t } = useLanguage();
     const kpiData = [
@@ -51,7 +54,7 @@ export function KPICards({ metrics, returnsCount }: KPICardsProps) {
         {
             title: t("reports.kpi.delivery"),
             unit: "pp",
-            value: metrics.deliveryRate === null ? "—" : `${metrics.deliveryRate.toFixed(1)}%`,
+            value: percent(metrics.deliveryRate),
             change: metrics.deliveryRateChange,
             icon: CheckCircle2,
             hint: t("analytics.deliveryRate.def"),
@@ -64,14 +67,14 @@ export function KPICards({ metrics, returnsCount }: KPICardsProps) {
         {
             title: t("reports.kpi.contact"),
             unit: "pp",
-            value: `${metrics.contactSuccessRate.toFixed(1)}%`,
+            value: percent(metrics.contactSuccessRate),
             change: metrics.contactSuccessChange,
             icon: Phone,
         },
         {
             title: t("reports.kpi.rejection"),
             unit: "pp",
-            value: `${metrics.rejectionRate.toFixed(1)}%`,
+            value: percent(metrics.rejectionRate),
             change: metrics.rejectionRateChange,
             icon: XCircle,
             invertTrend: true,
@@ -79,14 +82,14 @@ export function KPICards({ metrics, returnsCount }: KPICardsProps) {
         {
             title: t("reports.kpi.noResponse"),
             unit: "pp",
-            value: `${metrics.noResponseRate.toFixed(1)}%`,
+            value: percent(metrics.noResponseRate),
             change: metrics.noResponseChange,
             icon: PhoneOff,
             invertTrend: true,
         },
         {
             title: t("reports.kpi.processing"),
-            value: t("reports.unit.hours", { n: metrics.avgProcessingTime.toFixed(0) }),
+            value: metrics.avgProcessingTime === null ? "—" : t("reports.unit.hours", { n: metrics.avgProcessingTime.toFixed(0) }),
             change: metrics.avgProcessingTimeChange,
             icon: Clock,
             invertTrend: true,

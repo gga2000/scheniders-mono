@@ -40,6 +40,10 @@ export function CustomDatePicker({ dateRange, onChange, presets }: CustomDatePic
     const locale = language === "ar" ? "ar-IQ-u-nu-latn" : "en-US";
     const dayMonth = (d: Date) => d.toLocaleDateString(locale, { month: "short", day: "numeric" });
     const dayMonthYear = (d: Date) => d.toLocaleDateString(locale, { month: "short", day: "numeric", year: "numeric" });
+    // The year only when the range leaves this year, as /finances does: with it the button
+    // broke onto two lines at 1440 (round 19).
+    const thisYear = new Date().getFullYear();
+    const inThisYear = dateRange.from.getFullYear() === thisYear && dateRange.to.getFullYear() === thisYear;
     const [isOpen, setIsOpen] = useState(false);
     const [currentMonth, setCurrentMonth] = useState(dateRange.from);
     const [selecting, setSelecting] = useState<'from' | 'to' | null>(null);
@@ -131,7 +135,7 @@ export function CustomDatePicker({ dateRange, onChange, presets }: CustomDatePic
                 )}
             >
                 <Calendar className="w-4 h-4 text-indigo-500" />
-                <span dir={dir}>{dayMonth(dateRange.from)} - {dayMonthYear(dateRange.to)}</span>
+                <span dir={dir}>{dayMonth(dateRange.from)} - {inThisYear ? dayMonth(dateRange.to) : dayMonthYear(dateRange.to)}</span>
             </button>
 
             {/* Dropdown */}

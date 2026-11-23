@@ -145,9 +145,10 @@ export function PrimePage() {
                             <p className="mt-0.5 text-sm text-muted">
                                 {connection.branchName ?? t("orders.prime.stop.branch")} ·{" "}
                                 {late ? (
-                                    <span role="status" data-prime-sync-late className="font-semibold text-[#8A4B00] dark:text-amber-200">
+                                    // Its own bidi run, so the sentence's closing full stop stays with it, not by the branch name.
+                                    <bdi role="status" data-prime-sync-late className="font-semibold text-[#8A4B00] dark:text-amber-200">
                                         {t("prime.page.syncLate", { time: t(late.key, { count: late.count }) })}
-                                    </span>
+                                    </bdi>
                                 ) : (
                                     <>
                                         {t("prime.page.connected")}
