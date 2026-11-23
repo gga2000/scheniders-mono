@@ -89,11 +89,20 @@ export function useLastActors(pages: readonly (readonly string[])[]): LastActors
       // a read that never answered drops its error, so the line went away on
       // Try again and came back after the retries, never saying it was
       // loading (round 24 UX new 5).
+      //
+      // A page moved by a new shop shows the badges already read only while
+      // its read is pending: once the read fails it has none, and Try again
+      // brings them back as a placeholder, which is not an answer either. So
+      // it is lost until its own answer comes, and its shops keep the badges
+      // already read all along (round 25 structure new 3).
       const lost = results.filter(
-        (r) => r.data === undefined && (r.isError || (r.errorUpdateCount > 0 && r.isFetching)),
+        (r) => (r.data === undefined || r.isPlaceholderData) && (r.isError || (r.errorUpdateCount > 0 && r.isFetching)),
       );
       return {
-        actors: Object.assign({}, ...results.map((r) => r.data ?? {})) as Record<string, LastActor>,
+        actors: Object.assign({}, ...results.map((r, i) => r.data ?? knownActors(client, chunks[i]) ?? {})) as Record<
+          string,
+          LastActor
+        >,
         failed: lost.length > 0,
         error: lost[0]?.error,
         retrying: lost.some((r) => r.isFetching),

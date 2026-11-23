@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { SHOP_GOVERNORATES, governorateNamed } from "@/lib/shop-city";
 import { useMerchantsStats } from "@/hooks/use-merchants-stats";
 import { StaleLine } from "@/components/shared/stale-line";
+import { LoadFailedLine } from "@/components/shared/load-failed-line";
 
 const HEAT_SCALE = [
   "#f1f5f9",
@@ -107,7 +108,7 @@ export function MerchantsMapView() {
             </h3>
           </div>
           <span className="text-xs text-foreground/70 tabular-nums">
-            {isError && !stats ? "The counts did not load" : stats ? `${stats.total} total` : "—"}
+            {stats ? `${stats.total} total` : "—"}
             {stats && stats.unknown_city > 0 && (
               <span className="text-amber-600 dark:text-amber-400 ml-1.5">
                 · {stats.unknown_city} unmapped
@@ -115,7 +116,17 @@ export function MerchantsMapView() {
             )}
           </span>
         </div>
-        <StaleLine read={statsRead} what="the governorate counts" className="mb-3" />
+        {isError && !stats ? (
+          <LoadFailedLine
+            className="mb-3"
+            what="the governorate counts"
+            error={statsRead.error}
+            onRetry={() => void statsRead.refetch()}
+            retrying={statsRead.isFetching}
+          />
+        ) : (
+          <StaleLine read={statsRead} what="the governorate counts" className="mb-3" />
+        )}
 
         <svg
           viewBox={`${-padding} ${-padding} ${IRAQ_MAP_WIDTH + padding * 2} ${IRAQ_MAP_HEIGHT + padding * 2}`}
