@@ -1,4 +1,4 @@
-import { adminFetch } from "@/lib/admin-fetch";
+import { adminFetch, timedOut } from "@/lib/admin-fetch";
 import { AnswerLost } from "@/lib/answer-lost";
 
 /*
@@ -35,9 +35,10 @@ export function failureOf(status: number, data: unknown, fallback = "Something w
 
 /**
  * Sends JSON and gives back the status and the answer's JSON (null when it has
- * none). A dropped connection throws AnswerLost, said with `lost` when given:
- * the browser rejects with a TypeError when the network fails, and the
- * request may have reached the server before the answer was lost.
+ * none). A dropped connection, or no answer within the console's time limit,
+ * throws AnswerLost, said with `lost` when given: the browser rejects with a
+ * TypeError when the network fails, and the request may have reached the
+ * server before the answer was lost.
  */
 export async function sendJson(
   url: string,
@@ -50,7 +51,7 @@ export async function sendJson(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   }).catch((error: unknown) => {
-    if (error instanceof TypeError) throw new AnswerLost(lost);
+    if (error instanceof TypeError || timedOut(error)) throw new AnswerLost(lost);
     throw error;
   });
   const data: unknown = await res.json().catch(() => null);
