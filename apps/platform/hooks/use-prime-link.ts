@@ -5,8 +5,9 @@ import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import { useAuth } from "@/components/auth/auth-provider";
 import { authedFetch } from "@/lib/authed-fetch";
+import { primeSyncLateMinutes } from "@/lib/prime/sync-health";
 
-const connectionSchema = z.object({ success: z.literal(true), connected: z.boolean(), branchName: z.string().nullish() });
+const connectionSchema = z.object({ success: z.literal(true), connected: z.boolean(), branchName: z.string().nullish(), syncedAt: z.string().nullish() });
 
 /** The tenant's Prime link as the screens read it. */
 export interface PrimeConnectionState {
@@ -17,9 +18,15 @@ export interface PrimeConnectionState {
     checked: boolean;
     /** The status call failed: the link is unknown, not missing. */
     failed: boolean;
+    /**
+     * Minutes since Prime's statuses were last read, when that is late (Prime
+     * has refused or ignored our reads; lib/prime/sync-health), as of the
+     * answer; null while they are fresh or were never read.
+     */
+    syncLateMinutes: number | null;
 }
 
-const NOT_CONNECTED: PrimeConnectionState = { connected: false, branchName: null, checked: false, failed: false };
+const NOT_CONNECTED: PrimeConnectionState = { connected: false, branchName: null, checked: false, failed: false, syncLateMinutes: null };
 
 const failureReason = z.enum([
     "no_governorate",
@@ -103,7 +110,13 @@ export function usePrimeConnection(): PrimeConnectionState {
             const res = await authedFetch("/api/prime/connection", { });
             if (!res.ok) throw new Error(`Prime link status failed: ${res.status}`);
             const answer = connectionSchema.parse(await res.json());
-            return { connected: answer.connected, branchName: answer.branchName ?? null, checked: true, failed: false };
+            return {
+                connected: answer.connected,
+                branchName: answer.branchName ?? null,
+                checked: true,
+                failed: false,
+                syncLateMinutes: primeSyncLateMinutes(answer.syncedAt ?? null, Date.now()),
+            };
         },
     });
     if (connection.data) return connection.data;

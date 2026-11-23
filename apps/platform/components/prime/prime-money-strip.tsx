@@ -9,9 +9,11 @@ import { formatCount } from "@/lib/utils";
  * page's language («د.ع», "IQD"). Laid out in the language's direction, so an
  * Arabic reader meets the number first.
  */
-function Money({ value, className }: { value: number | null; className: string }) {
+function Money({ value, unread = false, className }: { value: number | null; unread?: boolean; className: string }) {
     const { t } = useLanguage();
     const dir = useTextDir();
+    // Not read from Prime: a dash, never a 0 that reads as "nothing waiting".
+    if (unread) return <b className="text-[26px] leading-tight text-muted">—</b>;
     return (
         <b dir={dir} className={`text-[26px] leading-tight tabular-nums ${className}`}>
             {value === null ? "…" : formatCount(Math.round(value))}
@@ -37,6 +39,8 @@ export function PrimeMoneyStrip({ onRoad, admin }: { onRoad: number; admin: bool
     // The difference belongs to the newest payment and counts only until it is approved.
     const latest = answer?.latest ?? null;
     const diff = latest && waiting.some((s) => s.id === latest.id) ? Math.abs(latest.summary.diff) : 0;
+    // Prime's payments could not be read (and none were read before): the two amounts are unknown.
+    const unread = statements.isError && statements.data === undefined;
 
     return (
         <section aria-label={t("prime.page.moneyStrip")} className={admin ? "grid grid-cols-3 gap-3" : "grid grid-cols-1 gap-3"}>
@@ -48,15 +52,15 @@ export function PrimeMoneyStrip({ onRoad, admin }: { onRoad: number; admin: bool
                 <>
                     <div data-prime-money="waiting" className={tile}>
                         <span className="text-xs text-muted">{t("prime.page.moneyWaiting")}</span>
-                        <Money value={statements.isPending ? null : waitingTotal} className="text-foreground" />
+                        <Money value={statements.isPending ? null : waitingTotal} unread={unread} className="text-foreground" />
                         {/* Always takes its line, so the strip does not grow when the statements answer. */}
                         <span className="min-h-4 text-xs text-muted">
-                            {waiting.length > 0 && <bdi>{t("prime.page.moneyWaitingCount", { count: waiting.length })}</bdi>}
+                            {unread ? t("prime.page.moneyUnread") : waiting.length > 0 && <bdi>{t("prime.page.moneyWaitingCount", { count: waiting.length })}</bdi>}
                         </span>
                     </div>
                     <div data-prime-money="diff" className={tile}>
                         <span className="text-xs text-muted">{t("prime.page.moneyDiff")}</span>
-                        <Money value={statements.isPending ? null : diff} className="text-foreground" />
+                        <Money value={statements.isPending ? null : diff} unread={unread} className="text-foreground" />
                     </div>
                 </>
             )}

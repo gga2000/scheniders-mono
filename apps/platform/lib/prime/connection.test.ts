@@ -33,10 +33,14 @@ beforeEach(() => {
 
 describe("loadPrimeLink", () => {
     it("links a store with a switched-on connection through the real client", async () => {
-        answers.prime_connections = { data: { merchant_login_id: "m1", shop_id: "48522", branch_name: " فرع الكوت " }, error: null };
+        answers.prime_connections = {
+            data: { merchant_login_id: "m1", shop_id: "48522", branch_name: " فرع الكوت ", last_synced_at: "2026-11-22T23:45:27Z" },
+            error: null,
+        };
         const link = await loadPrimeLink(db, TENANT);
         expect(link?.client).toBe(realClient);
         expect(link?.connection).toEqual({ merchantLoginId: "m1", shopId: 48522, branchName: "فرع الكوت" });
+        expect(link?.syncedAt).toBe("2026-11-22T23:45:27Z");
     });
 
     it("links the demo store through the demo client, with no connection row and no Prime settings", async () => {
@@ -45,6 +49,7 @@ describe("loadPrimeLink", () => {
         const link = await loadPrimeLink(db, TENANT);
         expect(link?.client).not.toBe(realClient);
         expect(link?.connection).toEqual(DEMO_PRIME_CONNECTION);
+        expect(link?.syncedAt).toBeNull();
         expect(await link?.client.shipmentCharge("fermi-demo", "BGD", 1000)).toBe(5000);
     });
 

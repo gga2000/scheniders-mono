@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { renderHook } from "@testing-library/react";
+import { renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
-import { usePrimeLink, type PrimeSendProgress } from "./use-prime-link";
+import { usePrimeConnection, usePrimeLink, type PrimeSendProgress } from "./use-prime-link";
 
 // authedFetch reads a fresh session per call; here the session token is fixed.
 vi.mock("@/lib/authed-fetch", () => ({
@@ -74,5 +74,27 @@ describe("usePrimeLink send", () => {
         const { outcome, sends } = await run([new Error("network"), new Error("network"), linked({ sent: [{ orderId: A, caseId: 9 }] })], [A]);
         expect(sends).toBe(3);
         expect(outcome).toMatchObject({ sent: [{ orderId: A, caseId: 9 }], failed: [] });
+    });
+});
+
+describe("usePrimeConnection", () => {
+    afterEach(() => vi.unstubAllGlobals());
+
+    const read = async (syncedAt: string | null) => {
+        vi.stubGlobal("fetch", vi.fn(async () => json({ success: true, connected: true, branchName: "فرع الكوت", syncedAt })));
+        const { result } = renderHook(() => usePrimeConnection(), { wrapper });
+        await waitFor(() => expect(result.current.checked).toBe(true));
+        return result.current;
+    };
+
+    it("says the link is late when Prime's statuses have not been read for hours", async () => {
+        const state = await read(new Date(Date.now() - 8 * 60 * 60_000).toISOString());
+        expect(state).toMatchObject({ connected: true, branchName: "فرع الكوت" });
+        expect(state.syncLateMinutes).toBeGreaterThanOrEqual(479);
+    });
+
+    it("says nothing while the reads are fresh, or before the first one", async () => {
+        expect((await read(new Date(Date.now() - 10 * 60_000).toISOString())).syncLateMinutes).toBeNull();
+        expect((await read(null)).syncLateMinutes).toBeNull();
     });
 });

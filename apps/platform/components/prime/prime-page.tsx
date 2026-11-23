@@ -11,6 +11,7 @@ import { usePrimeTickets } from "@/hooks/use-prime-tickets";
 import { usePrimeRefresh } from "@/hooks/use-prime-refresh";
 import { isAdminRole } from "@/lib/permissions";
 import { primeLastChecked } from "@/lib/prime/track";
+import { primeWaitUnit } from "@/lib/prime/sync-health";
 import { usePrimeStatements } from "@/hooks/use-prime-statements";
 import { primeOldestAgeDays, readPrimeBoardList, type PrimeBoardList } from "@/lib/prime/board";
 import { primeProblemsFrom } from "@/lib/prime/problems";
@@ -108,6 +109,8 @@ export function PrimePage() {
     }
 
     const lastRead = data ? primeLastChecked(data.views.values()) : null;
+    // Prime has refused or ignored our reads for a while: say so instead of «متصل».
+    const late = connection.syncLateMinutes === null ? null : primeWaitUnit(connection.syncLateMinutes);
     const minutesAgo = data && lastRead !== null ? Math.max(0, Math.round((data.readAt - lastRead) / 60_000)) : null;
     const openTickets = tickets.data?.connected ? tickets.data.tickets.filter((x) => x.open).length : 0;
     const tabs: { id: PrimeTab; label: string; count?: number }[] = [
@@ -140,8 +143,17 @@ export function PrimePage() {
                         <div>
                             <h1 className="text-3xl font-bold tracking-tight text-foreground">{t("prime.page.title")}</h1>
                             <p className="mt-0.5 text-sm text-muted">
-                                {connection.branchName ?? t("orders.prime.stop.branch")} · {t("prime.page.connected")}
-                                {minutesAgo !== null && <> · {t("orders.prime.row.checked", { count: minutesAgo })}</>}
+                                {connection.branchName ?? t("orders.prime.stop.branch")} ·{" "}
+                                {late ? (
+                                    <span role="status" data-prime-sync-late className="font-semibold text-[#8A4B00] dark:text-amber-200">
+                                        {t("prime.page.syncLate", { time: t(late.key, { count: late.count }) })}
+                                    </span>
+                                ) : (
+                                    <>
+                                        {t("prime.page.connected")}
+                                        {minutesAgo !== null && <> · {t("orders.prime.row.checked", { count: minutesAgo })}</>}
+                                    </>
+                                )}
                                 <> · </>
                                 <button
                                     type="button"

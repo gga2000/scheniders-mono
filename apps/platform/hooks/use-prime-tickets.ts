@@ -6,6 +6,7 @@ import { z } from "zod";
 import { useAuth } from "@/components/auth/auth-provider";
 import { supabase } from "@/lib/supabase";
 import { authedFetch } from "@/lib/authed-fetch";
+import { primeReadError, retryPrimeRead } from "@/lib/prime/read-error";
 
 const ticketSchema = z.object({
     ticketId: z.number(),
@@ -82,9 +83,10 @@ export function usePrimeTickets(enabled: boolean) {
         enabled: enabled && !!token,
         staleTime: 60_000,
         refetchInterval: enabled ? REFRESH_MS : false,
+        retry: retryPrimeRead,
         queryFn: async () => {
             const res = await authedFetch("/api/prime/tickets", { });
-            if (!res.ok) throw new Error(`Prime tickets failed: ${res.status}`);
+            if (!res.ok) throw await primeReadError(res, "Prime tickets");
             return listAnswer.parse(await res.json());
         },
     });
