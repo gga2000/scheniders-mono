@@ -7592,6 +7592,8 @@ export const en: Record<string, string> = {
     "wizard.error.network": "Network error. Please check your connection and try again.",
     // ── Signup (UX2-14) ──
     "signup.title": "Create Your Account",
+    "signup.section.store": "Your store",
+    "signup.section.account": "Your account",
     "signup.sells": "What do you sell?",
     "signup.sellsHint": "Pick one or more. We set up examples and sizes that fit your goods.",
     "signup.subtitle": "Start your {count}-day free trial",

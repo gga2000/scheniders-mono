@@ -8440,6 +8440,8 @@ export const ar: Record<string, string> = {
     "wizard.error.network": "خطأ في الشبكة. تحقق من اتصالك وحاول مرة أخرى.",
     // ── Signup (UX2-14) ──
     "signup.title": "أنشئ حسابك",
+    "signup.section.store": "متجرك",
+    "signup.section.account": "حسابك",
     "signup.sells": "شنو تبيع؟",
     "signup.sellsHint": "اختار واحد أو أكثر. نجهّزلك أمثلة ومقاسات تناسب بضاعتك.",
     "signup.subtitle": "ابدأ فترتك التجريبية المجانية {count} أيام",
