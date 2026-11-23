@@ -74,4 +74,30 @@ describe("TimelineTab when a later read fails", () => {
     expect(screen.getByText("Call after 6")).toBeTruthy();
     expect(screen.queryByText(/Could not refresh/)).toBeNull();
   });
+
+  // Round 25 (structure new 6): "Show older" moved the read's own time to the
+  // newest page; nothing checked that the line names the oldest page's time.
+  it("names the time of its oldest page when a refresh fails after Show older", async () => {
+    const older = { ...entry, id: "e0", at: "2026-11-21T15:00:00Z", detail: "Owner travelling" };
+    const firstRead = Date.parse("2026-11-22T17:00:00Z"); // 20:00 in Baghdad
+    const now = vi.spyOn(Date, "now").mockReturnValue(firstRead);
+    answer.next = async () => page("2026-11-22T15:00:00Z");
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    renderTab(client);
+    await screen.findByText("Call after 6");
+
+    now.mockReturnValue(firstRead + 10 * 60_000);
+    answer.next = async () => new Response(JSON.stringify({ entries: [older], nextBefore: null }), { status: 200 });
+    fireEvent.click(screen.getByRole("button", { name: "Show older" }));
+    await screen.findByText("Owner travelling");
+
+    answer.next = async () => {
+      throw new TypeError("Failed to fetch");
+    };
+    await act(() => client.refetchQueries({ queryKey: ["admin", "merchant", "m1"] }));
+    await waitFor(() =>
+      expect(screen.getByText(/^Could not refresh the timeline\. This list is from (Sun 22 Nov, )?20:00\./)).toBeTruthy(),
+    );
+    now.mockRestore();
+  });
 });

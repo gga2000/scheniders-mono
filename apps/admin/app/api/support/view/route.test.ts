@@ -150,4 +150,57 @@ describe("POST /api/support/view: the viewer sign-in", () => {
     expect((await start()).status).toBe(500);
     expect(called("insert")).toBe(false);
   });
+
+  /*
+   * Round 25 (structure new 6): two presses at once (two tabs) each made a
+   * viewer; the row insert of one lost on admin_id UNIQUE, and that tab
+   * answered 500. At a second address it also left a flagged sign-in with a
+   * profile that no row names and no route would ever use.
+   */
+  const rowTaken: Answer = { data: null, error: { code: "23505", message: "duplicate key value violates unique constraint" } };
+
+  it("a press that loses the race to the other tab opens the look with that tab's viewer, and removes only its own sign-in", async () => {
+    const WINNER = "88888888-8888-4888-8888-888888888888";
+    const winnerEmail = `support-viewer-${ADMIN_ID}-1f2d4c3b-9a8e-4d6c-8b4a-3f210b7c6a4e@usefermi.com`;
+    answers.push(
+      noViewerRow,
+      emailExists,
+      { data: { user: { id: "someone-else", app_metadata: {} } }, error: null },
+      { data: { user: { id: VIEWER } }, error: null },
+      ok,
+      rowTaken,
+      { data: { user_id: WINNER }, error: null },
+      ok,
+      { data: { user: { id: WINNER, email: winnerEmail } }, error: null },
+      { data: { properties: { hashed_token: "hash-1" }, user: { id: WINNER } }, error: null },
+      session,
+    );
+    const res = await start();
+    expect(res.status).toBe(200);
+    expect(calls.filter((c) => c.method === "deleteUser").map((c) => c.args[0])).toEqual([VIEWER]);
+    expect(calls.filter((c) => c.method === "generateLink").at(-1)?.args[0]).toEqual({ type: "magiclink", email: winnerEmail });
+    expect(calls.find((c) => c.method === "rpc")?.args[1]).toMatchObject({ p_viewer_user_id: WINNER });
+  });
+
+  it("a press that lost the race on the same sign-in removes nothing and opens the look", async () => {
+    answers.push(
+      noViewerRow,
+      emailExists,
+      { data: { user: { id: VIEWER, app_metadata: { support_viewer: true } } }, error: null },
+      ok,
+      rowTaken,
+      { data: { user_id: VIEWER }, error: null },
+      link,
+      session,
+    );
+    expect((await start()).status).toBe(200);
+    expect(called("deleteUser")).toBe(false);
+  });
+
+  it("answers 500 when the row is refused for another reason", async () => {
+    answers.push(noViewerRow, { data: { user: { id: VIEWER } }, error: null }, ok, { data: null, error: { code: "23503", message: "fk" } });
+    expect((await start()).status).toBe(500);
+    expect(called("deleteUser")).toBe(false);
+    expect(called("rpc")).toBe(false);
+  });
 });
