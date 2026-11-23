@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import type { DashboardV2Stats } from "@/types/dashboard";
-import { okOrLoadFailure } from "@/lib/load-failure";
+import { okOrLoadFailure, pollEvery } from "@/lib/load-failure";
 import { adminFetch } from "@/lib/admin-fetch";
 
 async function fetchDashboardV2(): Promise<DashboardV2Stats> {
@@ -17,7 +17,7 @@ export function useDashboardV2() {
     queryKey: ["admin", "dashboard-v2"],
     queryFn: fetchDashboardV2,
     staleTime: 30_000,
-    refetchInterval: 60_000,
+    refetchInterval: pollEvery(60_000),
   });
 
   // Memoized selectors for individual widgets

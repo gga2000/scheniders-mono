@@ -31,7 +31,7 @@ import {
   writesOnce,
 } from "@/lib/support";
 import { sendStep } from "@/lib/send-json";
-import { okOrLoadFailure } from "@/lib/load-failure";
+import { okOrLoadFailure, pollEvery } from "@/lib/load-failure";
 
 /**
  * A read's answer, or a LoadFailure with the server's status, so the page can
@@ -115,7 +115,7 @@ export function useSupportCases(view: "open" | "solved") {
   return useQuery<SupportCasesResponse>({
     queryKey: ["admin", "support", "cases", view],
     queryFn: async () => readOk<SupportCasesResponse>(await adminFetch(`/api/support/cases?view=${view}`), "the conversations"),
-    refetchInterval: 10_000,
+    refetchInterval: pollEvery(10_000),
   });
 }
 
@@ -137,7 +137,7 @@ export function useSupportCase(caseId: string | null) {
     queryKey: ["admin", "support", "case", caseId],
     queryFn: async () => readOk<SupportCaseDetailResponse>(await adminFetch(`/api/support/cases/${caseId}`), "this conversation"),
     enabled: caseId !== null,
-    refetchInterval: 5_000,
+    refetchInterval: pollEvery(5_000),
   });
 }
 
@@ -176,7 +176,7 @@ export function useSupportScoreboard(days: ScoreboardDays) {
   return useQuery<SupportScoreboard>({
     queryKey: ["admin", "support", "scoreboard", days],
     queryFn: async () => readOk<SupportScoreboard>(await adminFetch(`/api/support/scoreboard?days=${days}`), "the scoreboard"),
-    refetchInterval: 60_000,
+    refetchInterval: pollEvery(60_000),
   });
 }
 
@@ -196,7 +196,7 @@ export function useSupportNeedsUs() {
   return useQuery<NeedsUsShop[]>({
     queryKey: ["admin", "support", "needs-us"],
     queryFn: async () => (await readOk<{ shops: NeedsUsShop[] }>(await adminFetch("/api/support/needs-us"), "the shops that need us")).shops,
-    refetchInterval: 60_000,
+    refetchInterval: pollEvery(60_000),
   });
 }
 
@@ -215,7 +215,7 @@ export function useSupportTasks() {
   return useQuery<{ tasks: SupportTask[]; me: string }>({
     queryKey: ["admin", "support", "tasks"],
     queryFn: async () => readOk<{ tasks: SupportTask[]; me: string }>(await adminFetch("/api/support/tasks"), "today's calls"),
-    refetchInterval: 60_000,
+    refetchInterval: pollEvery(60_000),
   });
 }
 
@@ -278,7 +278,7 @@ export function useSupportNotice() {
     queryKey: ["admin", "support", "notice"],
     queryFn: async () =>
       (await readOk<{ notice: SupportNotice | null }>(await adminFetch("/api/support/notices"), "the merchant notice")).notice,
-    refetchInterval: 60_000,
+    refetchInterval: pollEvery(60_000),
   });
 }
 

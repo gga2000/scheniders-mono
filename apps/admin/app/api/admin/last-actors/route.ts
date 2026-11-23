@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminFromRequest } from "@/lib/api-auth";
 import { AUTOMATIC, logActor } from "@/lib/shop-timeline";
+import { readStaffProfiles, staffNames } from "@/lib/staff-names";
 
 const BodySchema = z.object({
   tenant_ids: z.array(z.string().uuid()).min(1).max(200),
@@ -41,35 +42,13 @@ export async function POST(request: NextRequest) {
     if (error) throw error;
     const latestByTenant = LastStepsSchema.parse(data);
 
-    const adminIds = Array.from(
-      new Set(
-        Object.values(latestByTenant)
-          .map((v) => v.admin_user_id)
-          .filter((v): v is string => typeof v === "string" && v.length > 0)
-      )
+    // Named as the shop's timeline names the same row, from the same rule.
+    const profiles = await readStaffProfiles(
+      supabase,
+      Object.values(latestByTenant).map((v) => v.admin_user_id),
     );
-
-    let profilesById = new Map<
-      string,
-      { id: string; display_name: string | null; email: string; avatar_url: string | null }
-    >();
-    if (adminIds.length > 0) {
-      const { data: profiles, error: profileError } = await supabase
-        .from("user_profiles")
-        .select("id, display_name, email, avatar_url")
-        .in("id", adminIds);
-      // A failed read must not name every staff step "Automatic".
-      if (profileError) throw profileError;
-      profilesById = new Map((profiles ?? []).map((p) => [p.id, p]));
-    }
-
-    // The shop's timeline names a staff member by their name, else their own
-    // email (round 24 structure new 4).
-    const names = new Map<string, string>();
-    for (const profile of profilesById.values()) {
-      const name = profile.display_name?.trim() || profile.email;
-      if (name) names.set(profile.id, name);
-    }
+    const profilesById = new Map(profiles.map((p) => [p.id, p]));
+    const names = staffNames(profiles);
 
     const actors: Record<
       string,
@@ -84,7 +63,6 @@ export async function POST(request: NextRequest) {
     > = {};
     for (const [tenantId, entry] of Object.entries(latestByTenant)) {
       const profile = entry.admin_user_id ? profilesById.get(entry.admin_user_id) : null;
-      // Named as the shop's timeline names the same row, from the same rule.
       const who = logActor(entry, names);
       actors[tenantId] = {
         display_name: who,

@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { LoadError } from "@/components/shared/load-error";
 import { StaleLine } from "@/components/shared/stale-line";
-import { okOrLoadFailure } from "@/lib/load-failure";
+import { okOrLoadFailure, pollEvery } from "@/lib/load-failure";
 import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
 import { formatCount, formatIQD } from "@/lib/format";
 import { shopFormHref } from "@/lib/shop-actions";
@@ -95,7 +95,7 @@ export default function HealthPage() {
     queryKey: ["admin", "health"],
     queryFn: fetchHealth,
     staleTime: 30_000,
-    refetchInterval: 60_000,
+    refetchInterval: pollEvery(60_000),
   });
   const { data, isLoading, isError, error, refetch, isFetching } = pageRead;
 

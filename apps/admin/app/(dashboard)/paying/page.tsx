@@ -11,7 +11,7 @@ import { ShopNameLink } from "@/components/shared/shop-name-link";
 import { adminFetch } from "@/lib/admin-fetch";
 import { dayOf } from "@/lib/baghdad-day";
 import { formatCount, formatDateKey, formatIQD, formatMonth } from "@/lib/format";
-import { okOrLoadFailure } from "@/lib/load-failure";
+import { okOrLoadFailure, pollEvery } from "@/lib/load-failure";
 import { useCan } from "@/hooks/use-admin-auth";
 import { planLabel } from "@/types/admin";
 import {
@@ -160,7 +160,7 @@ export default function PayingShopsPage() {
     },
     staleTime: 60_000,
     // Refreshed with the shops beside it, so "so far" never disagrees with "Paying, now".
-    refetchInterval: 300_000,
+    refetchInterval: pollEvery(300_000),
     enabled: seesStaffPay,
   });
   const pageRead = useQuery({
@@ -170,7 +170,7 @@ export default function PayingShopsPage() {
       return payingResponseSchema.parse(await res.json());
     },
     staleTime: 60_000,
-    refetchInterval: 300_000,
+    refetchInterval: pollEvery(300_000),
   });
   const { data, error, isLoading, isError, isFetching, refetch } = pageRead;
 

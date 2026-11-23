@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import { adminFetch } from "@/lib/admin-fetch";
-import { okOrLoadFailure } from "@/lib/load-failure";
+import { okOrLoadFailure, pollEvery } from "@/lib/load-failure";
 import { SHELL_READ, useAfterPageReads } from "@/hooks/use-after-page-reads";
 
 /** How many of the newest staff steps the bell lists. */
@@ -47,6 +47,6 @@ export function useRecentSteps() {
     enabled: useAfterPageReads(),
     queryFn: () => readRecentSteps(),
     staleTime: 30_000,
-    refetchInterval: 60_000,
+    refetchInterval: pollEvery(60_000),
   });
 }

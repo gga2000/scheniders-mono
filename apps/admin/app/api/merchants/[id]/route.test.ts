@@ -271,7 +271,7 @@ describe("GET /api/merchants/[id] parts of the record", () => {
       ],
       error: null,
     };
-    TABLES.user_profiles = { data: { id: "u-ali", display_name: "Ali", email: "ali@x.co" }, error: null };
+    TABLES.user_profiles = { data: [{ id: "u-ali", display_name: "Ali", email: "ali@x.co", avatar_url: null }], error: null };
 
     const body = await (await call()).json();
 

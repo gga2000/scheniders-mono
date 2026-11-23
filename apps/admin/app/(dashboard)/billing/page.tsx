@@ -15,7 +15,7 @@ import { ExportButton } from "@/components/shared/export-button";
 import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
 import { LoadError } from "@/components/shared/load-error";
 import { StaleLine } from "@/components/shared/stale-line";
-import { okOrLoadFailure } from "@/lib/load-failure";
+import { okOrLoadFailure, pollEvery } from "@/lib/load-failure";
 import { keptRequestIds, requestKey, shopKey } from "@/lib/request-ids";
 import { STAFF_REASON_MAX } from "@/lib/billing-lock-tools";
 import { quickTopUpPlan } from "@/lib/quick-top-up";
@@ -103,7 +103,7 @@ export default function BillingPage() {
     queryKey: ["admin", "billing"],
     queryFn: fetchBilling,
     staleTime: 30_000,
-    refetchInterval: 60_000,
+    refetchInterval: pollEvery(60_000),
   });
   const { data, isLoading, isError, error, refetch, isFetching } = pageRead;
 

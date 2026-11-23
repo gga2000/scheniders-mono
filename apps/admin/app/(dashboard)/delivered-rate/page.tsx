@@ -11,7 +11,7 @@ import { ShopNameLink } from "@/components/shared/shop-name-link";
 import { adminFetch } from "@/lib/admin-fetch";
 import { dayOf } from "@/lib/baghdad-day";
 import { formatCount, formatDateKey } from "@/lib/format";
-import { okOrLoadFailure } from "@/lib/load-failure";
+import { okOrLoadFailure, pollEvery } from "@/lib/load-failure";
 import { deliveredRateWatchSchema, farBelowLine, watchShopSchema, type WatchFlag } from "@/lib/delivered-rate-watch";
 
 /** GET /api/delivered-rate-watch: the watch with each shop's flags and the rules it used. */
@@ -48,7 +48,7 @@ export default function DeliveredRatePage() {
       return watchResponseSchema.parse(await res.json());
     },
     staleTime: 60_000,
-    refetchInterval: 300_000,
+    refetchInterval: pollEvery(300_000),
   });
   const { data, error, isLoading, isError, isFetching, refetch } = pageRead;
 

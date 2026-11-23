@@ -155,7 +155,7 @@ export function LeadsDesktopView() {
         <div>
           <h1 className="text-[22px] font-semibold text-foreground">Leads</h1>
           <p className="text-[13px] text-foreground/70">
-            {leadsCountLine({ count: data?.total, isError: neverRead })}
+            {leadsCountLine({ count: data?.total, neverRead })}
           </p>
         </div>
         <div className="flex items-center gap-2.5">
