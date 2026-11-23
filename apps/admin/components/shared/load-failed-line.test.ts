@@ -1,3 +1,5 @@
+import { readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -58,5 +60,51 @@ describe("the load-failed line over kept numbers", () => {
 
   it("keeps its words for a part with nothing to show", () => {
     expect(draw({ error: new Error("fetch failed") })).toContain("Could not load the dashboard.");
+  });
+});
+
+/*
+ * Round 25 (structure new 4): a read that never landed said so in words built
+ * by hand in about nine places, in four wordings ("Failed to load watchlist",
+ * "Your stars could not be loaded", "The counts did not load"), most with no
+ * Try again, so a reload was the only way out. Each now draws this line or
+ * LoadError. The guard reads JSX text only: a toast or a box's own title is
+ * a different place.
+ */
+const ROOT = join(__dirname, "..", "..");
+const OWN = ["load-error.tsx", "load-failed-line.tsx"].map((name) => join(ROOT, "components", "shared", name));
+
+function sources(dir: string): string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) return entry.name === "node_modules" ? [] : sources(path);
+    return entry.name.endsWith(".tsx") && !entry.name.includes(".test.") ? [path] : [];
+  });
+}
+
+/** Failed-load words written as JSX text, outside the two parts that say them. */
+function handWrittenFailures(source: string): number {
+  return [...source.matchAll(/(?<![=-])>[^<>{}]*\b(?:Failed to load|could not be loaded|did not load|Could not load)\b/g)].length;
+}
+
+describe("a read that never landed", () => {
+  it("knows hand-written failure words from a toast or a title", () => {
+    expect(handWrittenFailures("<p>Could not load the recent steps.</p>")).toBe(1);
+    expect(handWrittenFailures('<p className="text-xs">Failed to load watchlist</p>')).toBe(1);
+    expect(handWrittenFailures("<div role=\"alert\">\n  The search did not load. Try again.\n</div>")).toBe(1);
+    expect(handWrittenFailures('onClick={() => toast.error("Could not load the report.")}')).toBe(0);
+    expect(handWrittenFailures('title={failed ? "Could not load the industries." : undefined}')).toBe(0);
+    expect(handWrittenFailures('<LoadFailedLine what="the notes" onRetry={r} />')).toBe(0);
+  });
+
+  it("says so with the one line or LoadError on every page of the console, never in words of its own", () => {
+    const own = sources(join(ROOT, "app"))
+      .concat(sources(join(ROOT, "components")))
+      .filter((file) => !OWN.includes(file))
+      .flatMap((file) => {
+        const found = handWrittenFailures(readFileSync(file, "utf8"));
+        return found > 0 ? [`${file.slice(ROOT.length + 1)}: ${found}`] : [];
+      });
+    expect(own).toEqual([]);
   });
 });

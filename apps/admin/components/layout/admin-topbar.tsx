@@ -5,6 +5,7 @@ import { Search, Sun, Moon, Menu, Loader2, Shield } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { NotificationBell } from "@/components/shared/notification-bell";
+import { LoadFailedLine } from "@/components/shared/load-failed-line";
 import { usePageHeader } from "@/store/use-page-header";
 import { pageTitle as menuPageTitle } from "@/lib/admin-menu";
 import { roleLabel } from "@/lib/admin-access";
@@ -199,9 +200,11 @@ export function AdminTopbar({ user, onMenuClick, isMobile, onOpenCommandPalette,
           {isOpen && (
             <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl shadow-xl overflow-hidden">
               {failed && !isLoading ? (
-                <div role="alert" className="px-4 py-3 text-sm text-foreground-muted text-center">
-                  The search did not load. Try again.
-                </div>
+                <LoadFailedLine
+                  className="justify-center px-4 py-3"
+                  what="the search results"
+                  onRetry={() => void fetchResults(query)}
+                />
               ) : results.length === 0 && !isLoading ? (
                 <div className="px-4 py-3 text-sm text-foreground-muted text-center">
                   No results

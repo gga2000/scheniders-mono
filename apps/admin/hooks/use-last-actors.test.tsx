@@ -180,6 +180,48 @@ describe("Merchants' badge line while Try again works", () => {
   });
 });
 
+/*
+ * Round 25 (structure new 3): a page moved by a new shop showed the badges
+ * already read only while its read was pending. Once the read failed, the 50
+ * badges went blank; Try again brought them back and hid the line, then a
+ * second failure blanked them again.
+ */
+describe("Merchants' badges on a page moved by a new shop whose read fails", () => {
+  it("keeps the badges already read, and keeps the line saying it is loading while Try again asks", async () => {
+    serve();
+    const old = Array.from({ length: 100 }, (_, i) => shopId(i));
+    const client = noRetry();
+    const wrapper = ({ children }: { children: ReactNode }) => createElement(QueryClientProvider, { client }, children);
+    const { result, rerender } = renderHook(({ ids }) => useLastActors(pagesOf(ids)), { wrapper, initialProps: { ids: old } });
+    await waitFor(() => expect(Object.keys(result.current.actors)).toHaveLength(100));
+
+    const served = send.getMockImplementation();
+    send.mockImplementation(async () => new Response("{}", { status: 503 }));
+    rerender({ ids: [shopId(999), ...old] });
+    await waitFor(() => expect(result.current.failed).toBe(true));
+    expect(Object.keys(result.current.actors).sort()).toEqual([...old].sort());
+
+    // The three moved pages are asked again; each answer waits until released.
+    const held: (() => void)[] = [];
+    send.mockImplementation(
+      (url: string, init: RequestInit) =>
+        new Promise((done) => {
+          held.push(() => done(served?.(url, init)));
+        }),
+    );
+    act(() => result.current.retry());
+    await waitFor(() => expect(held).toHaveLength(3));
+    expect(result.current.retrying).toBe(true);
+    expect(result.current.failed).toBe(true);
+    expect(Object.keys(result.current.actors).sort()).toEqual([...old].sort());
+
+    await act(async () => held.forEach((release) => release()));
+    await waitFor(() => expect(result.current.failed).toBe(false));
+    expect(result.current.retrying).toBe(false);
+    expect(Object.keys(result.current.actors)).toHaveLength(101);
+  });
+});
+
 describe("Merchants' badges when a shop is starred", () => {
   it("asks for nothing again when a shop on the second page is starred and moves to the top", async () => {
     const all = Array.from({ length: 100 }, (_, i) => shopId(i));

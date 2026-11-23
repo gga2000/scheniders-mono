@@ -9,6 +9,7 @@ import { useWatchlist } from "@/hooks/use-watchlist";
 import { formatWhen } from "@/lib/format";
 import { adminFetch } from "@/lib/admin-fetch";
 import { StaleLine } from "@/components/shared/stale-line";
+import { LoadFailedLine } from "@/components/shared/load-failed-line";
 
 /** One empty list for every render before the first read. */
 const NO_MERCHANTS: WatchlistMerchant[] = [];
@@ -71,7 +72,13 @@ export function MerchantWatchlistWidget() {
       {stars.isError && starsUnread ? (
         <div className="flex flex-col items-center justify-center py-8 text-center">
           <AlertTriangle className="w-6 h-6 text-red-400/60 mb-2" />
-          <p className="text-xs text-foreground/70">Your stars could not be loaded</p>
+          <LoadFailedLine
+            className="justify-center text-xs"
+            what="your stars"
+            error={stars.error}
+            onRetry={() => void stars.refetch()}
+            retrying={stars.isFetching}
+          />
         </div>
       ) : starredMerchants.length === 0 && !starsUnread ? (
         <div className="flex flex-col items-center justify-center py-8 text-center">
@@ -81,7 +88,13 @@ export function MerchantWatchlistWidget() {
       ) : isError && !read ? (
         <div className="flex flex-col items-center justify-center py-8 text-center">
           <AlertTriangle className="w-6 h-6 text-red-400/60 mb-2" />
-          <p className="text-xs text-foreground/70">Failed to load watchlist</p>
+          <LoadFailedLine
+            className="justify-center text-xs"
+            what="the watchlist"
+            error={watchRead.error}
+            onRetry={() => void watchRead.refetch()}
+            retrying={watchRead.isFetching}
+          />
         </div>
       ) : isLoading || starsUnread ? (
         <div className="space-y-3">
