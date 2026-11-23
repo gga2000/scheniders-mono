@@ -3,12 +3,13 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminFromRequest, requireAdminPermission } from "@/lib/api-auth";
 import { notAnId } from "@/lib/route-id";
+import { SaveRequestIdSchema, firstSaveAnswer, savedBefore, staleTabWords } from "@/lib/saved-once";
 
 // A note is its words. The old `mentions` list, which no screen sends, wrote
 // staff log rows under any id or name it was given; it is no longer read.
 const CreateNoteSchema = z.object({
   content: z.string().min(1).max(2000),
-});
+}).extend(SaveRequestIdSchema.shape);
 
 export async function GET(
   request: NextRequest,
@@ -64,7 +65,7 @@ export async function POST(
 
     if (!parsed.success) {
       return NextResponse.json(
-        { error: "Invalid input", details: parsed.error.flatten() },
+        { error: staleTabWords(parsed.error) ?? "Invalid input", details: parsed.error.flatten() },
         { status: 400 }
       );
     }
@@ -93,10 +94,15 @@ export async function POST(
         admin_label: auth.user.email ?? null,
         content: parsed.data.content,
         is_pinned: false,
+        request_id: parsed.data.request_id,
       })
       .select()
       .single();
 
+    // Saved before: a press again after a lost answer gets the first note.
+    if (savedBefore(error, "admin_notes")) {
+      return firstSaveAnswer(supabase, "admin_notes", "note", parsed.data.request_id, { column: "tenant_id", id });
+    }
     if (error) throw error;
 
     return NextResponse.json({ note: data }, { status: 201 });

@@ -363,7 +363,7 @@ const ANY_ADMIN: Case[] = [
     name: "POST /api/merchants/[id]/notes (add_note)",
     call: async (t) => {
       const { POST } = await import("./merchants/[id]/notes/route");
-      return POST(req(`/api/merchants/${TENANT}/notes`, "POST", t, { content: "hi" }), idParams);
+      return POST(req(`/api/merchants/${TENANT}/notes`, "POST", t, { content: "hi", request_id: crypto.randomUUID() }), idParams);
     },
   },
   {
@@ -462,7 +462,7 @@ describe("actor attribution", () => {
     dbResult = { data: { id: "n1" }, error: null };
     const { POST } = await import("./merchants/[id]/notes/route");
     const res = await POST(
-      req(`/api/merchants/${TENANT}/notes`, "POST", "support", { content: "called them" }),
+      req(`/api/merchants/${TENANT}/notes`, "POST", "support", { content: "called them", request_id: crypto.randomUUID() }),
       idParams,
     );
 

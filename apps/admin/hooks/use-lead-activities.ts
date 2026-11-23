@@ -2,11 +2,13 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { LeadActivityType } from "@/types/leads";
-import { answerLostWords } from "@/lib/answer-lost";
-import { sendStep } from "@/lib/send-json";
+import { SAVED_ONCE_UNSURE } from "@/lib/answer-lost";
+import { useSaveOnce } from "@/hooks/use-ask-ids";
 
+/** A note on the lead carries its ask's id: pressing Save again after a lost answer saves it once. */
 export function useCreateActivity() {
   const qc = useQueryClient();
+  const saveOnce = useSaveOnce();
   return useMutation({
     mutationFn: async ({
       leadId,
@@ -19,11 +21,10 @@ export function useCreateActivity() {
       title: string;
       description?: string;
     }) => {
-      return sendStep<unknown>(
+      return saveOnce<unknown>(
         `/api/leads/${leadId}/activities`,
         { activity_type, title, description },
-        "POST",
-        answerLostWords("the lead's timeline"),
+        SAVED_ONCE_UNSURE,
         "Could not save it. Try again.",
       );
     },
