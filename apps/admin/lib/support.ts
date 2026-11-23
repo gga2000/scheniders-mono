@@ -114,6 +114,16 @@ export const SUPPORT_NOTICE_END_UNSURE = answerLostWords("the notice bar");
 export const SUPPORT_VIEW_UNSURE =
   "No answer came back, so a look may have opened. Pressing again opens a new one, and the merchant sees each visit.";
 
+/**
+ * Taking a shop whose answer was lost: a teammate may have taken it since, so
+ * pressing again could take it from them. The shop card names who has it.
+ */
+export const SUPPORT_TAKE_SHOP_UNSURE = answerLostWords("who looks after the shop");
+
+/** Ending a merchant view whose answer was lost: ending twice closes nothing more, so pressing again is safe. */
+export const SUPPORT_VIEW_END_UNSURE =
+  "No answer came back, so the view may have ended. Pressing End again is safe; it ends on its own after 30 minutes.";
+
 /** The database's answer to an id it had already done: the first answer again, marked as a repeat. */
 export function wasRepeat(data: unknown): boolean {
   return typeof data === "object" && data !== null && "repeat" in data && data.repeat === true;

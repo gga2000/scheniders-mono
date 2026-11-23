@@ -11,14 +11,22 @@ import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-quer
 const adminFetch = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/admin-fetch", () => ({ adminFetch }));
 
-import { SUPPORT_NOTICE_END_UNSURE, SUPPORT_SEND_UNSURE, SUPPORT_VIEW_UNSURE } from "@/lib/support";
+import {
+  SUPPORT_NOTICE_END_UNSURE,
+  SUPPORT_SEND_UNSURE,
+  SUPPORT_TAKE_SHOP_UNSURE,
+  SUPPORT_VIEW_END_UNSURE,
+  SUPPORT_VIEW_UNSURE,
+} from "@/lib/support";
 import {
   useSupportCaseAction,
   useSupportLogShopCall,
   useSupportNoticeEnd,
   useSupportTakeShop,
+  useSupportViewEnd,
   useSupportViewStart,
 } from "./use-support-cases";
+import { SAVED_REPLY_UNSURE, useAddSavedReply } from "./use-saved-replies";
 
 function wrapper({ children }: { children: ReactNode }) {
   const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
@@ -185,6 +193,47 @@ describe("the steps with no id say a lost answer may have gone through", () => {
     const { result } = renderHook(() => useSupportTakeShop(), { wrapper });
     await act(async () => {
       await expect(result.current.mutateAsync("33333333-3333-4333-8333-333333333333")).rejects.toThrow("This shop is gone.");
+    });
+  });
+});
+
+/*
+ * Round 25 (structure new 5): taking a shop and ending a view send no words,
+ * so "Pressing again with the same words" did not fit them. Taking again could
+ * take a shop a teammate took since, so it says to look first; ending again is
+ * safe. Saved replies went outside the one sender, so a drop read "Failed to
+ * fetch"; a second add makes two, so it says to look first.
+ */
+describe("each step's lost answer says what fits that step", () => {
+  it("says to look at who has the shop before taking it again", async () => {
+    adminFetch.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    const { result } = renderHook(() => useSupportTakeShop(), { wrapper });
+    await act(async () => {
+      await expect(result.current.mutateAsync("33333333-3333-4333-8333-333333333333")).rejects.toThrow(
+        SUPPORT_TAKE_SHOP_UNSURE,
+      );
+    });
+  });
+
+  it("says ending the view again is safe", async () => {
+    adminFetch.mockResolvedValueOnce(new Response("<html>Gateway Timeout</html>", { status: 504 }));
+    const { result } = renderHook(() => useSupportViewEnd(), { wrapper });
+    await act(async () => {
+      await expect(result.current.mutateAsync()).rejects.toThrow(SUPPORT_VIEW_END_UNSURE);
+    });
+    expect(adminFetch.mock.calls[0]?.[1]).toMatchObject({ method: "DELETE" });
+  });
+
+  it("says to look at the saved replies before adding again, and passes on the route's words", async () => {
+    adminFetch
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ error: "Failed to add the saved reply" }), { status: 500 }));
+    const { result } = renderHook(() => useAddSavedReply(), { wrapper });
+    await act(async () => {
+      await expect(result.current.mutateAsync({ title: "Hi", body: "أهلاً" })).rejects.toThrow(SAVED_REPLY_UNSURE);
+    });
+    await act(async () => {
+      await expect(result.current.mutateAsync({ title: "Hi", body: "أهلاً" })).rejects.toThrow("Failed to add the saved reply");
     });
   });
 });

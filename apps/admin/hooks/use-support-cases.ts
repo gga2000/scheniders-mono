@@ -22,9 +22,15 @@ import type { ShopCheck } from "@/lib/support-shop-check";
 import type { SupportSpike } from "@/lib/support-spike";
 import { SHELL_READ, useAfterPageReads } from "@/hooks/use-after-page-reads";
 import { adminFetch } from "@/lib/admin-fetch";
-import { SUPPORT_NOTICE_END_UNSURE, SUPPORT_SEND_UNSURE, SUPPORT_VIEW_UNSURE, writesOnce } from "@/lib/support";
-import { AnswerLost } from "@/lib/answer-lost";
-import { failureOf, sendJson } from "@/lib/send-json";
+import {
+  SUPPORT_NOTICE_END_UNSURE,
+  SUPPORT_SEND_UNSURE,
+  SUPPORT_TAKE_SHOP_UNSURE,
+  SUPPORT_VIEW_END_UNSURE,
+  SUPPORT_VIEW_UNSURE,
+  writesOnce,
+} from "@/lib/support";
+import { sendStep } from "@/lib/send-json";
 import { okOrLoadFailure } from "@/lib/load-failure";
 
 /**
@@ -33,24 +39,6 @@ import { okOrLoadFailure } from "@/lib/load-failure";
  */
 async function readOk<T>(res: Response, what: string): Promise<T> {
   return (await okOrLoadFailure(res, what).json()) as T;
-}
-
-/**
- * A step with no id, through the console's one sender: a lost answer says it
- * may have been done (with where to look), never the browser's "Failed to fetch".
- */
-async function sendStep<T>(
-  url: string,
-  body: unknown,
-  method: "POST" | "DELETE" = "POST",
-  lost?: string,
-): Promise<T> {
-  const answer = await sendJson(url, body, method).catch((error: unknown) => {
-    throw error instanceof AnswerLost && lost ? new AnswerLost(lost) : error;
-  });
-  if (answer.ok) return answer.data as T;
-  const failure = failureOf(answer.status, answer.data, "Request failed");
-  throw failure instanceof AnswerLost && lost ? new AnswerLost(lost) : failure;
 }
 
 /**
@@ -84,18 +72,12 @@ function useAskIds() {
 }
 
 /**
- * POSTs one send with its id, through the console's one sender (sendJson and
- * failureOf), so its words match every other write. A lost answer, whether the
+ * POSTs one send with its id, through sendStep: a lost answer, whether the
  * connection dropped or a gateway answered with no words, says the send may
  * have been done and that pressing again with the same words is safe.
  */
-async function sendOnce<T>(url: string, body: unknown): Promise<T> {
-  const answer = await sendJson(url, body).catch((error: unknown) => {
-    throw error instanceof AnswerLost ? new AnswerLost(SUPPORT_SEND_UNSURE) : error;
-  });
-  if (answer.ok) return answer.data as T;
-  const failure = failureOf(answer.status, answer.data, "Request failed");
-  throw failure instanceof AnswerLost ? new AnswerLost(SUPPORT_SEND_UNSURE) : failure;
+function sendOnce<T>(url: string, body: unknown): Promise<T> {
+  return sendStep<T>(url, body, "POST", SUPPORT_SEND_UNSURE);
 }
 
 /**
@@ -264,9 +246,9 @@ export function useSupportLogShopCall() {
 export function useSupportTakeShop() {
   const queryClient = useQueryClient();
   return useMutation({
-    // Taking a shop twice changes nothing, so a lost answer may just be pressed again.
+    // A teammate may have taken it since a lost answer, so look before pressing again.
     mutationFn: async (tenantId: string) =>
-      sendStep<{ success: true }>("/api/support/owner", { tenantId }, "POST", SUPPORT_SEND_UNSURE),
+      sendStep<{ success: true }>("/api/support/owner", { tenantId }, "POST", SUPPORT_TAKE_SHOP_UNSURE),
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: ["admin", "support"] });
     },
@@ -286,7 +268,7 @@ export function useSupportViewStart() {
 export function useSupportViewEnd() {
   return useMutation({
     // Ending twice changes nothing, so a lost answer may just be pressed again.
-    mutationFn: async () => sendStep<{ success: true }>("/api/support/view", undefined, "DELETE", SUPPORT_SEND_UNSURE),
+    mutationFn: async () => sendStep<{ success: true }>("/api/support/view", undefined, "DELETE", SUPPORT_VIEW_END_UNSURE),
   });
 }
 

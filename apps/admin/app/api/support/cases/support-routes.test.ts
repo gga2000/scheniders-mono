@@ -574,6 +574,30 @@ describe("support saved replies", () => {
   });
 });
 
+/*
+ * Round 25 (security item 19): saved replies and phone alerts answered with the
+ * database's own text, which the console toasts. They answer fixed words now.
+ */
+describe("saved replies and phone alerts keep the database's text to the logs", () => {
+  const RAW = { code: "42P01", message: 'relation "support_saved_replies" does not exist' };
+  const REPLY = { title: "Hi", body: "أهلاً" };
+  const params = { params: Promise.resolve({ id: "66666666-6666-4666-8666-666666666666" }) };
+
+  it.each([
+    ["the list", async () => (await import("../replies/route")).GET(req("/api/support/replies", "GET", "support")), "Failed to load the saved replies"],
+    ["an add", async () => (await import("../replies/route")).POST(req("/api/support/replies", "POST", "support", REPLY)), "Failed to add the saved reply"],
+    ["a change", async () => (await import("../replies/[id]/route")).PATCH(req("/api/support/replies/x", "PATCH", "support", REPLY), params), "Failed to change the saved reply"],
+    ["a removal", async () => (await import("../replies/[id]/route")).DELETE(req("/api/support/replies/x", "DELETE", "support"), params), "Failed to remove the saved reply"],
+    ["alerts on", async () => (await import("../push/route")).POST(req("/api/support/push", "POST", "support", { endpoint: "https://fcm.googleapis.com/fcm/send/abc", keys: { p256dh: "BPk", auth: "xyz" } })), "Failed to turn on phone alerts for this device"],
+    ["alerts off", async () => (await import("../push/route")).DELETE(req("/api/support/push", "DELETE", "support", { endpoint: "https://fcm.googleapis.com/fcm/send/abc" })), "Failed to turn off phone alerts for this device"],
+  ])("answers fixed words for %s", async (_name, call, words) => {
+    dbResult = { data: null, error: RAW };
+    const res = await call();
+    expect(res.status).toBe(500);
+    expect(await res.json()).toEqual({ error: words });
+  });
+});
+
 describe("support scoreboard", () => {
   const BOARD = {
     days: 30,

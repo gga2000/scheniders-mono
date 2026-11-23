@@ -58,3 +58,23 @@ export async function postJson(url: string, body: unknown, method: "POST" | "PAT
   if (!answer.ok) throw failureOf(answer.status, answer.data);
   return answer.data;
 }
+
+/**
+ * Sends one step and gives back its answer, or throws the API's own words. A
+ * lost answer throws AnswerLost with `lost` when given: the words that say
+ * where to look, or that pressing again is safe, for that step.
+ */
+export async function sendStep<T>(
+  url: string,
+  body: unknown,
+  method: "POST" | "PATCH" | "DELETE" = "POST",
+  lost?: string,
+  fallback = "Request failed",
+): Promise<T> {
+  const answer = await sendJson(url, body, method).catch((error: unknown) => {
+    throw error instanceof AnswerLost && lost ? new AnswerLost(lost) : error;
+  });
+  if (answer.ok) return answer.data as T;
+  const failure = failureOf(answer.status, answer.data, fallback);
+  throw failure instanceof AnswerLost && lost ? new AnswerLost(lost) : failure;
+}

@@ -4,27 +4,18 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { SavedReplyInput, SupportSavedReply } from "@/lib/support";
 import { adminFetch } from "@/lib/admin-fetch";
 import { okOrLoadFailure } from "@/lib/load-failure";
+import { answerLostWords } from "@/lib/answer-lost";
+import { sendStep } from "@/lib/send-json";
 
 const KEY = ["admin", "support", "replies"] as const;
 
-async function readJson<T>(res: Response): Promise<T> {
-  const body: unknown = await res.json().catch(() => null);
-  if (!res.ok) {
-    const message =
-      body && typeof body === "object" && "error" in body && typeof body.error === "string"
-        ? body.error
-        : "Request failed";
-    throw new Error(message);
-  }
-  return body as T;
-}
+/** A lost answer may have saved the change, so look before pressing again: a second add makes two. */
+export const SAVED_REPLY_UNSURE = answerLostWords("the saved replies");
 
-const send = (url: string, method: "POST" | "PATCH" | "DELETE", body?: SavedReplyInput) =>
-  adminFetch(url, {
-    method,
-    headers: body ? { "Content-Type": "application/json" } : undefined,
-    body: body ? JSON.stringify(body) : undefined,
-  });
+/** One saved-reply write through the console's one sender. */
+function send<T>(url: string, method: "POST" | "PATCH" | "DELETE", body?: SavedReplyInput): Promise<T> {
+  return sendStep<T>(url, body, method, SAVED_REPLY_UNSURE);
+}
 
 /** The team's saved replies, in the order they show above the reply box. */
 export function useSavedReplies() {
@@ -40,7 +31,7 @@ export function useAddSavedReply() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (input: SavedReplyInput) =>
-      readJson<{ reply: SupportSavedReply }>(await send("/api/support/replies", "POST", input)),
+      send<{ reply: SupportSavedReply }>("/api/support/replies", "POST", input),
     onSettled: () => queryClient.invalidateQueries({ queryKey: KEY }),
   });
 }
@@ -49,7 +40,7 @@ export function useChangeSavedReply() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, ...input }: SavedReplyInput & { id: string }) =>
-      readJson<{ reply: SupportSavedReply }>(await send(`/api/support/replies/${id}`, "PATCH", input)),
+      send<{ reply: SupportSavedReply }>(`/api/support/replies/${id}`, "PATCH", input),
     onSettled: () => queryClient.invalidateQueries({ queryKey: KEY }),
   });
 }
@@ -57,7 +48,7 @@ export function useChangeSavedReply() {
 export function useRemoveSavedReply() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) => readJson<{ success: true }>(await send(`/api/support/replies/${id}`, "DELETE")),
+    mutationFn: async (id: string) => send<{ success: true }>(`/api/support/replies/${id}`, "DELETE"),
     onSettled: () => queryClient.invalidateQueries({ queryKey: KEY }),
   });
 }
