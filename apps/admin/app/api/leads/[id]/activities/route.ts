@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/admin-supabase";
 import { requireBearerAdmin } from "@/lib/api-auth";
 import { notAnId } from "@/lib/route-id";
 import { LEAD_GONE, leadGoneOn } from "@/lib/lead-update";
+import { SaveRequestIdSchema, firstSaveAnswer, savedBefore, staleTabWords } from "@/lib/saved-once";
 
 // Staff log these by hand. The other kinds (a status change, a store built, a
 // conversion) are written by the route or function that made the change.
@@ -16,7 +17,7 @@ const activitySchema = z.object({
   activity_type: z.enum(HAND_LOGGED, { error: "Pick a kind: note, call, WhatsApp, email or meeting." }),
   title: z.string().trim().min(1, { error: "A note needs a title." }).max(200, { error: "A title can have at most 200 characters." }),
   description: z.string().trim().max(2000, { error: "A note can have at most 2,000 characters." }).optional(),
-});
+}).extend(SaveRequestIdSchema.shape);
 
 export async function POST(
   request: NextRequest,
@@ -32,14 +33,15 @@ export async function POST(
     const parsed = activitySchema.safeParse(await request.json().catch(() => null));
     if (!parsed.success) {
       const issue = parsed.error.issues[0];
-      return NextResponse.json({ error: issue?.path.length ? issue.message : "A note needs a kind and some text." }, { status: 400 });
+      const words = staleTabWords(parsed.error) ?? (issue?.path.length ? issue.message : "A note needs a kind and some text.");
+      return NextResponse.json({ error: words }, { status: 400 });
     }
     const body = parsed.data;
     const supabase = createAdminClient();
 
     // A call, message or meeting marks the lead contacted. It goes first, so a
-    // retry after a failed save writes the note once, and a lead that is gone
-    // is answered 404 before anything is written.
+    // lead that is gone is answered 404 before anything is written; a press
+    // again after a lost answer only moves the last contact by those seconds.
     if (CONTACT.has(body.activity_type)) {
       const { data: lead, error: contactError } = await supabase
         .from("leads")
@@ -60,10 +62,15 @@ export async function POST(
         title: body.title,
         description: body.description || null,
         created_by: admin.user.id,
+        request_id: body.request_id,
       })
       .select()
       .single();
 
+    // Saved before: a press again after a lost answer gets the first note.
+    if (savedBefore(error, "lead_activities")) {
+      return firstSaveAnswer(supabase, "lead_activities", "activity", body.request_id, { column: "lead_id", id });
+    }
     if (leadGoneOn(error, "lead_activities_lead_id_fkey")) return NextResponse.json({ error: LEAD_GONE }, { status: 404 });
     if (error) throw error;
 

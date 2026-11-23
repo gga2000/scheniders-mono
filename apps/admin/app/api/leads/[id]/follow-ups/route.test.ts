@@ -12,6 +12,8 @@ import { NextRequest } from "next/server";
 
 const ADMIN_ID = "aaaaaaaa-1111-4222-8333-444444444444";
 const OTHER_ID = "bbbbbbbb-1111-4222-8333-444444444444";
+const LEAD = "11111111-1111-4111-8111-111111111111";
+const REQUEST = "cccccccc-1111-4222-8333-444444444444";
 
 vi.mock("@/lib/api-auth", () => ({
   requireBearerAdmin: async () => ({ user: { id: ADMIN_ID, email: "a@b.co" }, role: "super_admin" }),
@@ -23,6 +25,8 @@ let activeStaff: string[];
 let insertError: { code: string; message: string } | null;
 /** Tables written to besides the follow-up itself. */
 let otherWrites: string[];
+/** What the follow-up's read back after a repeat asked for. */
+let reads: Array<[string, unknown]>;
 vi.mock("@/lib/admin-supabase", () => ({
   createAdminClient: () => ({
     from: (table: string) => {
@@ -47,7 +51,11 @@ vi.mock("@/lib/admin-supabase", () => ({
           return chain;
         },
         select: () => chain,
-        eq: () => chain,
+        eq: (column: string, value: unknown) => {
+          reads.push([column, value]);
+          return chain;
+        },
+        maybeSingle: () => Promise.resolve({ data: { id: "f1" }, error: null }),
         order: () => chain,
         limit: () => chain,
         update: () => {
@@ -69,9 +77,10 @@ const call = (body: Record<string, unknown>) =>
     new NextRequest("http://admin.test/api/leads/11111111-1111-4111-8111-111111111111/follow-ups", {
       method: "POST",
       headers: { "content-type": "application/json", authorization: "Bearer t" },
-      body: JSON.stringify(body),
+      // Every save carries its ask's id unless a test takes it out.
+      body: JSON.stringify({ request_id: REQUEST, ...body }),
     }),
-    { params: Promise.resolve({ id: "11111111-1111-4111-8111-111111111111" }) },
+    { params: Promise.resolve({ id: LEAD }) },
   );
 
 beforeEach(() => {
@@ -79,6 +88,7 @@ beforeEach(() => {
   activeStaff = [OTHER_ID];
   insertError = null;
   otherWrites = [];
+  reads = [];
   // Calls are counted per test: "logs nothing" means in this test.
   vi.spyOn(console, "error").mockImplementation(() => {}).mockClear();
 });
@@ -132,6 +142,32 @@ describe("POST /api/leads/[id]/follow-ups", () => {
     expect((await call({ title: " ", scheduled_at: "2026-11-05T10:00:00Z" })).status).toBe(400);
     expect((await call({ title: "Call", scheduled_at: "tomorrow" })).status).toBe(400);
     expect((await call({ title: "Call", scheduled_at: "2026-11-05T10:00:00Z", assigned_to: "not-an-id" })).status).toBe(400);
+    expect(inserted).toEqual([]);
+  });
+
+  // N8: a follow-up whose answer was lost was saved again when staff pressed Schedule.
+  it("saves the ask's id, and answers a repeat with the first follow-up", async () => {
+    await call({ title: "Call", scheduled_at: "2026-11-05T10:00:00Z" });
+    expect(inserted[0].request_id).toBe(REQUEST);
+
+    insertError = {
+      code: "23505",
+      message: 'duplicate key value violates unique constraint "lead_follow_ups_request_id_key"',
+    };
+    const res = await call({ title: "Call", scheduled_at: "2026-11-05T10:00:00Z" });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ follow_up: { id: "f1" }, duplicate: true });
+    expect(reads).toEqual([
+      ["request_id", REQUEST],
+      ["lead_id", LEAD],
+    ]);
+    expect(console.error).not.toHaveBeenCalled();
+  });
+
+  it("asks a tab from before ids to reload, and saves nothing", async () => {
+    const res = await call({ title: "Call", scheduled_at: "2026-11-05T10:00:00Z", request_id: undefined });
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "This page is out of date. Reload it and try again" });
     expect(inserted).toEqual([]);
   });
 });

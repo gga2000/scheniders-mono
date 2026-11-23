@@ -12,7 +12,8 @@ import { formatCount, formatDay, formatTime } from "@/lib/format";
 import { dayOf } from "@/lib/baghdad-day";
 import { groupOrderFees, type TimelineEntry, type TimelineKind } from "@/lib/shop-timeline";
 import { Choice, ErrorLine } from "./action-ui";
-import { postJson } from "@/lib/send-json";
+import { SAVED_ONCE_UNSURE } from "@/lib/answer-lost";
+import { useSaveOnce } from "@/hooks/use-ask-ids";
 import { adminFetch } from "@/lib/admin-fetch";
 import { okOrLoadFailure } from "@/lib/load-failure";
 import { oldestRead, stampRead, type ReadAt } from "@/lib/page-read-at";
@@ -39,6 +40,8 @@ const KIND_ICON: Record<TimelineKind, typeof Wallet> = { money: Wallet, change: 
  */
 export function TimelineTab({ merchantId, focusNote = false }: { merchantId: string; focusNote?: boolean }) {
   const queryClient = useQueryClient();
+  // A note carries its ask's id: Save pressed again after a lost answer saves it once.
+  const saveOnce = useSaveOnce();
   const { role } = useAdminAuth();
   const [filter, setFilter] = useState<TimelineKind | "all">("all");
   const [note, setNote] = useState("");
@@ -59,7 +62,8 @@ export function TimelineTab({ merchantId, focusNote = false }: { merchantId: str
   const timelineRead = { ...timeline, dataUpdatedAt: oldestRead(timeline.data?.pages, timeline.dataUpdatedAt) };
 
   const addNote = useMutation({
-    mutationFn: (content: string) => postJson(`/api/merchants/${merchantId}/notes`, { content }),
+    mutationFn: (content: string) =>
+      saveOnce(`/api/merchants/${merchantId}/notes`, { content }, SAVED_ONCE_UNSURE, "Could not save the note."),
     onSuccess: () => {
       setNote("");
       queryClient.invalidateQueries({ queryKey: ["admin", "merchant", merchantId] });

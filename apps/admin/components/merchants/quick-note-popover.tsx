@@ -10,7 +10,8 @@ import { formatWhen } from "@/lib/format";
 import { okOrLoadFailure } from "@/lib/load-failure";
 import { LoadFailedLine } from "@/components/shared/load-failed-line";
 import { StaleLine } from "@/components/shared/stale-line";
-import { postJson } from "@/lib/send-json";
+import { SAVED_ONCE_UNSURE } from "@/lib/answer-lost";
+import { useSaveOnce } from "@/hooks/use-ask-ids";
 import { adminFetch } from "@/lib/admin-fetch";
 import { useLeaveGuard } from "@/hooks/use-leave-guard";
 
@@ -26,6 +27,8 @@ export function QuickNotePopover({ merchantId }: QuickNotePopoverProps) {
   // not the box: closed, leaving asked nothing (round 18).
   useLeaveGuard(noteText.trim() !== "");
   const queryClient = useQueryClient();
+  // A note carries its ask's id: Save pressed again after a lost answer saves it once.
+  const saveOnce = useSaveOnce();
 
   // Fetch latest notes
   const notesRead = useQuery<
@@ -44,7 +47,8 @@ export function QuickNotePopover({ merchantId }: QuickNotePopoverProps) {
 
   const addNote = useMutation({
     // A refused save keeps the typed note and says why, in the server's words.
-    mutationFn: (content: string) => postJson(`/api/merchants/${merchantId}/notes`, { content }),
+    mutationFn: (content: string) =>
+      saveOnce(`/api/merchants/${merchantId}/notes`, { content }, SAVED_ONCE_UNSURE, "Could not save the note."),
     onSuccess: () => {
       setNoteText("");
       queryClient.invalidateQueries({ queryKey: ["admin", "merchant-notes", merchantId] });

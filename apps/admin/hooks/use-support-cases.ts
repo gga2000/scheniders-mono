@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo, useRef } from "react";
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import type {
   CaseAction,
@@ -31,6 +30,7 @@ import {
   writesOnce,
 } from "@/lib/support";
 import { sendStep } from "@/lib/send-json";
+import { useAskIds } from "@/hooks/use-ask-ids";
 import { okOrLoadFailure, pollEvery } from "@/lib/load-failure";
 
 /**
@@ -39,36 +39,6 @@ import { okOrLoadFailure, pollEvery } from "@/lib/load-failure";
  */
 async function readOk<T>(res: Response, what: string): Promise<T> {
   return (await okOrLoadFailure(res, what).json()) as T;
-}
-
-/**
- * One id per ask, kept until it goes through. The ask is what staff send (the
- * conversation, the words, the outcome): pressing again after an error or a
- * lost answer sends the same id, and the database writes once. Once it goes
- * through, the same words again are a new ask. Kept for the page's life: the
- * words of a send are not kept across a reload either.
- *
- * Unlike money asks (lib/request-ids.ts), the words are the ask here: a reply
- * in other words is another message, never a retry of the first.
- */
-function useAskIds() {
-  const ids = useRef(new Map<string, string>());
-  return useMemo(
-    () => ({
-      askId(ask: unknown): { key: string; id: string } {
-        const key = JSON.stringify(ask);
-        const known = ids.current.get(key);
-        if (known) return { key, id: known };
-        const id = crypto.randomUUID();
-        ids.current.set(key, id);
-        return { key, id };
-      },
-      done(key: string) {
-        ids.current.delete(key);
-      },
-    }),
-    [],
-  );
 }
 
 /**

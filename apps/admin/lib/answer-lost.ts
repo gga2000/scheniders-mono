@@ -18,6 +18,13 @@ export const ANSWER_LOST = answerLostWords("the shop");
 /** The same, for a step on many shops at once. */
 export const ANSWER_LOST_SHOPS = answerLostWords("the shops");
 
+/**
+ * The same, for a save that carries its ask's id (hooks/use-ask-ids.ts): the
+ * route answers a repeat with the first save, so pressing again is safe.
+ */
+export const SAVED_ONCE_UNSURE =
+  "No answer came back, so this may have been saved. Pressing again with the same words saves it once at most.";
+
 /** No answer came back, so the step may have been done: never say it was not. */
 export class AnswerLost extends Error {
   constructor(message: string = ANSWER_LOST) {

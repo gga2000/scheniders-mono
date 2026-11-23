@@ -12,6 +12,9 @@ export const staffReasonSchema = z
   .max(STAFF_REASON_MAX, `Keep the reason under ${STAFF_REASON_MAX} characters`)
   .refine((reason) => staffReasonLetters(reason) >= STAFF_REASON_MIN, STAFF_REASON_TOO_SHORT);
 
+/** What a tab from before a change to a form is told. */
+export const PAGE_OUT_OF_DATE = "This page is out of date. Reload it and try again";
+
 /**
  * The id the browser made for one staff ask (lib/request-ids.ts). A retry or
  * a double click sends the same id, and the database's *_once functions make
@@ -20,7 +23,5 @@ export const staffReasonSchema = z
  * person saw (trial checks: `seen_decided_at`). A page loaded before ids
  * existed sends none and is asked to reload.
  */
-export const staffRequestIdSchema = z
-  .string({ error: "This page is out of date. Reload it and try again" })
-  .uuid("This page is out of date. Reload it and try again");
+export const staffRequestIdSchema = z.string({ error: PAGE_OUT_OF_DATE }).uuid(PAGE_OUT_OF_DATE);
 
