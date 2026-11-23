@@ -7,6 +7,8 @@ import { Check, Loader2, MessageCircle } from "lucide-react";
 import { PLATFORM_WHATSAPP_TEMPLATES } from "@scheniders/shared/whatsapp-templates";
 import { SIGNUP_WHATSAPP_OFF, signupWhatsAppSettingsSchema, type SignupWhatsAppSettings } from "@scheniders/shared/signup-whatsapp";
 import { adminFetch } from "@/lib/admin-fetch";
+import { answerLostWords } from "@/lib/answer-lost";
+import { sendStep } from "@/lib/send-json";
 import { okOrLoadFailure } from "@/lib/load-failure";
 import { LoadFailedLine } from "@/components/shared/load-failed-line";
 import { StaleLine } from "@/components/shared/stale-line";
@@ -34,13 +36,7 @@ export function SignupWhatsAppCard({ canEdit }: { canEdit: boolean }) {
 
   const save = useMutation({
     mutationFn: async (settings: SignupWhatsAppSettings) => {
-      const res = await adminFetch("/api/settings/signup-whatsapp", {
-        method: "PUT",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(settings),
-      });
-      const body = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(typeof body?.error === "string" ? body.error : `Save failed: ${res.status}`);
+      await sendStep<unknown>("/api/settings/signup-whatsapp", settings, "PUT", answerLostWords("these settings"), "The settings were not saved.");
     },
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: signupWhatsAppQuery.queryKey }),
   });

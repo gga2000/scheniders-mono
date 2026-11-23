@@ -7,6 +7,8 @@ import { ChevronLeft, ChevronRight, Loader2, MessageCircleOff } from "lucide-rea
 import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
 import { ShopNameLink } from "@/components/shared/shop-name-link";
 import { adminFetch } from "@/lib/admin-fetch";
+import { answerLostWords } from "@/lib/answer-lost";
+import { sendStep } from "@/lib/send-json";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { LoadError } from "@/components/shared/load-error";
 import { StaleLine } from "@/components/shared/stale-line";
@@ -49,12 +51,13 @@ function PauseButton({ shop, canPause }: { shop: WhatsAppReportShop; canPause: b
   const [confirming, setConfirming] = useState(false);
   const change = useMutation({
     mutationFn: async (paused: boolean) => {
-      const res = await adminFetch(`/api/merchants/${shop.tenant_id}/whatsapp-pause`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ paused }),
-      });
-      if (!res.ok) throw new Error(`WhatsApp pause failed: ${res.status}`);
+      await sendStep<unknown>(
+        `/api/merchants/${shop.tenant_id}/whatsapp-pause`,
+        { paused },
+        "POST",
+        answerLostWords("the shop's WhatsApp line"),
+        "WhatsApp was not changed.",
+      );
     },
     onSettled: () => {
       setConfirming(false);

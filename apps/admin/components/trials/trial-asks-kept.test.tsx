@@ -26,7 +26,7 @@ vi.mock("@/hooks/use-admin-auth", () => ({
 
 const { default: TrialsPage } = await import("@/app/(dashboard)/trials/page");
 const { TrialChecksPanel } = await import("./trial-checks-panel");
-const { ANSWER_LOST } = await import("@/components/merchants/detail/action-ui");
+const { ANSWER_LOST } = await import("@/lib/answer-lost");
 const { keptRequestIds, requestKey, shopKey } = await import("@/lib/request-ids");
 
 const SHOP = "5b0c9a52-7f3e-4c1a-9d2e-1a2b3c4d5e6f";

@@ -9,7 +9,8 @@ import { shopActionKey, typedAmount } from "@/lib/shop-actions";
 import { isStaffReason } from "@/lib/billing-lock-tools";
 import { staffTopUpOutOfRange } from "@/lib/quick-top-up";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
-import { Choice, ConfirmButton, ErrorLine, FieldInput, PanelFields, PanelTitle, postJson, useWriteFailed, wasAlreadyDone, WillHappen } from "./action-ui";
+import { Choice, ConfirmButton, ErrorLine, FieldInput, PanelFields, PanelTitle, useWriteFailed, WillHappen } from "./action-ui";
+import { postJson, wasAlreadyDone } from "@/lib/send-json";
 
 const PRESETS = [5_000, 10_000, 50_000, 100_000];
 

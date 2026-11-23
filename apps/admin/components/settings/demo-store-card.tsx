@@ -5,6 +5,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { ExternalLink, Loader2, LogIn, RotateCcw, Store } from "lucide-react";
 import { adminFetch } from "@/lib/admin-fetch";
+import { answerLostWords } from "@/lib/answer-lost";
+import { sendStep } from "@/lib/send-json";
 import { okOrLoadFailure } from "@/lib/load-failure";
 import { LoadFailedLine } from "@/components/shared/load-failed-line";
 import { StaleLine } from "@/components/shared/stale-line";
@@ -28,18 +30,8 @@ function ButtonShape({ label }: { label: string }) {
   return <span className="inline-flex rounded-xl bg-foreground/5 px-4 py-1.5 text-xs text-transparent">{label}</span>;
 }
 
-async function post(action: DemoAction): Promise<unknown> {
-  const res = await adminFetch("/api/demo-store", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ action }),
-  });
-  const body: unknown = await res.json().catch(() => null);
-  if (!res.ok) {
-    const message = z.object({ error: z.string() }).safeParse(body);
-    throw new Error(message.success ? message.data.error : `Failed: ${res.status}`);
-  }
-  return body;
+function post(action: DemoAction): Promise<unknown> {
+  return sendStep<unknown>("/api/demo-store", { action }, "POST", answerLostWords("the demo store"), "The demo store step failed.");
 }
 
 /**

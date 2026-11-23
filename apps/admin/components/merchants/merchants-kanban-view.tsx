@@ -20,7 +20,7 @@ import { formatCount, formatIQD } from "@/lib/format";
 import { useMerchantsStats } from "@/hooks/use-merchants-stats";
 import { useCan } from "@/hooks/use-admin-auth";
 import { STATUS_REFUSALS, stageMoveNote, statusLandedText, statusPickRefusal, statusPickSaves } from "@/lib/shop-status-choice";
-import { adminFetch } from "@/lib/admin-fetch";
+import { sendStep } from "@/lib/send-json";
 
 type StageKey = TenantStatus;
 
@@ -149,16 +149,7 @@ export function MerchantsKanbanView({
 
   const statusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: TenantStatus }) => {
-      const res = await adminFetch(`/api/merchants/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error ?? "Status change failed");
-      }
-      return res.json();
+      return sendStep<unknown>(`/api/merchants/${id}`, { status }, "PATCH", undefined, "The status was not changed.");
     },
     onSuccess: (answer, { status }) => {
       queryClient.invalidateQueries({ queryKey: ["admin", "merchants"] });
