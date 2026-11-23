@@ -132,14 +132,15 @@ describe("where Sentry is imported", () => {
       "instrumentation.ts",
       "lib/activity-logger.ts",
       "lib/sentry-browser.ts",
+      "lib/staff-rate-limit.ts",
       "next.config.ts",
       "sentry.edge.config.ts",
       "sentry.server.config.ts",
     ]);
   });
 
-  it("the server logger, which imports the whole SDK, is used only by API routes", () => {
-    const users = files.filter((f) => /from "(@\/lib|\.)\/activity-logger"/.test(f.text)).map((f) => f.rel);
+  it.each(["activity-logger", "staff-rate-limit"])("the server's %s, which imports the whole SDK, is used only by API routes", (name) => {
+    const users = files.filter((f) => new RegExp(`from "(@/lib|\\.)/${name}"`).test(f.text)).map((f) => f.rel);
     expect(users.length).toBeGreaterThan(0);
     expect(users.filter((rel) => !rel.startsWith("app/api/"))).toEqual([]);
   });

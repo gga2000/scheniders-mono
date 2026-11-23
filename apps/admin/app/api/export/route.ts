@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { forbidden, requireAdminPermission } from "@/lib/api-auth";
+import { staffRateLimit } from "@/lib/staff-rate-limit";
 import { logAdminAction } from "@/lib/activity-logger";
 import { hasPermission } from "@/lib/admin-permissions";
 import { dayOf, trialClock } from "@/lib/baghdad-day";
@@ -173,6 +174,9 @@ export async function GET(request: NextRequest) {
   if (type === "transactions" && !hasPermission(auth.role, "adjust_balance")) {
     return forbidden("adjust_balance");
   }
+  // Counted once the request is allowed, so a refused one costs no try.
+  const limited = await staffRateLimit(auth.user.id, "export");
+  if (limited) return limited;
 
   try {
     const data = await readExport(type);
@@ -202,6 +206,8 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid input", details: parsed.error.flatten() }, { status: 400 });
   }
+  const limited = await staffRateLimit(auth.user.id, "export");
+  if (limited) return limited;
   const { type, format } = parsed.data;
   const ids = [...new Set(parsed.data.ids)];
   try {

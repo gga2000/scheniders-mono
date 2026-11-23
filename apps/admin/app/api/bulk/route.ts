@@ -3,6 +3,7 @@ import { z } from "zod";
 import { PLAN_TIERS } from "@/types/admin";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { forbidden, requireAdminPermission } from "@/lib/api-auth";
+import { staffRateLimit } from "@/lib/staff-rate-limit";
 import { logAdminActivityBatch } from "@/lib/activity-logger";
 import { hasPermission } from "@/lib/admin-permissions";
 import { topUpWallet } from "@/lib/wallet-topup";
@@ -94,6 +95,8 @@ const BulkActionSchema = z.object({
 export async function POST(request: NextRequest) {
   const auth = await requireAdminPermission(request, "bulk_action");
   if (auth instanceof NextResponse) return auth;
+  const limited = await staffRateLimit(auth.user.id, "bulk");
+  if (limited) return limited;
 
   try {
     const body = await request.json();

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireBearerAdmin } from "@/lib/api-auth";
+import { staffRateLimit } from "@/lib/staff-rate-limit";
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -159,6 +160,8 @@ export async function POST(request: NextRequest) {
   // (429/502/422), so an auth-server outage must not flow through it.
   const admin = await requireBearerAdmin(request);
   if (admin instanceof NextResponse) return admin;
+  const limited = await staffRateLimit(admin.user.id, "analyze-profile");
+  if (limited) return limited;
 
   try {
     if (!RAPIDAPI_KEY) {
