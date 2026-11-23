@@ -9,10 +9,12 @@ import {
 import { cn } from "@/lib/utils";
 import { useMerchantsStats } from "@/hooks/use-merchants-stats";
 import { formatCount } from "@/lib/format";
+import { PartReadLine } from "@/components/shared/stale-line";
 
 export function MerchantsRollupStrip() {
   // No numbers until they are read: a zero here would pass for a real total.
-  const { data } = useMerchantsStats();
+  const statsRead = useMerchantsStats();
+  const { data } = statsRead;
 
   const totalWallet = data?.total_wallet_iqd ?? 0;
   const planPrices = data?.plan_prices_iqd ?? 0;
@@ -32,7 +34,7 @@ export function MerchantsRollupStrip() {
     {
       label: "Total Wallet",
       // Every shop but the cancelled and the suspended (stats route), paused ones too.
-      // "suspended", the word this page's filter, board and status menu use.
+      // "on hold", the word this page's filter, board and status menu use.
       sublabel: "not cancelled or on hold",
       value: !data ? "—" : formatCount(totalWallet),
       suffix: "IQD",
@@ -78,6 +80,9 @@ export function MerchantsRollupStrip() {
   ];
 
   return (
+    <>
+    {/* A failed refresh keeps the tiles and says how old they are (round 25, R3-10): they were silently old. */}
+    <PartReadLine read={statsRead} what="the money numbers" />
     <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
       {tiles.map((tile) => {
         const Icon = tile.icon;
@@ -126,5 +131,6 @@ export function MerchantsRollupStrip() {
         );
       })}
     </div>
+    </>
   );
 }
