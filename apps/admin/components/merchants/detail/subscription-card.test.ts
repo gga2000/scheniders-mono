@@ -43,6 +43,30 @@ const render = (role: AdminRole | null, shop: MerchantDetail["tenant"] = tenant)
 };
 
 describe("SubscriptionCard renewal", () => {
+  /*
+   * Round 25 (structure new 6): the card's Off line takes the lock's reason
+   * (round 24 UX new 8), but no test drew the card locked, so passing null
+   * there passed every suite.
+   */
+  it("tells a shop that renewal off has already locked what happened", () => {
+    auth.role = "super_admin";
+    const html = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(SubscriptionCard, {
+          merchantId: "t1",
+          tenant,
+          subscription: { ...subscription, auto_renew: false } as MerchantDetail["subscription"],
+          billingLock: { locked: true, reason: "unpaid" } as unknown as BillingLockSnapshot,
+          walletIqd: 0,
+        }),
+      ),
+    );
+    expect(html).toContain("Off: the month ended unpaid, so the shop is locked");
+    expect(html).not.toContain("when the month ends");
+  });
+
   it("gives a super admin the switch", () => {
     const html = render("super_admin");
     expect(html).toContain('role="switch"');

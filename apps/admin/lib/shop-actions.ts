@@ -125,6 +125,19 @@ export function reactivateWords(comeback: Comeback, trialEndsAt: string | null, 
 }
 
 /**
+ * A shop that no job charges and whose lock screen opens nothing until it is
+ * back: renew_subscription_core and settle_billing_lock answer on_hold for
+ * every status but trial and active. The renewal row and both renewal
+ * sentences read this one table, so they say the same about one shop (round
+ * 24 structure new 4, round 25 data new 1).
+ */
+const AWAY: Readonly<Record<string, { shop: string; until: string; while: string }>> = {
+  limited: { shop: "The shop is paused", until: "until the pause lifts", while: "paused" },
+  suspended: { shop: "The shop is on hold", until: "until it comes back", while: "on hold" },
+  cancelled: { shop: "The shop is cancelled", until: "until it is made active again", while: "cancelled" },
+};
+
+/**
  * The renewal line on the shop page. renew_subscription_core charges only a
  * shop on trial or active: one paused, on hold or cancelled answers on_hold
  * and is not charged, so "charges the wallet each month" would say otherwise.
@@ -142,22 +155,20 @@ export function renewalWords(
 ): string {
   // The demo store renews at no charge whatever the switch says (B13).
   if (demo) return autoRenew ? "On: renews each month, never charged (demo store)" : "Off, but the demo store renews each month at no charge";
+  const away = AWAY[status];
   // Renewal off: the month's end is not charged, and the shop locks like an unpaid month (20261119073654).
   if (!autoRenew) {
     if (lockedFor === "trial_ended") return "Off: the trial ended unpaid, so the shop is locked";
     if (lockedFor === "unpaid") return "Off: the month ended unpaid, so the shop is locked";
+    // Away, nothing charges or locks it: its month's end counts once it is
+    // back, and may have passed already (round 25 data new 1).
+    if (away) return `Off: not charged while ${away.while}, then the shop locks once its month is over`;
     return "Off: when the month ends it is not charged, and the shop locks";
   }
-  switch (status) {
-    case "limited":
-      return "On: not charged while paused, then charges the wallet each month";
-    case "suspended":
-      return "On: not charged while on hold, then charges the wallet each month";
-    case "cancelled":
-      return "On: not charged while cancelled";
-    default:
-      return "On: charges the wallet each month";
-  }
+  if (!away) return "On: charges the wallet each month";
+  return status === "cancelled"
+    ? "On: not charged while cancelled"
+    : `On: not charged while ${away.while}, then charges the wallet each month`;
 }
 
 /** What the Renewal switch knows when staff turn renewal back on. */
@@ -172,18 +183,6 @@ export interface RenewalOnFacts {
   lock: { price_iqd: number } | null;
   walletIqd: number;
 }
-
-/**
- * A shop that no job charges and whose lock screen opens nothing until it is
- * back: renew_subscription_core and settle_billing_lock answer on_hold for
- * every status but trial and active. Both renewal sentences read this one
- * table, so they say the same about one shop (round 24 structure new 4).
- */
-const AWAY: Readonly<Record<string, { shop: string; until: string }>> = {
-  limited: { shop: "The shop is paused", until: "until the pause lifts" },
-  suspended: { shop: "The shop is on hold", until: "until it comes back" },
-  cancelled: { shop: "The shop is cancelled", until: "until it is made active again" },
-};
 
 /** Why no job charges the shop right now, or undefined when one may. */
 function notChargedWhile(status: string): string | undefined {

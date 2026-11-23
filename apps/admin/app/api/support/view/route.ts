@@ -44,19 +44,29 @@ async function createViewer(supabase: AdminDb, email: string, adminName: string)
  * signed up with a staff id does not switch View as merchant off for that
  * person (audit R4-N1: it answered 409 until a developer deleted it).
  */
-async function ensureViewer(supabase: AdminDb, adminId: string, adminName: string): Promise<Viewer> {
+/** The staff member's viewer row, if there is one: the sign-in it names. */
+async function viewerRow(supabase: AdminDb, adminId: string): Promise<string | null> {
   const existing = await supabase.from("support_viewer_users").select("user_id").eq("admin_id", adminId).maybeSingle();
   if (existing.error) throw existing.error;
-  if (existing.data) {
-    const userId = (existing.data as { user_id: string }).user_id;
-    const found = await supabase.auth.admin.getUserById(userId);
-    const email = found.data.user?.email;
-    if (!email) throw new Error(`Viewer lookup failed: ${found.error?.message ?? "no address"}`);
-    return { userId, email };
-  }
+  return existing.data ? (existing.data as { user_id: string }).user_id : null;
+}
+
+/** The address of a viewer sign-in a row names, read from its account. */
+async function viewerOf(supabase: AdminDb, userId: string): Promise<Viewer> {
+  const found = await supabase.auth.admin.getUserById(userId);
+  const email = found.data.user?.email;
+  if (!email) throw new Error(`Viewer lookup failed: ${found.error?.message ?? "no address"}`);
+  return { userId, email };
+}
+
+async function ensureViewer(supabase: AdminDb, adminId: string, adminName: string): Promise<Viewer> {
+  const existing = await viewerRow(supabase, adminId);
+  if (existing) return viewerOf(supabase, existing);
 
   const usual = supportViewerEmail(adminId);
   let viewer = await createViewer(supabase, usual, adminName);
+  // Whether this press made the sign-in, so a press that loses the race below removes only its own.
+  let made = viewer !== "taken";
   if (viewer === "taken") {
     const found = await supabase.auth.admin.generateLink({ type: "magiclink", email: usual });
     if (!found.data.user) throw new Error(`Viewer lookup failed: ${found.error?.message ?? "no user"}`);
@@ -67,6 +77,7 @@ async function ensureViewer(supabase: AdminDb, adminId: string, adminName: strin
       console.error("Support view: the usual viewer address is held by an account the console did not make", { adminId });
       viewer = await createViewer(supabase, supportViewerEmail(adminId, randomUUID()), adminName);
       if (viewer === "taken") throw new Error("Viewer create failed: the second address is taken too");
+      made = true;
     }
   }
 
@@ -76,6 +87,21 @@ async function ensureViewer(supabase: AdminDb, adminId: string, adminName: strin
   );
   if (profile.error) throw profile.error;
   const row = await supabase.from("support_viewer_users").insert({ user_id: viewer.userId, admin_id: adminId });
+  if (row.error?.code === "23505") {
+    // Two presses at once (two tabs): the other press wrote the row first.
+    // This one uses that viewer. A sign-in this press made at its own second
+    // address is named by no row and no route would ever use it, so it is
+    // removed (its profile goes with it); the look goes ahead either way
+    // (round 25 structure new 6).
+    const winner = await viewerRow(supabase, adminId);
+    if (!winner) throw row.error;
+    if (winner === viewer.userId) return viewer;
+    if (made) {
+      const removed = await supabase.auth.admin.deleteUser(viewer.userId);
+      if (removed.error) console.error("Support view: an unused viewer sign-in could not be removed", { adminId, userId: viewer.userId });
+    }
+    return viewerOf(supabase, winner);
+  }
   if (row.error) throw row.error;
   return viewer;
 }

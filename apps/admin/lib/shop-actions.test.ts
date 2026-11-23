@@ -190,7 +190,10 @@ describe("the renewal line", () => {
   it("says the demo store is never charged, and renewal off locks the shop at the month's end", () => {
     expect(renewalWords(true, true, "active", null)).toBe("On: renews each month, never charged (demo store)");
     expect(renewalWords(false, true, "active", null)).toBe("Off, but the demo store renews each month at no charge");
-    expect(renewalWords(false, false, "suspended", null)).toBe("Off: when the month ends it is not charged, and the shop locks");
+    // Away, nothing charges or locks the shop; its month's end counts once it is back (round 25 data new 1).
+    expect(renewalWords(false, false, "limited", null)).toBe("Off: not charged while paused, then the shop locks once its month is over");
+    expect(renewalWords(false, false, "suspended", null)).toBe("Off: not charged while on hold, then the shop locks once its month is over");
+    expect(renewalWords(false, false, "cancelled", null)).toBe("Off: not charged while cancelled, then the shop locks once its month is over");
     // A shop renewal off already locked is told what happened (round 24 UX new 8).
     expect(renewalWords(false, false, "active", "unpaid")).toBe("Off: the month ended unpaid, so the shop is locked");
     expect(renewalWords(false, false, "limited", "unpaid")).toBe("Off: the month ended unpaid, so the shop is locked");
