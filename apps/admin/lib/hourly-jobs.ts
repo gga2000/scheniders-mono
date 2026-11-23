@@ -54,27 +54,3 @@ export function jobProblems(runs: readonly JobRun[], nowMs: number): JobProblem[
     return [];
   });
 }
-
-/**
- * The failed runs to send to Sentry now: runs that started within the hour
- * (HOURLY_RUN_MS, while no newer run has replaced them) that `seen` has not
- * had. The bell checks every 10 minutes while a console is open, so a failure
- * reaches Sentry by the first check after it; with no console open, not at all
- * until the scheduled check runs (lib/hourly-check.ts). `seen` maps each run sent (job
- * and start) to its start, and forgets runs past the hour.
- * shortcut: `seen` lives in one server instance, so another instance, or a
- * cold start, may send the same run again within its hour (one more event on
- * the same Sentry issue: the fingerprint is the job); past it, no instance
- * sends it.
- */
-export function freshFailures(problems: readonly JobProblem[], seen: Map<string, number>, nowMs: number): JobProblem[] {
-  for (const [key, startMs] of seen) if (nowMs - startMs > HOURLY_RUN_MS) seen.delete(key);
-  return problems.filter((problem) => {
-    if (problem.problem !== "failed" || !problem.last_run) return false;
-    const startMs = Date.parse(problem.last_run);
-    const key = `${problem.job}@${problem.last_run}`;
-    if (nowMs - startMs > HOURLY_RUN_MS || seen.has(key)) return false;
-    seen.set(key, startMs);
-    return true;
-  });
-}

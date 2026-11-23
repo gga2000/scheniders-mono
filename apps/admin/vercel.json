@@ -9,6 +9,12 @@
       "maxDuration": 30
     }
   },
+  "crons": [
+    {
+      "path": "/api/cron/hourly-jobs",
+      "schedule": "40 * * * *"
+    }
+  ],
   "git": {
     "deploymentEnabled": {
       "main": true,
