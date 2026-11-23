@@ -1,4 +1,5 @@
 import { adminFetch } from "@/lib/admin-fetch";
+import { failureOf } from "@/lib/send-json";
 /**
  * The shops ticked on the Merchants page, saved as a CSV file. The ids go in
  * a POST body (thousands do not fit in an address), so the browser cannot
@@ -11,7 +12,7 @@ export async function downloadSelectedShops(ids: readonly string[]): Promise<voi
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ type: "merchants", format: "csv", ids }),
   });
-  if (!response.ok) throw new Error(`Export failed (${response.status})`);
+  if (!response.ok) throw failureOf(response.status, await response.json().catch(() => null), "The export failed.");
 
   const name = exportFileName(response.headers.get("content-disposition")) ?? "merchants_export.csv";
   const url = URL.createObjectURL(await response.blob());

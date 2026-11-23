@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireBearerAdmin } from "@/lib/api-auth";
+import { staffRateLimit } from "@/lib/staff-rate-limit";
 import { logAdminAction } from "@/lib/activity-logger";
 import { LEAD_IMPORT_MAX_ROWS, leadImportRow, type LeadImportResult } from "@/lib/lead-import";
 
@@ -15,6 +16,8 @@ export async function POST(request: NextRequest) {
   try {
     const admin = await requireBearerAdmin(request);
     if (admin instanceof NextResponse) return admin;
+    const limited = await staffRateLimit(admin.user.id, "lead-import");
+    if (limited) return limited;
 
     const body = bodySchema.safeParse(await request.json().catch(() => null));
     if (!body.success) {

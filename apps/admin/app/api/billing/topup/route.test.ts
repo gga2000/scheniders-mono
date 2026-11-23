@@ -30,6 +30,9 @@ vi.mock("@/lib/api-auth", async () => {
 
 const rpc = vi.fn();
 const from = vi.fn();
+// The per-staff limit has its own test (lib/staff-rate-limit.test.ts).
+const staffRateLimit = vi.fn(async (): Promise<Response | null> => null);
+vi.mock("@/lib/staff-rate-limit", () => ({ staffRateLimit }));
 vi.mock("@/lib/admin-supabase", () => ({ createAdminClient: () => ({ rpc, from }) }));
 
 const logAdminActivity = vi.fn(async () => {});
@@ -60,6 +63,15 @@ describe("POST /api/billing/topup", () => {
     expect(res.status).toBe(403);
     expect(rpc).not.toHaveBeenCalled();
     expect(from).not.toHaveBeenCalled();
+  });
+
+  // Round 25 (security item 18): a top-up past the staff login's limit is refused before any money moves.
+  it("refuses past the staff login's limit before touching the wallet", async () => {
+    staffRateLimit.mockResolvedValueOnce(Response.json({ error: "Too many of these in a short time." }, { status: 429 }));
+    const res = await POST(req({ tenant_id: TENANT, amount: 5000 }));
+    expect(res.status).toBe(429);
+    expect(staffRateLimit).toHaveBeenCalledWith(ADMIN_ID, "top-up");
+    expect(rpc).not.toHaveBeenCalled();
   });
 
   // Ali's money rule, 23 Nov: staff add at least 2,500 IQD by hand.

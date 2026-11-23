@@ -72,6 +72,8 @@ function query(table: string) {
   return builder;
 }
 
+// The per-staff limit has its own test (lib/staff-rate-limit.test.ts).
+vi.mock("@/lib/staff-rate-limit", () => ({ staffRateLimit: async () => null }));
 vi.mock("@/lib/admin-supabase", () => ({ createAdminClient: () => ({ from: query }) }));
 
 const logAdminAction = vi.fn(async () => undefined);

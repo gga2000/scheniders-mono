@@ -18,6 +18,8 @@ const inserted: Record<string, unknown>[] = [];
 /** Merchant names the database refuses, with the message it gives. */
 const refused = new Map<string, string>();
 
+// The per-staff limit has its own test (lib/staff-rate-limit.test.ts).
+vi.mock("@/lib/staff-rate-limit", () => ({ staffRateLimit: async () => null }));
 vi.mock("@/lib/admin-supabase", () => ({
   createAdminClient: () => ({
     from: (table: string) => ({

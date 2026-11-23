@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdminPermission } from "@/lib/api-auth";
+import { staffRateLimit } from "@/lib/staff-rate-limit";
 import { logAdminActivity } from "@/lib/activity-logger";
 import { staffReasonSchema, staffRequestIdSchema } from "@/lib/staff-reason";
 import { topUpWallet, topupAmountSchema } from "@/lib/wallet-topup";
@@ -18,6 +19,8 @@ const topupSchema = z.object({
 export async function POST(request: NextRequest) {
   const auth = await requireAdminPermission(request, "top_up_wallet");
   if (auth instanceof NextResponse) return auth;
+  const limited = await staffRateLimit(auth.user.id, "top-up");
+  if (limited) return limited;
 
   let body: unknown;
   try {

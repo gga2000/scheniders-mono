@@ -29,6 +29,8 @@ vi.mock("@/lib/api-auth", async () => {
 
 const rpc = vi.fn();
 const from = vi.fn();
+// The per-staff limit has its own test (lib/staff-rate-limit.test.ts).
+vi.mock("@/lib/staff-rate-limit", () => ({ staffRateLimit: async () => null }));
 vi.mock("@/lib/admin-supabase", () => ({ createAdminClient: () => ({ rpc, from }) }));
 
 const logAdminActivityBatch = vi.fn(async () => {});
