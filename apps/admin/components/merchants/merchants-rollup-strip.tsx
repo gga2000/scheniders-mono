@@ -33,7 +33,7 @@ export function MerchantsRollupStrip() {
       label: "Total Wallet",
       // Every shop but the cancelled and the suspended (stats route), paused ones too.
       // "suspended", the word this page's filter, board and status menu use.
-      sublabel: "not cancelled or suspended",
+      sublabel: "not cancelled or on hold",
       value: !data ? "—" : formatCount(totalWallet),
       suffix: "IQD",
       icon: Wallet,

@@ -133,7 +133,7 @@ export async function GET(request: NextRequest) {
       // +2 if suspended
       if (tenant.status === "suspended") {
         riskScore += 2;
-        reasons.push("Suspended");
+        reasons.push("On hold");
       }
 
       // +3 if locked: the shop cannot take orders until it pays.

@@ -74,7 +74,7 @@ const STAGE_BY_STATUS: Record<TenantStatus, Stage> = {
   },
   suspended: {
     key: "suspended",
-    label: "Suspended",
+    label: "On hold",
     description: "Action needed",
     icon: Ban,
     gradient: "from-rose-500 to-red-600",

@@ -44,4 +44,11 @@ describe("Quick Top-Up says what it will do before the press", () => {
     expect(quickTopUpPlan(SHOP, 10_000_000, "Qi transfer").kind).toBe("ready");
     expect(quickTopUpPlan(SHOP, 10_000_001, "Qi transfer")).toEqual({ kind: "blocked", words: "At most 10,000,000 IQD at once." });
   });
+
+  // Ali's money rule, 23 Nov: staff add at least 2,500 IQD by hand, so a typed "5" meant as 5,000 cannot go through.
+  it("says the floor below 2,500 IQD", () => {
+    expect(quickTopUpPlan(SHOP, 2_500, "Qi transfer").kind).toBe("ready");
+    expect(quickTopUpPlan(SHOP, 2_499, "Qi transfer")).toEqual({ kind: "blocked", words: "At least 2,500 IQD at once." });
+    expect(quickTopUpPlan(SHOP, 5, "Qi transfer")).toEqual({ kind: "blocked", words: "At least 2,500 IQD at once." });
+  });
 });

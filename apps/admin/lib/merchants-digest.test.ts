@@ -44,13 +44,13 @@ describe("merchantsDigest", () => {
     expect(card.status).toBe("attention");
   });
 
-  it("opens the suspended shops from the Suspended card, the attention list from the others", () => {
+  it("opens the suspended shops from the On hold card, the attention list from the others", () => {
     const digest = merchantsDigest(buckets({ trials_today: 1, trials_expired: 2, suspended: 3, attention: 6 }));
 
     expect(digest.cards.map((card) => [card.label, card.count, card.status])).toEqual([
       ["Trial ended", 2, "attention"],
       ["Trial ends today", 1, "attention"],
-      ["Suspended", 3, "suspended"],
+      ["On hold", 3, "suspended"],
     ]);
   });
 
