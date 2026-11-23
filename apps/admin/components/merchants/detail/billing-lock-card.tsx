@@ -15,7 +15,8 @@ import { keptRequestIds, requestKey, shopKey } from "@/lib/request-ids";
 import { formatDay } from "@/lib/format";
 import { LOCK_REASON_WORDS, lockOpensWords, RENEWAL_OFF_THEN_LOCKS } from "@/lib/billing-lock-label";
 import { shopActionKey } from "@/lib/shop-actions";
-import { PanelFields, postJson, useRereadShop, useWriteFailed } from "./action-ui";
+import { PanelFields, useRereadShop, useWriteFailed } from "./action-ui";
+import { postJson } from "@/lib/send-json";
 
 interface BillingLockCardProps {
   merchantId: string;

@@ -2,7 +2,9 @@
 
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { AnswerLost, postJson, useStillDrawn } from "@/components/merchants/detail/action-ui";
+import { useStillDrawn } from "@/components/merchants/detail/action-ui";
+import { AnswerLost } from "@/lib/answer-lost";
+import { postJson } from "@/lib/send-json";
 import { holdLeaveGuard, useLinkLeaveQuestion } from "@/hooks/use-leave-guard";
 import { signedInUserId } from "@/lib/admin-fetch";
 import { planImport, type ColumnMapping } from "@/lib/product-import";

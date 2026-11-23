@@ -31,7 +31,6 @@ vi.mock("@/lib/admin-fetch", () => ({
 vi.mock("@/components/merchants/detail/action-ui", async () => {
   const { useEffect, useRef } = await import("react");
   return {
-  AnswerLost: class AnswerLost extends Error {},
   useStillDrawn: () => {
     const drawn = useRef(true);
     useEffect(() => {
@@ -42,6 +41,9 @@ vi.mock("@/components/merchants/detail/action-ui", async () => {
     }, []);
     return () => drawn.current;
   },
+  };
+});
+vi.mock("@/lib/send-json", () => ({
   postJson: async (url: string, body: Record<string, unknown>) => {
     consoleApi.posts.push({ url, body });
     if (url.endsWith("/product-import")) {
@@ -52,8 +54,7 @@ vi.mock("@/components/merchants/detail/action-ui", async () => {
     if (consoleApi.imagesGate) await consoleApi.imagesGate;
     return { saved: 1, imageUrl: "x", failed: [{ link: "https://a.example/page", reason: "The link is not a JPEG, PNG, WebP or GIF image" }] };
   },
-  };
-});
+}));
 
 import { ProductImportFlow } from "./product-import-flow";
 

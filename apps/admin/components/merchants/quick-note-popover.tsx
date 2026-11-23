@@ -10,7 +10,7 @@ import { formatWhen } from "@/lib/format";
 import { okOrLoadFailure } from "@/lib/load-failure";
 import { LoadFailedLine } from "@/components/shared/load-failed-line";
 import { StaleLine } from "@/components/shared/stale-line";
-import { postJson } from "@/components/merchants/detail/action-ui";
+import { postJson } from "@/lib/send-json";
 import { adminFetch } from "@/lib/admin-fetch";
 import { useLeaveGuard } from "@/hooks/use-leave-guard";
 

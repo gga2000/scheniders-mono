@@ -2,8 +2,8 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { LeadActivityType } from "@/types/leads";
-import { adminFetch } from "@/lib/admin-fetch";
-import { refusal } from "@/lib/refusal";
+import { answerLostWords } from "@/lib/answer-lost";
+import { sendStep } from "@/lib/send-json";
 
 export function useCreateActivity() {
   const qc = useQueryClient();
@@ -19,13 +19,13 @@ export function useCreateActivity() {
       title: string;
       description?: string;
     }) => {
-      const res = await adminFetch(`/api/leads/${leadId}/activities`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ activity_type, title, description }),
-      });
-      if (!res.ok) throw new Error(await refusal(res, "Could not save it. Try again."));
-      return res.json();
+      return sendStep<unknown>(
+        `/api/leads/${leadId}/activities`,
+        { activity_type, title, description },
+        "POST",
+        answerLostWords("the lead's timeline"),
+        "Could not save it. Try again.",
+      );
     },
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ["lead", vars.leadId] });

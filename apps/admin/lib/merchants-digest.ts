@@ -29,7 +29,7 @@ export function merchantsDigest(buckets: MerchantsStats["buckets"]): MerchantsDi
   const cards: DigestCard[] = [
     { reason: "trials_expired", label: "Trial ended", count: buckets.trials_expired, status: ATTENTION },
     { reason: "trials_today", label: "Trial ends today", count: buckets.trials_today, status: ATTENTION },
-    { reason: "suspended", label: "Suspended", count: buckets.suspended, status: "suspended" },
+    { reason: "suspended", label: "On hold", count: buckets.suspended, status: "suspended" },
     {
       reason: "low_wallet",
       label: `Wallet under ${formatIQD(ATTENTION_WALLET_IQD)}`,

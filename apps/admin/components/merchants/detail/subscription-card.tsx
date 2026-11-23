@@ -12,7 +12,8 @@ import { isStaffReason } from "@/lib/billing-lock-tools";
 import { effectiveStatus } from "@/lib/effective-status";
 import { renewalOffWords, renewalOnWords, renewalWords, shopActionKey, type RenewalOnFacts } from "@/lib/shop-actions";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
-import { ConfirmButton, PanelFields, postJson, useRereadShop, useWriteFailed } from "./action-ui";
+import { ConfirmButton, PanelFields, useRereadShop, useWriteFailed } from "./action-ui";
+import { postJson } from "@/lib/send-json";
 
 interface SubscriptionCardProps {
   merchantId: string;

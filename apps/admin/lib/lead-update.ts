@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { AnswerLost } from "./answer-lost";
 import { wordList } from "./word-list";
 
 /**
@@ -153,10 +154,11 @@ export class LeadListsChangedError extends Error {
 const refusedSaveSchema = z.object({ error: z.string(), stale: z.array(z.enum(LEAD_LISTS)).optional() });
 
 /** The error a refused lead save answers with: the server's words, and the lists that clashed. */
-export async function leadSaveRefusal(res: Response, fallback: string): Promise<Error> {
-  if (res.status === 404) return new LeadGoneError();
-  const body = refusedSaveSchema.safeParse(await res.json().catch(() => null));
-  if (!body.success) return new Error(fallback);
+export function leadSaveRefusal(status: number, data: unknown, fallback: string, lost?: string): Error {
+  if (status === 404) return new LeadGoneError();
+  const body = refusedSaveSchema.safeParse(data);
+  // A gateway's 5xx with no words: the save may have landed, so never say it did not.
+  if (!body.success) return status >= 500 ? new AnswerLost(lost) : new Error(fallback);
   return body.data.stale?.length ? new LeadListsChangedError(body.data.error, body.data.stale) : new Error(body.data.error);
 }
 

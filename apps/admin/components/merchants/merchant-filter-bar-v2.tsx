@@ -45,7 +45,7 @@ const STATUS_PILLS: Array<{
   },
   {
     value: "suspended",
-    label: "Suspended",
+    label: "On hold",
     activeColor: "bg-rose-200 text-rose-900 border-rose-300 ring-2 ring-rose-400/40 dark:bg-rose-400/25 dark:text-rose-200 dark:border-rose-400/40",
     inactiveColor: "bg-rose-50 text-rose-800 border-rose-100 hover:bg-rose-100 dark:bg-rose-400/10 dark:text-rose-300/80 dark:border-rose-400/20 dark:hover:bg-rose-400/15",
   },
@@ -369,7 +369,7 @@ export const MerchantFilterBarV2 = memo(function MerchantFilterBarV2({
                   ? "bg-gradient-to-br from-rose-500 to-red-600 text-white border-rose-400 scale-[1.03] shadow-md shadow-rose-500/40"
                   : "bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100 dark:bg-rose-400/10 dark:text-rose-300 dark:border-rose-400/30 dark:hover:bg-rose-400/20"
               )}
-              title="Trials expiring, suspended, cancelled, or critical balance"
+              title="Trials expiring, on hold, cancelled, or critical balance"
             >
               <span className="relative inline-flex w-2 h-2">
                 <span

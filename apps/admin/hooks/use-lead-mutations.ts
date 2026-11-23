@@ -1,26 +1,22 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import type { LeadFormData, LeadStatus } from "@/types/leads";
-import { adminFetch } from "@/lib/admin-fetch";
-import { refusal } from "@/lib/refusal";
+import type { Lead, LeadFormData, LeadStatus } from "@/types/leads";
+import { z } from "zod";
+import { answerLostWords } from "@/lib/answer-lost";
+import { failureOf, sendJson, sendStep } from "@/lib/send-json";
 import { bulkLeadResultSchema, type BulkLeadBody, type BulkLeadResult } from "@/lib/lead-bulk";
 import { INDUSTRY_GONE, LeadGoneError, LeadListsChangedError, leadSaveRefusal, type LeadListsAsOpened } from "@/lib/lead-update";
+
+/** A lost answer may have saved the step: look before pressing again. */
+const LEADS_UNSURE = answerLostWords("the leads list");
+const LEAD_UNSURE = answerLostWords("the lead");
 
 export function useCreateLead() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (data: LeadFormData & { is_draft?: boolean }) => {
-      const res = await adminFetch("/api/leads", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "Failed to create lead");
-      }
-      return res.json();
+      return sendStep<{ lead: Lead }>("/api/leads", data, "POST", LEADS_UNSURE, "Could not add the lead.");
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["leads"] });
@@ -45,13 +41,9 @@ export function useUpdateLead() {
       /** The lists in `data` as the form opened them; the server refuses the save if one changed since. */
       was?: LeadListsAsOpened;
     }) => {
-      const res = await adminFetch(`/api/leads/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(Object.keys(was).length > 0 ? { ...data, was } : data),
-      });
-      if (!res.ok) throw await leadSaveRefusal(res, "Could not save the lead.");
-      return res.json();
+      const answer = await sendJson(`/api/leads/${id}`, Object.keys(was).length > 0 ? { ...data, was } : data, "PATCH", LEAD_UNSURE);
+      if (!answer.ok) throw leadSaveRefusal(answer.status, answer.data, "Could not save the lead.", LEAD_UNSURE);
+      return answer.data;
     },
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ["leads"] });
@@ -74,12 +66,7 @@ export function useDeleteLead() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const res = await adminFetch(`/api/leads/${id}`, { method: "DELETE" });
-      if (!res.ok) {
-        const body = await res.json().catch(() => null);
-        throw new Error(typeof body?.error === "string" ? body.error : "Could not delete the lead");
-      }
-      return res.json();
+      return sendStep<unknown>(`/api/leads/${id}`, undefined, "DELETE", LEADS_UNSURE, "Could not delete the lead.");
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["leads"] });
@@ -101,23 +88,20 @@ export class BulkLeadError extends Error {
   }
 }
 
+/** A bulk refusal in the server's words, with how many leads someone else owns when it asks. */
+const bulkRefusalSchema = z.object({ error: z.string(), owned_by_others: z.number().optional() });
+
 export function useBulkLeadAction() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (body: BulkLeadBody): Promise<BulkLeadResult> => {
-      const res = await adminFetch("/api/leads/bulk", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) {
-        const err: { error?: unknown; owned_by_others?: unknown } = await res.json().catch(() => ({}));
-        throw new BulkLeadError(
-          typeof err.error === "string" ? err.error : "Bulk action failed",
-          typeof err.owned_by_others === "number" ? err.owned_by_others : null,
-        );
+      const answer = await sendJson("/api/leads/bulk", body, "POST", LEADS_UNSURE);
+      if (!answer.ok) {
+        const refused = bulkRefusalSchema.safeParse(answer.data);
+        if (!refused.success) throw failureOf(answer.status, answer.data, "Bulk action failed", LEADS_UNSURE);
+        throw new BulkLeadError(refused.data.error, refused.data.owned_by_others ?? null);
       }
-      return bulkLeadResultSchema.parse(await res.json());
+      return bulkLeadResultSchema.parse(answer.data);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["leads"] });
@@ -136,13 +120,13 @@ export function useBuildStore() {
       leadId: string;
       data: Record<string, unknown>;
     }): Promise<{ tenant: { id: string; slug: string }; store_url: string }> => {
-      const res = await adminFetch(`/api/leads/${leadId}/build-store`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) throw new Error(await refusal(res, "Failed to build store"));
-      return res.json();
+      return sendStep<{ tenant: { id: string; slug: string }; store_url: string }>(
+        `/api/leads/${leadId}/build-store`,
+        data,
+        "POST",
+        LEAD_UNSURE,
+        "Failed to build store",
+      );
     },
     // A refusal can mean the lead changed under the dialog ("A store already
     // exists", "Lead already converted"), so the lead is read again either
@@ -162,16 +146,7 @@ export function useConvertLead() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ leadId, data }: { leadId: string; data?: Record<string, unknown> }) => {
-      const res = await adminFetch(`/api/leads/${leadId}/convert`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data ?? {}),
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "Failed to convert lead");
-      }
-      return res.json();
+      return sendStep<unknown>(`/api/leads/${leadId}/convert`, data ?? {}, "POST", LEAD_UNSURE, "Could not convert the lead.");
     },
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ["leads"] });

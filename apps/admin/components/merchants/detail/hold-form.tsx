@@ -6,7 +6,8 @@ import { useLiveTick } from "@/hooks/use-live-tick";
 import { isStaffReason } from "@/lib/billing-lock-tools";
 import { reactivateWords, shopActionKey, type Comeback } from "@/lib/shop-actions";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
-import { ConfirmButton, ErrorLine, PanelFields, PanelTitle, postJson, useWriteFailed, WillHappen } from "./action-ui";
+import { ConfirmButton, ErrorLine, PanelFields, PanelTitle, useWriteFailed, WillHappen } from "./action-ui";
+import { postJson } from "@/lib/send-json";
 
 interface HoldFormProps {
   shopId: string;

@@ -7,9 +7,10 @@ import { formatCount, formatIQD } from "@/lib/format";
 import { requestKey, shopKey, type RequestIds } from "@/lib/request-ids";
 import { shopActionKey, typedAmount } from "@/lib/shop-actions";
 import { isStaffReason } from "@/lib/billing-lock-tools";
-import { TOPUP_MAX_IQD } from "@/lib/topup-queue";
+import { staffTopUpOutOfRange } from "@/lib/quick-top-up";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
-import { Choice, ConfirmButton, ErrorLine, FieldInput, PanelFields, PanelTitle, postJson, useWriteFailed, wasAlreadyDone, WillHappen } from "./action-ui";
+import { Choice, ConfirmButton, ErrorLine, FieldInput, PanelFields, PanelTitle, useWriteFailed, WillHappen } from "./action-ui";
+import { postJson, wasAlreadyDone } from "@/lib/send-json";
 
 const PRESETS = [5_000, 10_000, 50_000, 100_000];
 
@@ -33,7 +34,8 @@ export function AddMoneyForm({ shopId, shopName, balance, requestIds, onDone }: 
   const [how, setHow] = useState("");
 
   const amount = preset ?? typedAmount(typed);
-  const amountOk = amount !== null && amount <= TOPUP_MAX_IQD;
+  const outOfRange = amount === null ? null : staffTopUpOutOfRange(amount);
+  const amountOk = amount !== null && outOfRange === null;
   const ready = amountOk && isStaffReason(how);
 
   const failed = useWriteFailed(shopId, `No money was added to ${shopName}.`);
@@ -93,9 +95,7 @@ export function AddMoneyForm({ shopId, shopName, balance, requestIds, onDone }: 
         placeholder="How did it come? Cash at the office, transfer..."
         className="mb-3"
       />
-      {amount !== null && !amountOk && (
-        <p className="mb-2 text-[13px] text-[var(--ink-red)]">At most {formatIQD(TOPUP_MAX_IQD)} at once.</p>
-      )}
+      {outOfRange !== null && <p className="mb-2 text-[13px] text-[var(--ink-red)]">{outOfRange}</p>}
       {/* Said once the amount is chosen; only the button waits for how it came (round 20). */}
       {amountOk && <WillHappen>Wallet after: {formatIQD(balance + amount)}.</WillHappen>}
       <ErrorLine error={add.error} />

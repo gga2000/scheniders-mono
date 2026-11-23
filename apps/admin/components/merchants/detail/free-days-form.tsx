@@ -9,7 +9,8 @@ import { RENEWAL_OFF_THEN_LOCKS } from "@/lib/billing-lock-label";
 import { requestKey, shopKey, type RequestIds } from "@/lib/request-ids";
 import { MAX_TRIAL_EXTENSION_DAYS } from "@/lib/trial-extension";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
-import { Choice, ConfirmButton, ErrorLine, FieldInput, PanelFields, PanelTitle, postJson, useWriteFailed, WillHappen } from "./action-ui";
+import { Choice, ConfirmButton, ErrorLine, FieldInput, PanelFields, PanelTitle, useWriteFailed, WillHappen } from "./action-ui";
+import { postJson } from "@/lib/send-json";
 
 const PRESETS: Record<FreeDaysKind, number[]> = { trial: [3, 7, 14], month: [7, 30] };
 const MAX_DAYS: Record<FreeDaysKind, number> = { trial: MAX_TRIAL_EXTENSION_DAYS, month: 365 };

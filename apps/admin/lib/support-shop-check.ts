@@ -86,7 +86,7 @@ function storeLine(c: ShopCheck, tenantId: string, nowMs: number): CheckLine {
   const s = c.store;
   const base = { key: "store", label: "Store", href: `/merchants/${tenantId}` } as const;
   if (s.status === "cancelled") return { ...base, state: "broken", text: "Cancelled. The store page is gone." };
-  if (s.status === "suspended") return { ...base, state: "broken", text: "Suspended. The store takes no orders." };
+  if (s.status === "suspended") return { ...base, state: "broken", text: "On hold. The store takes no orders." };
   if (s.lock_reason) {
     const since = s.lock_since ? ` since ${daysAgo(s.lock_since, nowMs)}` : "";
     return { ...base, state: "broken", text: `${lockedBecause(s.lock_reason, since)}.` };

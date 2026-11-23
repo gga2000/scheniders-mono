@@ -7,7 +7,8 @@ import { CONVERT_ACTION, endAfterDays, shopActionKey } from "@/lib/shop-actions"
 import { isStaffReason } from "@/lib/billing-lock-tools";
 import { requestKey, shopKey, type RequestIds } from "@/lib/request-ids";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
-import { Choice, ConfirmButton, ErrorLine, PanelFields, PanelTitle, postJson, useWriteFailed, WillHappen } from "./action-ui";
+import { Choice, ConfirmButton, ErrorLine, PanelFields, PanelTitle, useWriteFailed, WillHappen } from "./action-ui";
+import { postJson } from "@/lib/send-json";
 
 const PERIODS = [
   { label: "30 days", days: 30 },
