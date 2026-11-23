@@ -3,13 +3,13 @@
 import { useInfiniteQuery, type InfiniteData, type QueryClient } from "@tanstack/react-query";
 import type { AdminTenant } from "@/types/admin";
 import { useAdminStore } from "@/store/use-admin-store";
-import { DEFAULT_MERCHANT_SORT } from "@/lib/merchant-sort";
+import { merchantSortParam, merchantsListKey, merchantsListParams } from "@/lib/merchants-query";
 import { useMemo } from "react";
 import { adminFetch } from "@/lib/admin-fetch";
 import { okOrLoadFailure } from "@/lib/load-failure";
 import { oldestRead, stampRead, type ReadAt } from "@/lib/page-read-at";
 
-interface MerchantsPage extends ReadAt {
+export interface MerchantsPage extends ReadAt {
   merchants: AdminTenant[];
   total: number;
   page: number;
@@ -57,45 +57,13 @@ export function useInfiniteMerchants(limit = 50) {
     starredMerchants,
   } = useAdminStore();
 
-  // The store keeps only columns the database can order every shop by.
-  const sortParam = sortConfig.length > 0
-    ? sortConfig.map((s) => `${s.column}:${s.direction}`).join(",")
-    : DEFAULT_MERCHANT_SORT;
+  const filters = { planFilter, statusFilter, cityFilter, balanceFilter, healthFilter, searchQuery, dateRange };
+  const sortParam = merchantSortParam(sortConfig);
 
   const query = useInfiniteQuery<MerchantsPage>({
-    queryKey: [
-      "admin",
-      "merchants",
-      "infinite",
-      {
-        limit,
-        planFilter,
-        statusFilter,
-        cityFilter,
-        balanceFilter,
-        healthFilter,
-        searchQuery,
-        dateRange,
-        sortParam,
-      },
-    ],
+    queryKey: merchantsListKey(filters, limit, sortParam),
     queryFn: async ({ pageParam }) => {
-      const params = new URLSearchParams();
-      params.set("page", String(pageParam));
-      params.set("limit", String(limit));
-      params.set("sort", sortParam);
-      params.set("include_sparkline", "true");
-      if (planFilter) params.set("plan", planFilter);
-      // "attention" is resolved server-side via id allowlist (see API route)
-      if (statusFilter) params.set("status", statusFilter);
-      if (cityFilter) params.set("city", cityFilter);
-      if (balanceFilter) params.set("balance", balanceFilter);
-      if (healthFilter) params.set("health", healthFilter);
-      // The server searches every shop, by name, slug, email or shop number.
-      if (searchQuery) params.set("search", searchQuery);
-      if (dateRange.from) params.set("date_from", dateRange.from);
-      if (dateRange.to) params.set("date_to", dateRange.to);
-
+      const params = merchantsListParams(filters, Number(pageParam), limit, sortParam);
       const res = okOrLoadFailure(await adminFetch(`/api/merchants?${params.toString()}`), "the merchants");
       return stampRead((await res.json()) as Omit<MerchantsPage, "readAt">);
     },
