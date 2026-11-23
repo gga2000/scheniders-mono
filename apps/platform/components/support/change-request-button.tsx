@@ -61,15 +61,17 @@ export function ChangeRequestButton() {
     return (
         <Popover open={open} onOpenChange={onOpenChange}>
             <PopoverTrigger asChild>
-                {/* Below 1360px wide the words would squeeze the search bar, so the bulb stands alone (named for screen readers and on hover). */}
+                {/* In a top bar under 1272px wide the words would squeeze the search bar, so the bulb stands alone (named for screen
+                    readers and on hover). The bar's own width, not the window's: the open rail takes 184px of it (1360px window,
+                    rail closed = 1272px bar; rail open needs a 1544px window). */}
                 <button
                     type="button"
                     aria-label={t("changeRequest.button")}
                     title={t("changeRequest.button")}
-                    className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full border border-[var(--card-border)] bg-[var(--card-bg)] px-3 text-sm font-semibold text-foreground transition-all hover:border-[var(--foreground-muted)] active:scale-95 min-[1360px]:px-3.5"
+                    className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full border border-[var(--card-border)] bg-[var(--card-bg)] px-3 text-sm font-semibold text-foreground transition-all hover:border-[var(--foreground-muted)] active:scale-95 @min-[1272px]/topbar:px-3.5"
                 >
                     <Lightbulb className="h-4 w-4 text-amber-500" />
-                    <span dir="auto" aria-hidden className="hidden whitespace-nowrap min-[1360px]:inline">
+                    <span dir="auto" aria-hidden className="hidden whitespace-nowrap @min-[1272px]/topbar:inline">
                         {t("changeRequest.button")}
                     </span>
                 </button>

@@ -29,13 +29,17 @@ export interface KPIMetrics {
     decidedCount: number;
     /** Percentage points (rates), not relative percent. */
     deliveryRateChange: number;
-    contactSuccessRate: number;
+    /** Confirmed ÷ contacted; null while no order was contacted. */
+    contactSuccessRate: number | null;
     contactSuccessChange: number;
-    rejectionRate: number;
+    /** Rejected ÷ (delivered + rejected); null while no order has an answer at the door. */
+    rejectionRate: number | null;
     rejectionRateChange: number;
-    noResponseRate: number;
+    /** No answer ÷ contacted; null while no order was contacted. */
+    noResponseRate: number | null;
     noResponseChange: number;
-    avgProcessingTime: number; // Hours
+    /** Hours from order to delivery; null while no order was delivered. */
+    avgProcessingTime: number | null;
     avgProcessingTimeChange: number;
 }
 
@@ -154,12 +158,13 @@ export function calculateKPIs(currentOrders: ReportOrder[], previousOrders: Repo
 
         const shipped = delivered + rejected;
         const deliveryRate = deliveryRatePct(delivered, rejected);
-        const contactSuccessRate = contacted > 0 ? (confirmed / contacted) * 100 : 0;
-        const rejectionRate = shipped > 0 ? (rejected / shipped) * 100 : 0;
-        const noResponseRate = contacted > 0 ? (noResponse / contacted) * 100 : 0;
+        // No base, no rate: a week where nothing finished is «—», not a 0% that trends (round 19).
+        const contactSuccessRate = contacted > 0 ? (confirmed / contacted) * 100 : null;
+        const rejectionRate = shipped > 0 ? (rejected / shipped) * 100 : null;
+        const noResponseRate = contacted > 0 ? (noResponse / contacted) * 100 : null;
 
         // Calculate avg processing time for delivered orders
-        let avgProcessingTime = 0;
+        let avgProcessingTime: number | null = null;
         const deliveredOrders = orders.filter(o => o.delivered_at);
         if (deliveredOrders.length > 0) {
             const totalHours = deliveredOrders.reduce((sum, o) => {
@@ -182,9 +187,10 @@ export function calculateKPIs(currentOrders: ReportOrder[], previousOrders: Repo
         if (prev === 0) return 0;
         return ((curr - prev) / prev) * 100;
     };
-    // Rates change in percentage POINTS: 80% -> 79% is -1pp, not -1.2%. Needs a baseline too.
-    const calcRateChange = (curr: number, prev: number, hasBaseline: boolean) =>
-        hasBaseline ? curr - prev : 0;
+    // Rates change in percentage POINTS: 80% -> 79% is -1pp, not -1.2%. Needs a baseline,
+    // and a rate on both sides: no answer yet is not a fall to 0%.
+    const calcRateChange = (curr: number | null, prev: number | null, hasBaseline: boolean) =>
+        hasBaseline && curr !== null && prev !== null ? curr - prev : 0;
     const hasBaseline = previousOrders.length > 0;
 
     return {
@@ -193,10 +199,7 @@ export function calculateKPIs(currentOrders: ReportOrder[], previousOrders: Repo
         deliveryRate: current.deliveryRate,
         deliveredCount: current.delivered,
         decidedCount: current.shipped,
-        // A change needs a rate on both sides: no answer yet is not a fall to 0%.
-        deliveryRateChange: current.deliveryRate !== null && previous.deliveryRate !== null
-            ? calcRateChange(current.deliveryRate, previous.deliveryRate, hasBaseline)
-            : 0,
+        deliveryRateChange: calcRateChange(current.deliveryRate, previous.deliveryRate, hasBaseline),
         contactSuccessRate: current.contactSuccessRate,
         contactSuccessChange: calcRateChange(current.contactSuccessRate, previous.contactSuccessRate, hasBaseline),
         rejectionRate: current.rejectionRate,
@@ -204,7 +207,9 @@ export function calculateKPIs(currentOrders: ReportOrder[], previousOrders: Repo
         noResponseRate: current.noResponseRate,
         noResponseChange: calcRateChange(current.noResponseRate, previous.noResponseRate, hasBaseline),
         avgProcessingTime: current.avgProcessingTime,
-        avgProcessingTimeChange: calcChange(current.avgProcessingTime, previous.avgProcessingTime),
+        avgProcessingTimeChange: current.avgProcessingTime !== null && previous.avgProcessingTime !== null
+            ? calcChange(current.avgProcessingTime, previous.avgProcessingTime)
+            : 0,
     };
 }
 

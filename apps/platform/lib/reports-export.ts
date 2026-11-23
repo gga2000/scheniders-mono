@@ -135,7 +135,13 @@ function kpiLines(data: ReportsExportData): KpiLine[] {
         { label: t("reports.kpi.contact"), value: pct(k.contactSuccessRate), change: k.contactSuccessChange, unit: "pp", higherIsBetter: true },
         { label: t("reports.kpi.rejection"), value: pct(k.rejectionRate), change: k.rejectionRateChange, unit: "pp", higherIsBetter: false },
         { label: t("reports.kpi.noResponse"), value: pct(k.noResponseRate), change: k.noResponseChange, unit: "pp", higherIsBetter: false },
-        { label: t("reports.kpi.processing"), value: t("reports.unit.hours", { n: k.avgProcessingTime.toFixed(0) }), change: k.avgProcessingTimeChange, unit: "%", higherIsBetter: false },
+        {
+            label: t("reports.kpi.processing"),
+            value: k.avgProcessingTime === null ? "—" : t("reports.unit.hours", { n: k.avgProcessingTime.toFixed(0) }),
+            change: k.avgProcessingTimeChange,
+            unit: "%",
+            higherIsBetter: false,
+        },
     ];
 }
 

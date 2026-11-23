@@ -29,17 +29,30 @@ describe("calculateKPIs", () => {
         ]);
         expect(k.deliveryRate).toBeCloseTo((2 / 3) * 100);
         expect(k.rejectionRate).toBeCloseTo((1 / 3) * 100);
-        expect((k.deliveryRate ?? 0) + k.rejectionRate).toBeCloseTo(100);
+        expect((k.deliveryRate ?? 0) + (k.rejectionRate ?? 0)).toBeCloseTo(100);
         expect(k.deliveredCount).toBe(2);
         expect(k.decidedCount).toBe(3);
     });
 
-    it("an empty period is zeros, not NaN, and has no delivery rate yet", () => {
+    it("an empty period has no rates and no time, and nothing is NaN", () => {
         const k = calculateKPIs([]);
-        const { deliveryRate, ...rest } = k;
+        const { deliveryRate, contactSuccessRate, rejectionRate, noResponseRate, avgProcessingTime, ...rest } = k;
         for (const v of Object.values(rest)) expect(Number.isFinite(v)).toBe(true);
-        expect(deliveryRate).toBeNull();
+        expect([deliveryRate, contactSuccessRate, rejectionRate, noResponseRate, avgProcessingTime]).toEqual([null, null, null, null, null]);
         expect(k.totalOrders).toBe(0);
+    });
+
+    it("a week where nothing finished shows no rejection rate or processing time, and no trend against the week before (round 19)", () => {
+        const k = calculateKPIs(
+            [order({ status: "in_transit" })],
+            [order({ delivered_at: "2026-10-16T10:00:00.000Z" }), order({ status: "rejected" })],
+        );
+        expect(k.rejectionRate).toBeNull();
+        expect(k.rejectionRateChange).toBe(0);
+        expect(k.avgProcessingTime).toBeNull();
+        expect(k.avgProcessingTimeChange).toBe(0);
+        // The order was contacted, so its no-answer share is a real 0%.
+        expect(k.noResponseRate).toBe(0);
     });
 
     it("has no delivery rate, and no fall in it, while no order has an answer at the door", () => {

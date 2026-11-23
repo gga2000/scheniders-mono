@@ -368,7 +368,7 @@ export function GlobalSearch({ onOpenChange }: { onOpenChange?: (open: boolean) 
                         ) : query.trim() ? (
                             <div className="py-8 text-center">
                                 <Search className="w-8 h-8 text-muted mx-auto mb-2" />
-                                <p className="text-muted text-sm">{t("search.noResults")} &ldquo;{query}&rdquo;</p>
+                                <p className="text-muted text-sm">{t("search.noResults")} «<bdi>{query}</bdi>»</p>
                             </div>
                         ) : null}
 
@@ -434,7 +434,8 @@ export function TopBar({ onMenuClick, isMobile }: TopBarProps) {
     return (
         <header className="app-header backdrop-blur-md backdrop-saturate-150" data-scrolled={scrolled} data-hidden={hidden}>
             {/* Header Content */}
-            <div className="relative flex items-center justify-between gap-3 md:gap-6 w-full px-4 md:px-6 py-3 md:py-4">
+            {/* "topbar" container: the store-number side sizes itself to the bar, not the window (change-request-button). */}
+            <div className="@container/topbar relative flex items-center justify-between gap-3 md:gap-6 w-full px-4 md:px-6 py-3 md:py-4">
                 {/* Left: merchant code badge */}
                 <div className="flex items-center w-auto md:flex-1 md:min-w-fit">
                     <MerchantCodeBadge />

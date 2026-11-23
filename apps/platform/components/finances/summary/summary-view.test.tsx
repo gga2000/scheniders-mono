@@ -542,15 +542,16 @@ describe("SummaryView", () => {
         // 400,000 of sales on 60,000 of ads.
         const figure = byTestId("ad-return-figure")?.textContent ?? "";
         expect(figure).toContain("6,667");
-        expect(figure).toContain("مبيعات لكل 1,000 دينار إعلان");
-        expect(figure).not.toContain("د.ع");
+        // One name for the currency on the page («د.ع», round 19), but the figure itself is a rate, not an amount.
+        expect(figure).toContain("مبيعات لكل 1,000 د.ع إعلان");
+        expect(figure).not.toMatch(/6,667\s*د\.ع/);
         expect(byTestId("ad-return")?.textContent).toContain("صرفت\u00a060,000\u00a0د.ع.");
         // the line to judge it by: 400,000 of sales leave 180,000 after goods, delivery and refunds
         expect(byTestId("ad-return")?.textContent).toContain("يربح الإعلان ما دام هذا الرقم فوق 2,222.");
         // the break-even line comes first, so «هذا الرقم» sits next to the figure it means
         expect(byTestId("ad-return")?.textContent?.indexOf("يربح الإعلان ما دام")).toBeLessThan(byTestId("ad-return")?.textContent?.indexOf("صرفت") ?? -1);
         // what that line means sits behind its info icon
-        expect(byTestId("ad-return")?.textContent).toContain("يربح الإعلان إذا جلبت كل 1,000 دينار منه مبيعات أكثر من هذا، إن كانت كل مبيعاتك منه.");
+        expect(byTestId("ad-return")?.textContent).toContain("يربح الإعلان إذا جلبت كل 1,000 د.ع منه مبيعات أكثر من هذا، إن كانت كل مبيعاتك منه.");
         // no period before: nothing to say about whether the ads raised sales
         expect(byTestId("ads-no-lift")).toBeNull();
         expect(byTestId("ad-return")?.textContent).toContain("صرفت\u00a060,000\u00a0د.ع");
