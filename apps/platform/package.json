@@ -32,6 +32,8 @@
     "@sentry/nextjs": "^10.78.0",
     "@serwist/next": "^9.5.0",
     "@serwist/sw": "^9.5.0",
+    "@simplewebauthn/browser": "^13.3.0",
+    "@simplewebauthn/server": "^13.3.3",
     "@sparticuz/chromium": "^143.0.4",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.50.1",

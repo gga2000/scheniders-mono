@@ -139,10 +139,10 @@ export function StoreAddressField({
     const root = env.NEXT_PUBLIC_STOREFRONT_ROOT_DOMAIN;
     return (
         <div>
-            <label htmlFor="signup-store-address" className="block text-[13px] font-medium text-[#1E1E1E] mb-2">
+            <label htmlFor="signup-store-address" className="block text-[13px] font-semibold text-[#1E1E1E] mb-2">
                 {t("signup.address")}
             </label>
-            <div className="flex h-12 items-center rounded-2xl bg-[#FAF8F3] border border-[#ECE8DD] focus-within:bg-white focus-within:border-[#1E1E1E] focus-within:ring-4 focus-within:ring-[#EFFF00]/40 transition" dir="ltr">
+            <div className="flex h-[52px] items-center rounded-2xl bg-white border border-[#E2DCCF] shadow-[0_1px_2px_rgba(30,30,30,0.04)] hover:border-[#CFC8B9] focus-within:border-[#1E1E1E] focus-within:ring-4 focus-within:ring-[#EFFF00]/50 transition" dir="ltr">
                 <Globe className="ms-4 w-[18px] h-[18px] shrink-0 text-[#A8A196]" aria-hidden="true" />
                 <input
                     id="signup-store-address"

@@ -67,9 +67,9 @@ async function refusal(res: Response): Promise<string> {
 }
 
 const FIELD =
-    "w-full h-12 pl-10 pr-3 rounded-2xl bg-[#FAF8F3] border border-[#ECE8DD] text-[15px] text-[#1E1E1E] placeholder:text-[#B5AFA4] focus:bg-white focus:border-[#1E1E1E] focus:outline-none focus:ring-4 focus:ring-[#EFFF00]/40 transition disabled:opacity-60";
+    "w-full h-[52px] pl-10 pr-3 rounded-2xl bg-white border border-[#E2DCCF] text-[15.5px] text-[#1E1E1E] placeholder:text-[#C2BCB0] shadow-[0_1px_2px_rgba(30,30,30,0.04)] hover:border-[#CFC8B9] focus:border-[#1E1E1E] focus:outline-none focus:ring-4 focus:ring-[#EFFF00]/50 transition disabled:opacity-60";
 const DARK_BUTTON =
-    "h-12 shrink-0 rounded-2xl px-4 text-sm font-semibold text-white bg-[#1E1E1E] hover:bg-black disabled:opacity-40 disabled:cursor-not-allowed transition-colors inline-flex items-center gap-1.5";
+    "h-[52px] shrink-0 rounded-2xl px-4 text-sm font-semibold text-white bg-[#1E1E1E] hover:bg-black disabled:opacity-40 disabled:cursor-not-allowed transition-colors inline-flex items-center gap-1.5";
 const LINK = "text-[13px] font-medium text-[#1E1E1E] underline-offset-2 hover:underline disabled:opacity-40 disabled:no-underline";
 
 export function SignupPhoneCheck({
@@ -171,7 +171,7 @@ export function SignupPhoneCheck({
     if (proof) {
         return (
             <div data-testid="signup-phone-check">
-                <p className="block text-[13px] font-medium text-[#1E1E1E] mb-2">{t("signup.code.phoneLabel")}</p>
+                <p className="block text-[13px] font-semibold text-[#1E1E1E] mb-2">{t("signup.code.phoneLabel")}</p>
                 <div className="flex items-center gap-3 rounded-2xl border border-[#C0EBA6] bg-[#E8F8E0] px-4 py-3">
                     <Check className="h-4 w-4 shrink-0 text-green-700" aria-hidden="true" />
                     <span dir="ltr" className="text-[15px] font-medium tabular-nums text-[#1E1E1E]" data-testid="signup-phone-verified">
@@ -190,7 +190,7 @@ export function SignupPhoneCheck({
 
     return (
         <div data-testid="signup-phone-check">
-            <label htmlFor="signup-phone" className="block text-[13px] font-medium text-[#1E1E1E] mb-2">
+            <label htmlFor="signup-phone" className="block text-[13px] font-semibold text-[#1E1E1E] mb-2">
                 {t("signup.code.phoneLabel")}
             </label>
             <div className="flex gap-2">
@@ -250,7 +250,7 @@ export function SignupPhoneCheck({
                             placeholder="••••••"
                             maxLength={12}
                             data-testid="signup-code-input"
-                            className="h-12 w-40 rounded-2xl border border-[#ECE8DD] bg-[#FAF8F3] px-4 text-center text-xl font-semibold tracking-[0.4em] tabular-nums text-[#1E1E1E] placeholder:text-[#B5AFA4] focus:bg-white focus:border-[#1E1E1E] focus:outline-none focus:ring-4 focus:ring-[#EFFF00]/40 transition"
+                            className="h-[52px] w-40 rounded-2xl border border-[#E2DCCF] bg-white px-4 text-center text-xl font-semibold tracking-[0.4em] tabular-nums text-[#1E1E1E] placeholder:text-[#C2BCB0] shadow-[0_1px_2px_rgba(30,30,30,0.04)] focus:border-[#1E1E1E] focus:outline-none focus:ring-4 focus:ring-[#EFFF00]/50 transition"
                         />
                         {busy && <Loader2 className="h-5 w-5 animate-spin text-[#1E1E1E]" aria-hidden="true" />}
                         <button

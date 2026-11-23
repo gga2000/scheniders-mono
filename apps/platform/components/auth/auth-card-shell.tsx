@@ -14,23 +14,28 @@ import { useLanguage, useTextDir } from "@/hooks/use-language";
  * `aside` adds a brand panel beside the card on wide screens, pinned while the
  * form scrolls. On phones it is a short band above the card, or nothing at all
  * with `asideOnPhones={false}` (sign-in: the form comes first).
+ *
+ * `bare` drops the white card and its footer: the page draws its own form
+ * straight on the cream (sign-in).
  */
 export function AuthCardShell({
     children,
     showBack = true,
     aside,
     asideOnPhones = true,
+    bare = false,
 }: {
     children: React.ReactNode;
     showBack?: boolean;
     aside?: React.ReactNode;
     asideOnPhones?: boolean;
+    bare?: boolean;
 }) {
-    if (!aside) return <AuthCardFrame showBack={showBack}>{children}</AuthCardFrame>;
+    if (!aside) return <AuthCardFrame showBack={showBack} bare={bare}>{children}</AuthCardFrame>;
     return (
         <div className="min-h-screen lg:grid lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
             <div className={asideOnPhones ? "lg:sticky lg:top-0 lg:h-screen" : "hidden lg:sticky lg:top-0 lg:block lg:h-screen"}>{aside}</div>
-            <AuthCardFrame showBack={showBack} wordmark={asideOnPhones ? "never" : "phones"} besideAside>
+            <AuthCardFrame showBack={showBack} wordmark={asideOnPhones ? "never" : "phones"} besideAside bare={bare}>
                 {children}
             </AuthCardFrame>
         </div>
@@ -42,10 +47,12 @@ function AuthCardFrame({
     showBack,
     besideAside = false,
     wordmark = "always",
+    bare = false,
 }: {
     children: React.ReactNode;
     showBack: boolean;
     besideAside?: boolean;
+    bare?: boolean;
     /** The brand panel already shows the wordmark wherever the panel itself is on screen. */
     wordmark?: "always" | "phones" | "never";
 }) {
@@ -73,12 +80,16 @@ function AuthCardFrame({
 
             {/* No entry fade: it started at opacity 0 in the server HTML, so the
                 card stayed invisible until all JS had run (6 s on a slow phone). */}
-            <div className="w-full max-w-[440px] relative z-10">
+            <div className={`w-full relative z-10 ${bare ? "max-w-[400px]" : "max-w-[440px]"}`}>
                 {wordmark !== "never" && (
-                    <div className={`flex items-center justify-center mb-7 ${wordmark === "phones" ? "lg:hidden" : ""}`}>
+                    <div className={`flex items-center mb-7 ${bare ? "mb-10" : "justify-center"} ${wordmark === "phones" ? "lg:hidden" : ""}`}>
                         <Image src="/brand/fermi-wordmark.svg" alt="Fermi" width={92} height={28} unoptimized priority />
                     </div>
                 )}
+
+                {bare ? (
+                    children
+                ) : (
 
                 <div className="bg-white rounded-[28px] border border-[#ECE8DD] shadow-[0_1px_2px_rgba(30,30,30,0.04),0_24px_60px_-24px_rgba(30,30,30,0.18)] overflow-hidden">
                     {showBack && (
@@ -98,6 +109,7 @@ function AuthCardFrame({
                         <span dir={dir}>{t("pwreset.brandFooter")}</span>
                     </div>
                 </div>
+                )}
             </div>
         </div>
     );

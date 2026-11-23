@@ -9,8 +9,8 @@ import {
     Lock,
     Loader2,
     AlertCircle,
+    ArrowRight,
     CheckCircle2,
-    Store,
     Building2,
     Phone,
     MapPin,
@@ -25,6 +25,7 @@ import {
     Watch,
     UtensilsCrossed,
     Package,
+    ShieldCheck,
     type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -36,7 +37,7 @@ import { supabase } from "@/lib/supabase";
 import { AuthCaptcha, useAuthCaptcha } from "@/components/auth/auth-captcha";
 import { SignupPhoneCheck, useSignupPhoneCodeSwitch } from "@/components/auth/signup-phone-check";
 import { StoreAddressField, storeAddressSendable, useStoreAddress } from "@/components/auth/store-address-field";
-import { AuthCardHeading, AuthCardShell } from "@/components/auth/auth-card-shell";
+import { AuthCardShell } from "@/components/auth/auth-card-shell";
 import { FermiSignupPixel } from "@/components/auth/fermi-signup-pixel";
 import { AuthHero } from "@/components/auth/auth-hero";
 import { trackSignupComplete } from "@/lib/fermi-pixel";
@@ -60,6 +61,20 @@ const BUSINESS_TYPE_ICONS: Record<string, LucideIcon> = {
 function sellsFromLink(raw: string | null): BusinessTypeId[] {
     const ids = (raw ?? "").split(",").map((id) => id.trim());
     return [...new Set(ids.filter(isBusinessTypeId))];
+}
+
+/** A numbered step heading: the store first, then the owner's own account. */
+function SectionHeader({ step, title }: { step: number; title: string }) {
+    // Laid out like the rest of the form (the app stays LTR), so it lines up with the labels below.
+    return (
+        <div className="flex items-center gap-3 pt-2">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#EFFF00] text-[13px] font-bold text-[#1E1E1E] tabular-nums">
+                {step}
+            </span>
+            <span className="text-[15px] font-bold text-[#1E1E1E]">{title}</span>
+            <span aria-hidden className="h-px flex-1 bg-[#E2DCCF]" />
+        </div>
+    );
 }
 
 function SignupForm() {
@@ -206,7 +221,7 @@ function SignupForm() {
 
     const cityField = (
         <div>
-            <label className="block text-[13px] font-medium text-[#1E1E1E] mb-2">{t("signup.city")}</label>
+            <label className="block text-[13px] font-semibold text-[#1E1E1E] mb-2">{t("signup.city")}</label>
             <div className="relative group">
                 <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                     <MapPin className="w-4 h-4 text-[#A8A196] group-focus-within:text-[#1E1E1E] transition-colors" />
@@ -216,19 +231,22 @@ function SignupForm() {
                     value={city}
                     onChange={(e) => setCity(e.target.value)}
                     placeholder={t("signup.cityPlaceholder")}
-                    className="w-full h-12 pl-10 pr-3 rounded-2xl bg-[#FAF8F3] border border-[#ECE8DD] text-[15px] text-[#1E1E1E] placeholder:text-[#B5AFA4] focus:bg-white focus:border-[#1E1E1E] focus:outline-none focus:ring-4 focus:ring-[#EFFF00]/40 transition"
+                    className="w-full h-[52px] pl-10 pr-3 rounded-2xl bg-white border border-[#E2DCCF] text-[15.5px] text-[#1E1E1E] placeholder:text-[#C2BCB0] shadow-[0_1px_2px_rgba(30,30,30,0.04)] hover:border-[#CFC8B9] focus:border-[#1E1E1E] focus:outline-none focus:ring-4 focus:ring-[#EFFF00]/50 transition"
                 />
             </div>
         </div>
     );
 
     return (
-        <div className="px-6 sm:px-8 pt-3 pb-8">
-            <AuthCardHeading icon={<Store className="w-5 h-5" />} title={t("signup.title")} subtitle={t("signup.subtitle", { count: TRIAL_DAYS })} />
+        <div>
+            <h1 dir={dir} className="text-left font-[family-name:var(--font-fermi-display),var(--font-geist-sans)] text-[34px] sm:text-[40px] font-bold leading-[1.15] tracking-tight text-[#1E1E1E]">
+                {t("signup.title")}
+            </h1>
+            <p dir={dir} className="mt-2 text-left text-[15px] text-[#8A847A]">{t("signup.subtitle", { count: TRIAL_DAYS })}</p>
 
                 {sentTo ? (
-                    <div className="mt-6 space-y-4">
-                        <div className="flex items-start gap-3 p-3.5 rounded-2xl bg-[#FAF8F3] border border-[#ECE8DD]">
+                    <div className="mt-8 space-y-4">
+                        <div className="flex items-start gap-3 px-4 py-4 rounded-2xl bg-white border border-[#E2DCCF]">
                             <Mail className="w-5 h-5 mt-0.5 text-[#1E1E1E] flex-shrink-0" />
                             <div dir={dir} className="text-left">
                                 <p className="text-sm font-semibold text-[#1E1E1E]">{t("signup.checkEmailTitle")}</p>
@@ -238,13 +256,13 @@ function SignupForm() {
                             </div>
                         </div>
                         {error && (
-                            <div className="flex items-center gap-3 p-3.5 rounded-2xl bg-[#FCEEF1] border border-[#F4C7CF]">
-                                <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+                            <div className="flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-[#FCEEF1]">
+                                <AlertCircle className="w-[18px] h-[18px] text-[#E5243B] flex-shrink-0" />
                                 <p dir={dir} className="text-left text-sm text-[#1E1E1E]">{error}</p>
                             </div>
                         )}
                         {success && (
-                            <div className="flex items-center gap-3 p-3.5 rounded-2xl bg-[#E8F8E0] border border-[#C0EBA6]">
+                            <div className="flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-[#E8F8E0]">
                                 <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
                                 <p dir={dir} className="text-left text-sm text-[#1E1E1E]">{success}</p>
                             </div>
@@ -254,7 +272,7 @@ function SignupForm() {
                             type="button"
                             onClick={handleResend}
                             disabled={isLoading}
-                            className="w-full h-12 rounded-2xl font-semibold text-[15px] text-[#1E1E1E] bg-white border border-[#ECE8DD] hover:border-[#1E1E1E] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                            className="w-full h-[54px] rounded-2xl font-semibold text-[15px] text-[#1E1E1E] bg-white border border-[#E2DCCF] hover:border-[#1E1E1E] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                         >
                             {isLoading ? (
                                 <span className="flex items-center justify-center gap-2">
@@ -267,7 +285,7 @@ function SignupForm() {
                         </button>
                     </div>
                 ) : (
-                <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+                <form onSubmit={handleSubmit} className="mt-8 space-y-5">
                     {/* Status Messages */}
                     <AnimatePresence mode="wait">
                         {error && (
@@ -275,9 +293,9 @@ function SignupForm() {
                                 initial={{ opacity: 0, y: -10, height: 0 }}
                                 animate={{ opacity: 1, y: 0, height: "auto" }}
                                 exit={{ opacity: 0, y: -10, height: 0 }}
-                                className="flex items-center gap-3 p-3.5 rounded-2xl bg-[#FCEEF1] border border-[#F4C7CF]"
+                                className="flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-[#FCEEF1]"
                             >
-                                <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+                                <AlertCircle className="w-[18px] h-[18px] text-[#E5243B] flex-shrink-0" />
                                 <p dir={dir} className="text-left text-sm text-[#1E1E1E]">{error}</p>
                             </motion.div>
                         )}
@@ -286,7 +304,7 @@ function SignupForm() {
                                 initial={{ opacity: 0, y: -10, height: 0 }}
                                 animate={{ opacity: 1, y: 0, height: "auto" }}
                                 exit={{ opacity: 0, y: -10, height: 0 }}
-                                className="flex items-center gap-3 p-3.5 rounded-2xl bg-[#E8F8E0] border border-[#C0EBA6]"
+                                className="flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-[#E8F8E0]"
                             >
                                 <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
                                 <p dir={dir} className="text-left text-sm text-[#1E1E1E]">{success}</p>
@@ -294,9 +312,11 @@ function SignupForm() {
                         )}
                     </AnimatePresence>
 
+                    <SectionHeader step={1} title={t("signup.section.store")} />
+
                     {/* What do you sell (B10) */}
                     <motion.fieldset initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}>
-                        <legend className="block text-[13px] font-medium text-[#1E1E1E]">{t("signup.sells")}</legend>
+                        <legend className="block text-[13px] font-semibold text-[#1E1E1E]">{t("signup.sells")}</legend>
                         <p dir={dir} className="mt-1 mb-2.5 text-left text-xs text-[#8A847A]">{t("signup.sellsHint")}</p>
                         <div className="grid grid-cols-2 gap-2">
                             {BUSINESS_TYPES.map((type) => {
@@ -309,10 +329,10 @@ function SignupForm() {
                                         aria-pressed={picked}
                                         data-testid={`signup-sells-${type.id}`}
                                         onClick={() => toggleSells(type.id)}
-                                        className={`flex min-h-11 items-center gap-2 rounded-2xl border px-3 py-2 text-left text-[13px] font-medium transition-colors ${
+                                        className={`flex min-h-12 items-center gap-2.5 rounded-2xl border px-3.5 py-2 text-left text-[13.5px] font-medium transition active:scale-[0.98] ${
                                             picked
-                                                ? "border-[#1E1E1E] bg-[#1E1E1E] text-white"
-                                                : "border-[#ECE8DD] bg-[#FAF8F3] text-[#1E1E1E] hover:border-[#1E1E1E]"
+                                                ? "border-[#1E1E1E] bg-[#1E1E1E] text-white shadow-[0_8px_20px_-12px_rgba(30,30,30,0.55)]"
+                                                : "border-[#E2DCCF] bg-white text-[#1E1E1E] shadow-[0_1px_2px_rgba(30,30,30,0.04)] hover:-translate-y-px hover:border-[#1E1E1E]"
                                         }`}
                                     >
                                         <Icon className={`h-4 w-4 flex-shrink-0 ${picked ? "text-[#EFFF00]" : "text-[#A8A196]"}`} />
@@ -325,7 +345,7 @@ function SignupForm() {
 
                     {/* Business Name */}
                     <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.35 }}>
-                        <label htmlFor="signup-business-name" className="block text-[13px] font-medium text-[#1E1E1E] mb-2">{t("signup.businessName")}</label>
+                        <label htmlFor="signup-business-name" className="block text-[13px] font-semibold text-[#1E1E1E] mb-2">{t("signup.businessName")}</label>
                         <div className="relative group">
                             <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
                                 <Building2 className="w-[18px] h-[18px] text-[#A8A196] group-focus-within:text-[#1E1E1E] transition-colors" />
@@ -337,7 +357,7 @@ function SignupForm() {
                                 onChange={(e) => setBusinessName(e.target.value)}
                                 placeholder={t("signup.businessNamePlaceholder")}
                                 required
-                                className="w-full h-12 pl-11 pr-4 rounded-2xl bg-[#FAF8F3] border border-[#ECE8DD] text-[15px] text-[#1E1E1E] placeholder:text-[#B5AFA4] focus:bg-white focus:border-[#1E1E1E] focus:outline-none focus:ring-4 focus:ring-[#EFFF00]/40 transition"
+                                className="w-full h-[52px] pl-11 pr-4 rounded-2xl bg-white border border-[#E2DCCF] text-[15.5px] text-[#1E1E1E] placeholder:text-[#C2BCB0] shadow-[0_1px_2px_rgba(30,30,30,0.04)] hover:border-[#CFC8B9] focus:border-[#1E1E1E] focus:outline-none focus:ring-4 focus:ring-[#EFFF00]/50 transition"
                             />
                         </div>
                     </motion.div>
@@ -347,9 +367,11 @@ function SignupForm() {
                         <StoreAddressField address={storeAddress} t={t} dir={dir} />
                     </motion.div>
 
+                    <SectionHeader step={2} title={t("signup.section.account")} />
+
                     {/* Email */}
                     <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }}>
-                        <label className="block text-[13px] font-medium text-[#1E1E1E] mb-2">{t("signup.email")}</label>
+                        <label className="block text-[13px] font-semibold text-[#1E1E1E] mb-2">{t("signup.email")}</label>
                         <div className="relative group">
                             <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
                                 <Mail className="w-[18px] h-[18px] text-[#A8A196] group-focus-within:text-[#1E1E1E] transition-colors" />
@@ -361,14 +383,14 @@ function SignupForm() {
                                 placeholder="you@example.com"
                                 autoComplete="email"
                                 required
-                                className="w-full h-12 pl-11 pr-4 rounded-2xl bg-[#FAF8F3] border border-[#ECE8DD] text-[15px] text-[#1E1E1E] placeholder:text-[#B5AFA4] focus:bg-white focus:border-[#1E1E1E] focus:outline-none focus:ring-4 focus:ring-[#EFFF00]/40 transition"
+                                className="w-full h-[52px] pl-11 pr-4 rounded-2xl bg-white border border-[#E2DCCF] text-[15.5px] text-[#1E1E1E] placeholder:text-[#C2BCB0] shadow-[0_1px_2px_rgba(30,30,30,0.04)] hover:border-[#CFC8B9] focus:border-[#1E1E1E] focus:outline-none focus:ring-4 focus:ring-[#EFFF00]/50 transition"
                             />
                         </div>
                     </motion.div>
 
                     {/* Password */}
                     <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.45 }}>
-                        <label className="block text-[13px] font-medium text-[#1E1E1E] mb-2">{t("signup.password")}</label>
+                        <label className="block text-[13px] font-semibold text-[#1E1E1E] mb-2">{t("signup.password")}</label>
                         <div className="relative group">
                             <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
                                 <Lock className="w-[18px] h-[18px] text-[#A8A196] group-focus-within:text-[#1E1E1E] transition-colors" />
@@ -381,7 +403,7 @@ function SignupForm() {
                                 autoComplete="new-password"
                                 required
                                 minLength={8}
-                                className="w-full h-12 pl-11 pr-12 rounded-2xl bg-[#FAF8F3] border border-[#ECE8DD] text-[15px] text-[#1E1E1E] placeholder:text-[#B5AFA4] focus:bg-white focus:border-[#1E1E1E] focus:outline-none focus:ring-4 focus:ring-[#EFFF00]/40 transition"
+                                className="w-full h-[52px] pl-11 pr-12 rounded-2xl bg-white border border-[#E2DCCF] text-[15.5px] text-[#1E1E1E] placeholder:text-[#C2BCB0] shadow-[0_1px_2px_rgba(30,30,30,0.04)] hover:border-[#CFC8B9] focus:border-[#1E1E1E] focus:outline-none focus:ring-4 focus:ring-[#EFFF00]/50 transition"
                             />
                             <button
                                 type="button"
@@ -410,7 +432,7 @@ function SignupForm() {
                     ) : (
                         <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.5 }} className="grid grid-cols-2 gap-3">
                             <div>
-                                <label className="block text-[13px] font-medium text-[#1E1E1E] mb-2">{t("signup.phone")}</label>
+                                <label className="block text-[13px] font-semibold text-[#1E1E1E] mb-2">{t("signup.phone")}</label>
                                 <div className="relative group">
                                     <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                                         <Phone className="w-4 h-4 text-[#A8A196] group-focus-within:text-[#1E1E1E] transition-colors" />
@@ -420,7 +442,7 @@ function SignupForm() {
                                         value={contactPhone}
                                         onChange={(e) => setContactPhone(e.target.value)}
                                         placeholder="07XXXXXXXX"
-                                        className="w-full h-12 pl-10 pr-3 rounded-2xl bg-[#FAF8F3] border border-[#ECE8DD] text-[15px] text-[#1E1E1E] placeholder:text-[#B5AFA4] focus:bg-white focus:border-[#1E1E1E] focus:outline-none focus:ring-4 focus:ring-[#EFFF00]/40 transition"
+                                        className="w-full h-[52px] pl-10 pr-3 rounded-2xl bg-white border border-[#E2DCCF] text-[15.5px] text-[#1E1E1E] placeholder:text-[#C2BCB0] shadow-[0_1px_2px_rgba(30,30,30,0.04)] hover:border-[#CFC8B9] focus:border-[#1E1E1E] focus:outline-none focus:ring-4 focus:ring-[#EFFF00]/50 transition"
                                     />
                                 </div>
                             </div>
@@ -435,7 +457,7 @@ function SignupForm() {
                         <button
                             type="submit"
                             disabled={isLoading || !isFormValid || !captcha.ready}
-                            className="w-full h-12 rounded-2xl font-semibold text-[15px] text-white bg-[#1E1E1E] hover:bg-black disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                            className="group relative w-full h-[54px] overflow-hidden rounded-2xl font-semibold text-[15.5px] text-white bg-[#1E1E1E] shadow-[0_1px_0_rgba(255,255,255,0.12)_inset,0_10px_24px_-12px_rgba(30,30,30,0.55)] hover:bg-black active:scale-[0.99] disabled:opacity-40 disabled:shadow-none disabled:cursor-not-allowed transition"
                         >
                             {isLoading ? (
                                 <span className="flex items-center justify-center gap-2">
@@ -443,18 +465,27 @@ function SignupForm() {
                                     {t("signup.submitting")}
                                 </span>
                             ) : (
-                                t("signup.submit")
+                                <span className="flex items-center justify-center gap-2">
+                                    {t("signup.submit")}
+                                    {/* Points the way the text reads. */}
+                                    <ArrowRight className={`h-[18px] w-[18px] text-[#EFFF00] transition-transform ${dir === "rtl" ? "rotate-180 group-hover:-translate-x-0.5" : "group-hover:translate-x-0.5"}`} aria-hidden />
+                                </span>
                             )}
                         </button>
                     </motion.div>
                 </form>
                 )}
 
-            <p className="mt-5 text-center text-[13px] text-[#8A847A]">
-                <span dir={dir}>{t("signup.haveAccount")}</span>{" "}
-                <Link href="/login" className="text-[#1E1E1E] font-medium hover:underline">
+            <p dir={dir} className="mt-8 text-center text-[14px] text-[#8A847A]">
+                {t("signup.haveAccount")}{" "}
+                <Link href="/login" className="font-semibold text-[#1E1E1E] underline decoration-[#EFFF00] decoration-[3px] underline-offset-4 hover:decoration-[#1E1E1E]">
                     {t("signup.signIn")}
                 </Link>
+            </p>
+
+            <p dir={dir} className="mt-10 flex items-center justify-center gap-1.5 text-[12px] text-[#A8A196]">
+                <ShieldCheck className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                {t("pwreset.brandFooter")}
             </p>
         </div>
     );
@@ -462,11 +493,11 @@ function SignupForm() {
 
 export default function SignupPage() {
     return (
-        <AuthCardShell showBack={false} aside={<AuthHero variant="signup" />}>
+        <AuthCardShell showBack={false} aside={<AuthHero variant="signup" />} bare>
             <FermiSignupPixel />
             <Suspense
                 fallback={
-                    <div className="px-6 sm:px-8 py-16 flex items-center justify-center">
+                    <div className="py-16 flex items-center justify-center">
                         <Loader2 className="w-7 h-7 animate-spin text-[#1E1E1E]" />
                     </div>
                 }

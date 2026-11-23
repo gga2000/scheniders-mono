@@ -5,6 +5,7 @@ import { ShieldCheck, Check } from "lucide-react";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useLanguage } from "@/hooks/use-language";
 import { toast } from "@/hooks/use-toast";
+import { PasskeyRows } from "@/components/settings/passkey-rows";
 
 /**
  * Sign-in methods card (Settings → General).
@@ -82,6 +83,8 @@ export function AccountLinkingCard() {
                         </button>
                     )}
                 </div>
+
+                <PasskeyRows />
             </div>
         </div>
     );
