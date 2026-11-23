@@ -4,12 +4,12 @@ import { safeRedirectPath } from "@scheniders/shared/safe-redirect-path";
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Mail, Lock, AlertCircle, ArrowBigUpDash, CheckCircle2, Fingerprint, LogIn } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, AlertCircle, ArrowBigUpDash, ArrowRight, CheckCircle2, Fingerprint, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import Link from "next/link";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { AuthCaptcha, useAuthCaptcha } from "@/components/auth/auth-captcha";
-import { AuthCardHeading, AuthCardShell } from "@/components/auth/auth-card-shell";
+import { AuthCardShell } from "@/components/auth/auth-card-shell";
 import { AuthHero } from "@/components/auth/auth-hero";
 import { GoogleMark } from "@/components/auth/google-mark";
 import { emailProblem, loginErrorKey } from "@/lib/login-errors";
@@ -103,8 +103,8 @@ function markPasskeyOfferSeen() {
 }
 
 const FIELD_CLASS =
-    "w-full h-12 pl-11 rounded-2xl bg-[#FAF8F3] border text-[15px] text-[#1E1E1E] placeholder:text-[#B5AFA4] focus:bg-white focus:outline-none focus:ring-4 transition";
-const FIELD_OK = "border-[#ECE8DD] focus:border-[#1E1E1E] focus:ring-[#EFFF00]/40";
+    "w-full h-[52px] pl-11 rounded-2xl bg-white border text-[15.5px] text-[#1E1E1E] placeholder:text-[#C2BCB0] shadow-[0_1px_2px_rgba(30,30,30,0.04)] focus:outline-none focus:ring-4 transition";
+const FIELD_OK = "border-[#E2DCCF] hover:border-[#CFC8B9] focus:border-[#1E1E1E] focus:ring-[#EFFF00]/50";
 const FIELD_BAD = "border-[#E5243B] focus:border-[#E5243B] focus:ring-[#E5243B]/15";
 
 function FieldError({ id, message }: { id: string; message: string | null }) {
@@ -117,12 +117,41 @@ function FieldError({ id, message }: { id: string; message: string | null }) {
     );
 }
 
-function LastUsedBadge() {
+function LastUsedBadge({ floating = false }: { floating?: boolean }) {
     const { t } = useLanguage();
     return (
-        <span className="rounded-full bg-[#EFFF00] px-2 py-0.5 text-[11px] font-semibold leading-none text-[#1E1E1E]">
+        <span
+            className={`rounded-full bg-[#EFFF00] px-2 py-1 text-[10.5px] font-semibold leading-none text-[#1E1E1E] ${
+                floating ? "absolute -top-2.5 right-3 shadow-[0_2px_6px_rgba(30,30,30,0.12)]" : ""
+            }`}
+        >
             {t("login.lastUsed")}
         </span>
+    );
+}
+
+/** A one-tap way in (fingerprint, Google): white tile that lifts on hover. */
+function QuickButton({
+    onClick,
+    disabled,
+    lastUsed,
+    children,
+}: {
+    onClick: () => void;
+    disabled: boolean;
+    lastUsed: boolean;
+    children: React.ReactNode;
+}) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            disabled={disabled}
+            className="relative flex h-[54px] items-center justify-center gap-2.5 rounded-2xl border border-[#E2DCCF] bg-white text-[15px] font-semibold text-[#1E1E1E] shadow-[0_1px_2px_rgba(30,30,30,0.05)] transition hover:-translate-y-px hover:border-[#1E1E1E] hover:shadow-[0_8px_20px_-12px_rgba(30,30,30,0.35)] active:translate-y-0 disabled:pointer-events-none disabled:opacity-50"
+        >
+            {children}
+            {lastUsed && <LastUsedBadge floating />}
+        </button>
     );
 }
 
@@ -272,7 +301,7 @@ function LoginForm() {
 
     if (offeringPasskey) {
         return (
-            <div className="px-6 sm:px-8 pt-8 pb-7 text-center">
+            <div className="text-center">
                 <span className="mx-auto inline-flex h-16 w-16 items-center justify-center rounded-3xl bg-[#1E1E1E] text-[#EFFF00]">
                     <Fingerprint className="h-8 w-8" aria-hidden />
                 </span>
@@ -302,49 +331,74 @@ function LoginForm() {
     }
 
     return (
-        <div className="px-6 sm:px-8 pt-3 pb-7">
-            <AuthCardHeading icon={<LogIn className="w-5 h-5" />} title={t("login.title")} subtitle={t("login.subtitle")} />
+        <div>
+            <h1 dir={dir} className="text-left font-[family-name:var(--font-fermi-display),var(--font-geist-sans)] text-[34px] sm:text-[40px] font-bold leading-[1.15] tracking-tight text-[#1E1E1E]">
+                {t("login.title")}
+            </h1>
+            <p dir={dir} className="mt-2 text-left text-[15px] text-[#8A847A]">{t("login.subtitle")}</p>
+
+            <AnimatePresence mode="wait">
+                {error && (
+                    <motion.div
+                        key="error"
+                        role="alert"
+                        initial={{ opacity: 0, y: -6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -6 }}
+                        className="mt-6 flex items-start gap-3 rounded-2xl bg-[#FCEEF1] px-4 py-3.5"
+                    >
+                        <AlertCircle className="mt-0.5 h-[18px] w-[18px] flex-shrink-0 text-[#E5243B]" />
+                        <p dir={dir} className="text-left text-[14px] leading-relaxed text-[#1E1E1E]">{error}</p>
+                    </motion.div>
+                )}
+                {notice && (
+                    <motion.div
+                        key="notice"
+                        role="status"
+                        initial={{ opacity: 0, y: -6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -6 }}
+                        className="mt-6 flex items-start gap-3 rounded-2xl bg-[#E8F8E0] px-4 py-3.5"
+                    >
+                        <CheckCircle2 className="mt-0.5 h-[18px] w-[18px] flex-shrink-0 text-green-600" />
+                        <p dir={dir} className="text-left text-[14px] leading-relaxed text-[#1E1E1E]">{notice}</p>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* One-tap ways in first: a returning owner should not have to type. */}
+            <div className={`mt-8 grid gap-3 ${passkeyReady ? "grid-cols-2" : "grid-cols-1"}`}>
+                {passkeyReady && (
+                    <QuickButton onClick={handlePasskey} disabled={busy} lastUsed={lastMethod === "passkey"}>
+                        <Fingerprint className="h-5 w-5" aria-hidden />
+                        <span>{t("login.passkeyShort")}</span>
+                    </QuickButton>
+                )}
+                <QuickButton onClick={handleGoogle} disabled={busy} lastUsed={lastMethod === "google"}>
+                    <GoogleMark />
+                    <span>{t("login.googleShort")}</span>
+                </QuickButton>
+            </div>
+
+            <div className="my-7 flex items-center gap-4">
+                <div className="h-px flex-1 bg-[#E2DCCF]" />
+                <span dir={dir} className="text-[12.5px] text-[#9A948A]">{t("login.orEmail")}</span>
+                <div className="h-px flex-1 bg-[#E2DCCF]" />
+            </div>
 
             {/* No entry animation on the fields: they would start invisible in the
                 server HTML and stay so until all JS had run (see AuthCardShell). */}
-            <form onSubmit={handleSubmit} noValidate className="mt-6 space-y-4">
-                <AnimatePresence mode="wait">
-                    {error && (
-                        <motion.div
-                            role="alert"
-                            initial={{ opacity: 0, y: -10, height: 0 }}
-                            animate={{ opacity: 1, y: 0, height: "auto" }}
-                            exit={{ opacity: 0, y: -10, height: 0 }}
-                            className="flex items-center gap-3 p-3.5 rounded-2xl bg-[#FCEEF1] border border-[#F4C7CF]"
-                        >
-                            <AlertCircle className="w-5 h-5 text-[#E5243B] flex-shrink-0" />
-                            <p dir={dir} className="text-left text-sm text-[#1E1E1E]">{error}</p>
-                        </motion.div>
-                    )}
-                    {notice && (
-                        <motion.div
-                            role="status"
-                            initial={{ opacity: 0, y: -10, height: 0 }}
-                            animate={{ opacity: 1, y: 0, height: "auto" }}
-                            exit={{ opacity: 0, y: -10, height: 0 }}
-                            className="flex items-center gap-3 p-3.5 rounded-2xl bg-[#E8F8E0] border border-[#C0EBA6]"
-                        >
-                            <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
-                            <p dir={dir} className="text-left text-sm text-[#1E1E1E]">{notice}</p>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-
+            <form onSubmit={handleSubmit} noValidate className="space-y-5">
                 <div>
                     <div className="mb-2 flex items-center gap-2">
-                        <label htmlFor="login-email" className="block text-[13px] font-medium text-[#1E1E1E]">
+                        <label htmlFor="login-email" className="block text-[13.5px] font-medium text-[#1E1E1E]">
                             {t("login.email")}
                         </label>
                         {lastMethod === "email" && <LastUsedBadge />}
                     </div>
                     <div className="relative group">
                         <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
-                            <Mail className="w-[18px] h-[18px] text-[#A8A196] group-focus-within:text-[#1E1E1E] transition-colors" />
+                            <Mail className="w-[18px] h-[18px] text-[#B5AFA4] group-focus-within:text-[#1E1E1E] transition-colors" />
                         </div>
                         <input
                             ref={emailRef}
@@ -358,7 +412,7 @@ function LoginForm() {
                                 setEmailError(null);
                             }}
                             placeholder="you@example.com"
-                            autoComplete="username"
+                            autoComplete="username webauthn"
                             autoCapitalize="none"
                             autoCorrect="off"
                             spellCheck={false}
@@ -372,16 +426,16 @@ function LoginForm() {
 
                 <div>
                     <div className="mb-2 flex items-center justify-between gap-3">
-                        <label htmlFor="login-password" className="block text-[13px] font-medium text-[#1E1E1E]">
+                        <label htmlFor="login-password" className="block text-[13.5px] font-medium text-[#1E1E1E]">
                             {t("login.password")}
                         </label>
-                        <Link href="/forgot-password" className="text-[13px] text-[#8A847A] hover:text-[#1E1E1E] transition-colors">
+                        <Link href="/forgot-password" className="text-[13px] font-medium text-[#8A847A] hover:text-[#1E1E1E] transition-colors">
                             {t("login.forgot")}
                         </Link>
                     </div>
                     <div className="relative group">
                         <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
-                            <Lock className="w-[18px] h-[18px] text-[#A8A196] group-focus-within:text-[#1E1E1E] transition-colors" />
+                            <Lock className="w-[18px] h-[18px] text-[#B5AFA4] group-focus-within:text-[#1E1E1E] transition-colors" />
                         </div>
                         <input
                             ref={passwordRef}
@@ -406,9 +460,9 @@ function LoginForm() {
                             onClick={() => setShowPassword(!showPassword)}
                             aria-label={t(showPassword ? "login.hidePassword" : "login.showPassword")}
                             aria-pressed={showPassword}
-                            className="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-[#9A9A9A] hover:text-[#1E1E1E] transition-colors"
+                            className="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-[#A8A196] hover:text-[#1E1E1E] transition-colors"
                         >
-                            {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                            {showPassword ? <EyeOff className="w-[18px] h-[18px]" /> : <Eye className="w-[18px] h-[18px]" />}
                         </button>
                     </div>
                     <FieldError id="login-password-error" message={passwordError} />
@@ -425,9 +479,8 @@ function LoginForm() {
                 <button
                     type="submit"
                     disabled={busy}
-                    className="group relative w-full h-12 rounded-2xl font-semibold text-[15px] text-white overflow-hidden bg-[#1E1E1E] hover:bg-black active:scale-[0.99] disabled:cursor-default transition"
+                    className="group relative mt-1 w-full h-[54px] rounded-2xl font-semibold text-[15.5px] text-white overflow-hidden bg-[#1E1E1E] shadow-[0_1px_0_rgba(255,255,255,0.12)_inset,0_10px_24px_-12px_rgba(30,30,30,0.55)] hover:bg-black active:scale-[0.99] disabled:cursor-default transition"
                 >
-                    {/* Success: wash the button to green */}
                     <AnimatePresence>
                         {signedIn && (
                             <motion.span
@@ -441,7 +494,6 @@ function LoginForm() {
                         )}
                     </AnimatePresence>
 
-                    {/* Loading: light sweeps across the button to signal progress */}
                     {isLoading && !signedIn && (
                         <motion.span
                             aria-hidden
@@ -452,7 +504,6 @@ function LoginForm() {
                         />
                     )}
 
-                    {/* Content morphs between the three states */}
                     <span className="relative flex items-center justify-center gap-2">
                         <AnimatePresence mode="wait" initial={false}>
                             {signedIn ? (
@@ -486,58 +537,36 @@ function LoginForm() {
                                     animate={{ opacity: 1, y: 0 }}
                                     exit={{ opacity: 0, y: -8 }}
                                     transition={{ duration: 0.2 }}
+                                    className="flex items-center gap-2"
                                 >
-                                    {t("login.submit")}
+                                    <span>{t("login.submit")}</span>
+                                    {/* Points the way the text reads. */}
+                                    <ArrowRight className={`h-[18px] w-[18px] text-[#EFFF00] transition-transform ${dir === "rtl" ? "rotate-180 group-hover:-translate-x-0.5" : "group-hover:translate-x-0.5"}`} aria-hidden />
                                 </motion.span>
                             )}
                         </AnimatePresence>
                     </span>
                 </button>
-
-                <div className="flex items-center gap-3 py-1">
-                    <div className="h-px flex-1 bg-[#E8E4DC]" />
-                    <span className="text-xs text-[#9A9A9A]">{t("login.or")}</span>
-                    <div className="h-px flex-1 bg-[#E8E4DC]" />
-                </div>
-
-                {passkeyReady && (
-                    <button
-                        type="button"
-                        onClick={handlePasskey}
-                        disabled={busy}
-                        className="w-full h-12 rounded-2xl font-semibold text-[15px] text-[#1E1E1E] bg-white border border-[#ECE8DD] hover:bg-[#FAF8F3] hover:border-[#D6D0C2] active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 transition-all duration-200"
-                    >
-                        <Fingerprint className="h-5 w-5" aria-hidden />
-                        <span>{t("login.passkey")}</span>
-                        {lastMethod === "passkey" && <LastUsedBadge />}
-                    </button>
-                )}
-
-                <button
-                    type="button"
-                    onClick={handleGoogle}
-                    disabled={busy}
-                    className="w-full h-12 rounded-2xl font-semibold text-[15px] text-[#1E1E1E] bg-white border border-[#ECE8DD] hover:bg-[#FAF8F3] hover:border-[#D6D0C2] active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 transition-all duration-200"
-                >
-                    <GoogleMark />
-                    <span>{t("login.google")}</span>
-                    {lastMethod === "google" && <LastUsedBadge />}
-                </button>
-
-                <p dir={dir} className="pt-1 text-center text-[13.5px] text-[#8A847A]">
-                    {t("login.noAccount")}{" "}
-                    <Link href="/signup" className="font-semibold text-[#1E1E1E] underline decoration-[#EFFF00] decoration-2 underline-offset-4 hover:decoration-[#1E1E1E]">
-                        {t("login.signUp", { count: TRIAL_DAYS })}
-                    </Link>
-                </p>
             </form>
+
+            <p dir={dir} className="mt-8 text-center text-[14px] text-[#8A847A]">
+                {t("login.noAccount")}{" "}
+                <Link href="/signup" className="font-semibold text-[#1E1E1E] underline decoration-[#EFFF00] decoration-[3px] underline-offset-4 hover:decoration-[#1E1E1E]">
+                    {t("login.signUp", { count: TRIAL_DAYS })}
+                </Link>
+            </p>
+
+            <p dir={dir} className="mt-10 flex items-center justify-center gap-1.5 text-[12px] text-[#A8A196]">
+                <ShieldCheck className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                {t("pwreset.brandFooter")}
+            </p>
         </div>
     );
 }
 
 export default function LoginPage() {
     return (
-        <AuthCardShell showBack={false} aside={<AuthHero variant="login" />} asideOnPhones={false}>
+        <AuthCardShell showBack={false} aside={<AuthHero variant="login" />} asideOnPhones={false} bare>
             <LoginForm />
         </AuthCardShell>
     );
