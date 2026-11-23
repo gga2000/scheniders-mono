@@ -2,6 +2,11 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { adminFetch } from "@/lib/admin-fetch";
+import { answerLostWords } from "@/lib/answer-lost";
+import { sendStep } from "@/lib/send-json";
+
+/** Starring twice keeps one star, so a lost answer only needs a look. */
+const STAR_UNSURE = answerLostWords("the star");
 
 interface WatchlistEntry {
   tenant_id: string;
@@ -19,22 +24,12 @@ async function fetchWatchlist(): Promise<{ watchlist: WatchlistEntry[] }> {
 
 /** Stars a shop for this staff login; throws when the server refuses or cannot be reached. */
 export async function addToWatchlist(tenantId: string): Promise<unknown> {
-  const res = await adminFetch("/api/admin/watchlist", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ tenant_id: tenantId }),
-  });
-  if (!res.ok) throw new Error("Failed to add to watchlist");
-  return res.json();
+  return sendStep<unknown>("/api/admin/watchlist", { tenant_id: tenantId }, "POST", STAR_UNSURE, "The star was not added.");
 }
 
 /** Takes a shop's star off; throws when the server refuses or cannot be reached. */
 export async function removeFromWatchlist(tenantId: string): Promise<unknown> {
-  const res = await adminFetch(`/api/admin/watchlist/${tenantId}`, {
-    method: "DELETE",
-  });
-  if (!res.ok) throw new Error("Failed to remove from watchlist");
-  return res.json();
+  return sendStep<unknown>(`/api/admin/watchlist/${tenantId}`, undefined, "DELETE", STAR_UNSURE, "The star was not taken off.");
 }
 
 export function useWatchlist() {

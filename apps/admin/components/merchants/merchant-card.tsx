@@ -30,7 +30,7 @@ import { listChurnRisk } from "@/lib/merchant-health";
 import { formatCount, formatWhen } from "@/lib/format";
 import { useCan } from "@/hooks/use-admin-auth";
 import { freeDaysKind } from "@/lib/shop-actions";
-import { adminFetch } from "@/lib/admin-fetch";
+import { sendStep } from "@/lib/send-json";
 
 interface MerchantCardProps {
   merchant: AdminTenant;
@@ -93,16 +93,7 @@ export function MerchantCard({
   const queryClient = useQueryClient();
   const tagsMutation = useMutation({
     mutationFn: async (tags: string[]) => {
-      const res = await adminFetch(`/api/merchants/${merchant.id}/tags`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tags }),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error ?? "Tags were not saved");
-      }
-      return res.json();
+      return sendStep<unknown>(`/api/merchants/${merchant.id}/tags`, { tags }, "PUT", undefined, "Tags were not saved");
     },
     onMutate: async (newTags) => {
       await queryClient.cancelQueries({ queryKey: ["admin", "merchants"] });

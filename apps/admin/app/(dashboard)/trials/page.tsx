@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { isStaffReason } from "@/lib/billing-lock-tools";
 import { keptRequestIds, requestKey, shopKey } from "@/lib/request-ids";
-import { failureOf, sendJson } from "@/components/merchants/detail/action-ui";
+import { failureOf, sendJson } from "@/lib/send-json";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
 import { LoadError } from "@/components/shared/load-error";
 import { StaleLine } from "@/components/shared/stale-line";

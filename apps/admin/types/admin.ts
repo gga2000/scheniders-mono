@@ -39,7 +39,7 @@ export const STATUS_LABELS: Readonly<Record<TenantStatus, string>> = {
   trial: "Trial",
   active: "Active",
   limited: "Paused",
-  suspended: "Suspended",
+  suspended: "On hold",
   cancelled: "Cancelled",
 };
 

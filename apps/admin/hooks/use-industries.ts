@@ -4,7 +4,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { Industry } from "@/types/leads";
 import { adminFetch } from "@/lib/admin-fetch";
 import { okOrLoadFailure } from "@/lib/load-failure";
-import { refusal } from "@/lib/refusal";
+import { answerLostWords } from "@/lib/answer-lost";
+import { failureOf, sendJson, sendStep } from "@/lib/send-json";
 import type { IndustryEdit } from "@/lib/industry-edit";
 
 export function useIndustries() {
@@ -20,17 +21,14 @@ export function useIndustries() {
   });
 }
 
+/** A lost answer may have changed the list: look at it before pressing again. */
+const INDUSTRIES_UNSURE = answerLostWords("the industries list");
+
 export function useCreateIndustry() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (data: { name: string; name_ar?: string; icon?: string; color?: string; avg_order_value_iqd?: number }) => {
-      const res = await adminFetch("/api/industries", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) throw new Error(await refusal(res, "Could not add the industry."));
-      return res.json();
+      return sendStep<unknown>("/api/industries", data, "POST", INDUSTRIES_UNSURE, "Could not add the industry.");
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["industries"] });
@@ -44,10 +42,12 @@ export function useCreateIndustry() {
  */
 export class IndustryGoneError extends Error {}
 
-/** The server's refusal as an Error; a 404 as IndustryGoneError. */
-async function refused(res: Response, fallback: string): Promise<Error> {
-  const words = await refusal(res, fallback);
-  return res.status === 404 ? new IndustryGoneError(words) : new Error(words);
+/** Sends one industry step; a refusal throws its words, a 404 as IndustryGoneError. */
+async function sendIndustry<T>(url: string, body: unknown, method: "PATCH" | "DELETE", fallback: string): Promise<T> {
+  const answer = await sendJson(url, body, method, INDUSTRIES_UNSURE);
+  if (answer.ok) return answer.data as T;
+  const failure = failureOf(answer.status, answer.data, fallback, INDUSTRIES_UNSURE);
+  throw answer.status === 404 ? new IndustryGoneError(failure.message) : failure;
 }
 
 export function useUpdateIndustry() {
@@ -55,13 +55,7 @@ export function useUpdateIndustry() {
   return useMutation({
     // Not the place in the list: that is useMoveIndustry.
     mutationFn: async ({ id, data }: { id: string; data: IndustryEdit }) => {
-      const res = await adminFetch(`/api/industries/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) throw await refused(res, "Could not save the industry.");
-      return res.json();
+      return sendIndustry<unknown>(`/api/industries/${id}`, data, "PATCH", "Could not save the industry.");
     },
     // A new average order prices the industry's leads again on the server:
     // the lead numbers, lists and pages are read again to show it.
@@ -85,13 +79,7 @@ export function useMoveIndustry() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, direction }: { id: string; direction: "up" | "down" }) => {
-      const res = await adminFetch(`/api/industries/${id}/move`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ direction }),
-      });
-      if (!res.ok) throw new Error(await refusal(res, "Could not move the industry."));
-      return res.json();
+      return sendStep<unknown>(`/api/industries/${id}/move`, { direction }, "POST", INDUSTRIES_UNSURE, "Could not move the industry.");
     },
     onSettled: () => {
       qc.invalidateQueries({ queryKey: ["industries"] });
@@ -106,9 +94,7 @@ export function useDeleteIndustry() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string): Promise<IndustryRemoval> => {
-      const res = await adminFetch(`/api/industries/${id}`, { method: "DELETE" });
-      if (!res.ok) throw await refused(res, "Could not delete the industry.");
-      return res.json();
+      return sendIndustry<IndustryRemoval>(`/api/industries/${id}`, undefined, "DELETE", "Could not delete the industry.");
     },
     // A refused delete ("no longer exists") also means the list is out of date.
     onSettled: () => {

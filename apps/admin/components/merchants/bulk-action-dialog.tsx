@@ -10,8 +10,10 @@ import { StaffReasonInput } from "@/components/shared/staff-reason-input";
 import { isBulkFailureList, notDoneLines, tooManyShops, type BulkFailure } from "@/lib/bulk-not-done";
 import { toast } from "sonner";
 import { formatIQD } from "@/lib/format";
-import { ANSWER_LOST_SHOPS, AnswerLost, failureOf, PanelFields, sendJson, useStillDrawn, WillHappen } from "./detail/action-ui";
-import { bulkTopupAmountSchema, TOPUP_MAX_IQD, TOPUP_MIN_IQD } from "@/lib/topup-queue";
+import { ANSWER_LOST_SHOPS, AnswerLost } from "@/lib/answer-lost";
+import { failureOf, sendJson } from "@/lib/send-json";
+import { PanelFields, useStillDrawn, WillHappen } from "./detail/action-ui";
+import { bulkTopupAmountSchema, STAFF_TOPUP_MIN_IQD, TOPUP_MAX_IQD } from "@/lib/topup-queue";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -83,7 +85,7 @@ export function bulkDoneWords(
       return `${amount} added to ${credited === 1 ? "1 wallet" : `${credited} wallets`}.${again}`;
     }
     case "suspend":
-      return `${shops(n)} suspended.`;
+      return `${shops(n)} put on hold.`;
     case "reactivate":
       return `${shops(n)} reactivated.`;
     default:
@@ -107,7 +109,7 @@ const TOPUP_PRESETS = [5_000, 10_000, 25_000, 50_000];
 
 const ACTION_TITLES: Record<string, string> = {
   "change-plan": "Change Plan",
-  suspend: "Suspend Merchants",
+  suspend: "Put Merchants on Hold",
   reactivate: "Reactivate Merchants",
   "extend-trial": "Extend Trial",
   "top-up": "Top Up Wallets",
@@ -394,7 +396,7 @@ export function BulkActionDialog({
                       value={topUpCustom}
                       onChange={(e) => setTopUpCustom(e.target.value)}
                       placeholder="e.g. 100,000"
-                      min={TOPUP_MIN_IQD}
+                      min={STAFF_TOPUP_MIN_IQD}
                       max={TOPUP_MAX_IQD}
                       className="flex-1 px-3 py-1.5 rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] text-sm text-foreground placeholder:text-foreground/30 focus:outline-none focus:ring-2 focus:ring-[#1E1E1E]/20 transition-all"
                     />
@@ -402,7 +404,7 @@ export function BulkActionDialog({
                   </div>
                   {topUpCustom && !topUpOk && (
                     <p className="text-[13px] text-[var(--ink-red)]">
-                      A whole number from {formatIQD(TOPUP_MIN_IQD)} to {formatIQD(TOPUP_MAX_IQD)}.
+                      A whole number from {formatIQD(STAFF_TOPUP_MIN_IQD)} to {formatIQD(TOPUP_MAX_IQD)}.
                     </p>
                   )}
                 </div>
@@ -428,11 +430,11 @@ export function BulkActionDialog({
                 <AlertTriangle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
                 <div>
                   <p className="text-sm font-semibold text-red-800">
-                    Warning: Suspension
+                    Warning: On hold
                   </p>
                   <p className="text-sm text-red-700 mt-1">
-                    This will suspend {selectedCount} merchant
-                    {selectedCount !== 1 ? "s" : ""}. They will lose access to
+                    This will put {selectedCount} merchant
+                    {selectedCount !== 1 ? "s" : ""} on hold. They will lose access to
                     their dashboard.
                   </p>
                 </div>

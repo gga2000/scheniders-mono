@@ -8,12 +8,13 @@ import { MAX_TRIAL_EXTENSION_DAYS } from "./trial-extension";
 /**
  * The one-trial check (Fermi B5), staff side. The database
  * (20261116103536_trial_one_per_merchant.sql) keeps one trial_checks row per
- * store that matched an earlier store that is not paying: "review" for one
- * phone or email match, "no_trial" for a Prime match, for customers shared
- * with an earlier store (20261122163224, delivered orders only since
- * 20261122190918: 30% of the customers of the first 30 delivered orders, at
- * least 5, also had a delivered order there) or for two medium matches (that one has already ended
- * the trial, unless it had ended before). Staff read the rows here and decide
+ * store that matched an earlier store that is not paying. Medium signs: an
+ * owner phone, an email, or customers shared with earlier stores (one sign
+ * however many: 30% of the customers of the first 30 delivered orders, at
+ * least 5, also had a delivered order there; 20261122163224, delivered only
+ * since 20261122190918, medium since 20261123074223). "review" for one medium
+ * sign; "no_trial" for a Prime match or two medium signs (that one has already
+ * ended the trial, unless it had ended before). Staff read the rows here and decide
  * them through admin_trial_check_decide_once, which writes the staff log and
  * makes each request's change once.
  */

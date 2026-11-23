@@ -5,6 +5,8 @@ import { Check, Loader2, Truck } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { adminFetch } from "@/lib/admin-fetch";
+import { answerLostWords } from "@/lib/answer-lost";
+import { sendStep } from "@/lib/send-json";
 import { formatWhen } from "@/lib/format";
 import { SHELL_READ, useAfterPageReads } from "@/hooks/use-after-page-reads";
 
@@ -65,15 +67,13 @@ export function PrimeLinkRequestsSection({ requests }: { requests: PrimeLinkRequ
   const [picked, setPicked] = useState<Record<string, number>>({});
   const approve = useMutation({
     mutationFn: async ({ id, shopId }: { id: string; shopId: number | null }) => {
-      const res = await adminFetch(`/api/prime-link-requests/${id}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(shopId ? { shopId } : {}),
-      });
-      if (!res.ok) {
-        const body = (await res.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(body?.error ?? `Approve failed: ${res.status}`);
-      }
+      await sendStep<unknown>(
+        `/api/prime-link-requests/${id}`,
+        shopId ? { shopId } : {},
+        "POST",
+        answerLostWords("the Prime link requests"),
+        "The request was not approved.",
+      );
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: PRIME_REQUESTS_KEY }),
   });

@@ -11,7 +11,8 @@ import { useCan } from "@/hooks/use-admin-auth";
 import { PLAN_LABELS, planLabel, type PlanTier } from "@/types/admin";
 import { isStaffReason } from "@/lib/billing-lock-tools";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
-import { ConfirmButton, ErrorLine, postJson, WillHappen } from "./detail/action-ui";
+import { postJson } from "@/lib/send-json";
+import { ConfirmButton, ErrorLine, WillHappen } from "./detail/action-ui";
 
 const PLAN_OPTIONS: Array<{
   value: PlanTier;

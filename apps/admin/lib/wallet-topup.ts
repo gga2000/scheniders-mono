@@ -1,8 +1,13 @@
 import { z } from "zod";
 import { createAdminClient } from "./admin-supabase";
-import { TOPUP_MAX_IQD } from "./topup-queue";
+import { formatIQD } from "./format";
+import { STAFF_TOPUP_MIN_IQD, TOPUP_MAX_IQD } from "./topup-queue";
 
-export const topupAmountSchema = z.number().int().positive().max(TOPUP_MAX_IQD);
+export const topupAmountSchema = z
+  .number()
+  .int()
+  .min(STAFF_TOPUP_MIN_IQD, `At least ${formatIQD(STAFF_TOPUP_MIN_IQD)} at once.`)
+  .max(TOPUP_MAX_IQD, `At most ${formatIQD(TOPUP_MAX_IQD)} at once.`);
 
 const rpcResultSchema = z.discriminatedUnion("success", [
   z.object({

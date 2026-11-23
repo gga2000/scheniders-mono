@@ -6,6 +6,11 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { useCan } from "@/hooks/use-admin-auth";
 import { adminFetch } from "@/lib/admin-fetch";
+import { answerLostWords } from "@/lib/answer-lost";
+import { failureOf, sendJson } from "@/lib/send-json";
+
+/** Switching twice the same way changes nothing more, but look first: a colleague may have switched it. */
+const SWITCH_UNSURE = answerLostWords("the switch");
 
 const switchAnswer = z.object({ success: z.boolean().optional(), error: z.string().optional() });
 const statusAnswer = z.object({ active: z.boolean() });
@@ -41,14 +46,11 @@ export function SeedAutomationToggle() {
   const handleToggle = async () => {
     setToggling(true);
     try {
-      const res = await adminFetch("/api/seed-automation", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ active: !active }),
-      });
-      const answer = switchAnswer.safeParse(await res.json().catch(() => null));
-      if (!res.ok || !answer.success || answer.data.success !== true) {
-        throw new Error((answer.success && answer.data.error) || `Seed Automation did not switch (${res.status}).`);
+      const sent = await sendJson("/api/seed-automation", { active: !active }, "POST", SWITCH_UNSURE);
+      if (!sent.ok) throw failureOf(sent.status, sent.data, "Seed Automation did not switch.", SWITCH_UNSURE);
+      const answer = switchAnswer.safeParse(sent.data);
+      if (!answer.success || answer.data.success !== true) {
+        throw new Error((answer.success && answer.data.error) || "Seed Automation did not switch.");
       }
       setActive(!active);
     } catch (error) {

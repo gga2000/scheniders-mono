@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { leadToFormData } from "@/components/leads/lead-form-data";
 import type { Lead } from "@/types/leads";
+import { AnswerLost } from "./answer-lost";
 import {
   LEAD_GONE,
   LeadGoneError,
@@ -100,30 +101,34 @@ describe("listsChangedText", () => {
  * error carries them so the form can take the colleague's in.
  */
 describe("leadSaveRefusal", () => {
-  const answer = (body: unknown, status = 409) => new Response(JSON.stringify(body), { status });
-
-  it("carries the lists a colleague changed", async () => {
-    const error = await leadSaveRefusal(answer({ error: "A colleague changed ...", stale: ["tags"] }), "Could not save the lead.");
+  it("carries the lists a colleague changed", () => {
+    const error = leadSaveRefusal(409, { error: "A colleague changed ...", stale: ["tags"] }, "Could not save the lead.");
     expect(error).toBeInstanceOf(LeadListsChangedError);
     expect(error.message).toBe("A colleague changed ...");
     expect(error instanceof LeadListsChangedError && error.lists).toEqual(["tags"]);
   });
 
-  it("gives any other refusal in the server's words, without lists", async () => {
-    const error = await leadSaveRefusal(answer({ error: "A lead can only go to an active staff member." }, 400), "Could not save the lead.");
+  it("gives any other refusal in the server's words, without lists", () => {
+    const error = leadSaveRefusal(400, { error: "A lead can only go to an active staff member." }, "Could not save the lead.");
     expect(error).not.toBeInstanceOf(LeadListsChangedError);
     expect(error.message).toBe("A lead can only go to an active staff member.");
   });
 
-  it("falls back to plain words when the answer is not the server's", async () => {
-    const error = await leadSaveRefusal(new Response("<html>Bad gateway</html>", { status: 502 }), "Could not save the lead.");
-    expect(error.message).toBe("Could not save the lead.");
+  it("falls back to plain words when a refusal has none", () => {
+    expect(leadSaveRefusal(400, null, "Could not save the lead.").message).toBe("Could not save the lead.");
+  });
+
+  // Round 25 (structure new 5): a 502 with no words said "not saved", when the save may have landed.
+  it("says a gateway's wordless 5xx may have saved, with where to look", () => {
+    const error = leadSaveRefusal(502, null, "Could not save the lead.", "Check the lead.");
+    expect(error).toBeInstanceOf(AnswerLost);
+    expect(error.message).toBe("Check the lead.");
   });
 
   // Round 15: a deleted lead was "This lead was deleted…" on its page, "This
   // lead no longer exists." on a note and "Lead not found" on a save.
-  it("says a deleted lead (404) in the lead page's words, whatever the body", async () => {
-    const error = await leadSaveRefusal(answer({ error: "Lead not found" }, 404), "Could not save the lead.");
+  it("says a deleted lead (404) in the lead page's words, whatever the body", () => {
+    const error = leadSaveRefusal(404, { error: "Lead not found" }, "Could not save the lead.");
     expect(error).toBeInstanceOf(LeadGoneError);
     expect(error.message).toBe(LEAD_GONE);
   });

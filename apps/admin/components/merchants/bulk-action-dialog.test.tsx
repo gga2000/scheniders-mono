@@ -315,7 +315,7 @@ describe("bulk reasons and outcomes", () => {
   it("word every outcome", () => {
     const all = { done: 3, failed: [], repeats: 0 };
     expect(bulkDoneWords("extend-trial", all, { days: 7 })).toBe("3 trials got 7 more days.");
-    expect(bulkDoneWords("suspend", { ...all, done: 1 }, undefined)).toBe("1 shop suspended.");
+    expect(bulkDoneWords("suspend", { ...all, done: 1 }, undefined)).toBe("1 shop put on hold.");
     expect(bulkDoneWords("reactivate", all, undefined)).toBe("3 shops reactivated.");
     expect(bulkDoneWords("top-up", { ...all, repeats: 3 }, { amount_iqd: 5_000 })).toBe(
       "Every wallet had 5,000 IQD already, so nothing was added again.",
@@ -351,17 +351,17 @@ describe("the bulk dialog waits for what it sends", () => {
     fireEvent.change(screen.getByPlaceholderText("e.g. Monthly credit bonus"), { target: { value: "Cash at the office" } });
     expect(confirmWaits()).toBe(false);
     const custom = screen.getByPlaceholderText("e.g. 100,000");
-    for (const refused of ["500", "1500.5", "10000001"]) {
+    for (const refused of ["500", "2499", "2500.5", "10000001"]) {
       fireEvent.change(custom, { target: { value: refused } });
       expect(confirmWaits()).toBe(true);
-      expect(screen.getByText("A whole number from 1,000 IQD to 10,000,000 IQD.")).toBeTruthy();
+      expect(screen.getByText("A whole number from 2,500 IQD to 10,000,000 IQD.")).toBeTruthy();
     }
-    fireEvent.change(custom, { target: { value: "1000" } });
+    fireEvent.change(custom, { target: { value: "2500" } });
     expect(confirmWaits()).toBe(false);
     expect(screen.queryByText(/A whole number from/)).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
     await waitFor(() => expect(send).toHaveBeenCalledTimes(1));
-    expect(sentBody().params.amount_iqd).toBe(1000);
+    expect(sentBody().params.amount_iqd).toBe(2500);
   });
 
   it("keeps Confirm grey with no shops picked", () => {

@@ -18,7 +18,7 @@ vi.mock("@/lib/admin-fetch", () => ({ adminFetch: send }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 const { ShopActions } = await import("./shop-actions");
-const { ANSWER_LOST } = await import("./action-ui");
+const { ANSWER_LOST } = await import("@/lib/answer-lost");
 const { toast } = await import("sonner");
 
 const SHOP = "5b0c9a52-7f3e-4c1a-9d2e-1a2b3c4d5e6f";
