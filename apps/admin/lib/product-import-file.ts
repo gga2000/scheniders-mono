@@ -221,12 +221,15 @@ type ZipRead = { ok: true; bytes: number; parts: ZipPart[]; directory: number } 
 
 /**
  * The parts the workbook reader keeps whole in memory (sharedStrings and
- * styles "cache"), at about 13 times their unpacked size (audit round 21).
- * A product list of 2,000 rows never comes near these.
+ * styles "cache"), at about 13 times their unpacked size (audit round 21),
+ * and the links part, which this file holds as text to check (hasLinksRoot).
+ * A product list of 2,000 rows never comes near these; Excel writes links of
+ * a few KB (audit round 25: a links part of one 8 MB comment, packed to 9 KB).
  */
 export const PART_LIMITS: Readonly<Record<string, number>> = {
   "xl/sharedStrings.xml": 8 * 1024 * 1024,
   "xl/styles.xml": 2 * 1024 * 1024,
+  [LINKS_PART]: 1024 * 1024,
 };
 
 const LOCAL_HEADER = 0x04034b50;
@@ -364,36 +367,37 @@ function readZip(bytes: Uint8Array, limit: number): ZipRead {
 const FIRST_PARTS = ["xl/workbook.xml", LINKS_PART, "xl/styles.xml", "xl/sharedStrings.xml"];
 
 /**
- * The start of a links part as Excel saves it: the XML header, then the
- * Relationships element itself, with only spaces and comments between.
- */
-const LINKS_START = /^\uFEFF?(?:<\?xml\s[^?]*\?>)?(?:\s|<!--(?:[^-]|-[^-])*-->)*<Relationships[\s/>]/;
-
-/**
  * Whether the reader will find the links. It keeps them only once its XML
  * parser (saxes, which ExcelJS runs with these same defaults) reports the
  * Relationships element's start tag; without that (an empty part, only a
  * header or a comment) it still writes each sheet to a temporary file
  * (audit round 22), so such a part is refused, as Excel never saves one.
- * - The element must come first, as Excel saves it (LINKS_START): the same
- *   text inside a comment, an instruction (<?...?>) or a DOCTYPE is no
- *   element (audit round 23).
- * - The parser itself must read the whole part with no error and meet that
- *   element first: a start tag cut off at the part's end ("<Relationships ")
- *   looks right as text, but the parser reports no tag (audit round 24).
+ * - The parser must read the whole part with no error, and the first element
+ *   it reports must be Relationships: the same text inside a comment is no
+ *   element, nor is a start tag cut off at the part's end ("<Relationships "),
+ *   which looks right as text (audit rounds 23 and 24).
+ * - No DOCTYPE and no instruction (<?...?>, past the XML header), which Excel
+ *   never writes here (audit round 23).
+ * Only the parser reads the text. A pattern run over it first ran out of
+ * stack on one long comment and threw out of the reader (audit round 25).
  */
 export function hasLinksRoot(text: string): boolean {
-  if (!LINKS_START.test(text)) return false;
   const parser = new SaxesParser();
-  const seen: { first: string | null; failed: boolean } = { first: null, failed: false };
+  const seen: { first: string | null; refused: boolean } = { first: null, refused: false };
   parser.on("opentag", (tag) => {
     seen.first ??= tag.name;
   });
+  parser.on("doctype", () => {
+    seen.refused = true;
+  });
+  parser.on("processinginstruction", () => {
+    seen.refused = true;
+  });
   parser.on("error", () => {
-    seen.failed = true;
+    seen.refused = true;
   });
   parser.write(text).close();
-  return !seen.failed && seen.first === "Relationships";
+  return !seen.refused && seen.first === "Relationships";
 }
 
 /** A stored zip entry of shared strings with none in it, for a workbook whose cells all hold their own text. */
@@ -474,12 +478,14 @@ async function readWorkbook(bytes: Uint8Array): Promise<ReadImportFile> {
   const zip = readZip(bytes, MAX_UNPACKED_BYTES);
   if (!zip.ok && zip.reason === "unreadable") return { ok: false, error: CANNOT_OPEN };
   if (!zip.ok) return { ok: false, error: "This .xlsx file is too big inside. Send a CSV of the products instead." };
-  const ordered = inReaderOrder(bytes, zip);
-  if (!ordered) return { ok: false, error: CANNOT_OPEN };
 
   let chosen: { name: string; grid: string[][]; rowsWithValues: number; farRow: number; text: number } | null = null;
   let unnumbered = false;
+  // The links check runs in here too: whatever a file makes it throw is a
+  // file that cannot be opened, not a failed request (audit round 25).
   try {
+    const ordered = inReaderOrder(bytes, zip);
+    if (!ordered) return { ok: false, error: CANNOT_OPEN };
     const reader = new ExcelJS.stream.xlsx.WorkbookReader(bytesStream(ordered), {
       worksheets: "emit",
       sharedStrings: "cache",
