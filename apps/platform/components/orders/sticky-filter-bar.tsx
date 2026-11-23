@@ -158,11 +158,14 @@ export const StickyFilterBar = memo(function StickyFilterBar({
                 className
             )}
         >
-            {/* scroll-pl-8 matches pl-8, so the row loads at «كل الطلبات» instead of snapping 30 px in */}
+            {/* scroll-pl-8 matches pl-8, so the row loads at «كل الطلبات» instead of snapping 30 px in.
+                Snap only on phones, where a finger swipes the row. On desktop the mouse wheel moves it
+                (useWheelScrollsSideways), and a snap would pull each step back to the last chip, short
+                of the row's end. */}
             <div ref={statusRowRef} data-guide="order-status-tabs" className={cn(
-                "flex items-center gap-2 overflow-x-auto scrollbar-hide snap-x scroll-pl-8 py-6 pl-8 pr-6",
+                "flex items-center gap-2 overflow-x-auto scrollbar-hide scroll-pl-8 py-6 pl-8 pr-6",
                 // Mobile adjustments for touch targets
-                isMobile ? "min-h-[50px]" : ""
+                isMobile ? "min-h-[50px] snap-x" : ""
             )}>
                 {/* Status Pills */}
                 {filterOptions.map((option) => {

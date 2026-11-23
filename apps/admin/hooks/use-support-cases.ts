@@ -1,6 +1,7 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMemo, useRef } from "react";
+import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import type {
   CaseAction,
   NeedsUsShop,
@@ -12,32 +13,109 @@ import type {
   SupportNotice,
   SupportScoreboard,
   SupportTask,
+  ShopCallInput,
   SupportTeammate,
   TaskLogInput,
 } from "@/lib/support";
+import { TRIAL_FOLLOW_UP_KEY } from "@/lib/trial-pipeline";
 import type { ShopCheck } from "@/lib/support-shop-check";
 import type { SupportSpike } from "@/lib/support-spike";
 import { SHELL_READ, useAfterPageReads } from "@/hooks/use-after-page-reads";
 import { adminFetch } from "@/lib/admin-fetch";
+import {
+  SUPPORT_NOTICE_END_UNSURE,
+  SUPPORT_SEND_UNSURE,
+  SUPPORT_TAKE_SHOP_UNSURE,
+  SUPPORT_VIEW_END_UNSURE,
+  SUPPORT_VIEW_UNSURE,
+  writesOnce,
+} from "@/lib/support";
+import { sendStep } from "@/lib/send-json";
+import { okOrLoadFailure, pollEvery } from "@/lib/load-failure";
 
-async function readJson<T>(res: Response): Promise<T> {
-  const body: unknown = await res.json().catch(() => null);
-  if (!res.ok) {
-    const message =
-      body && typeof body === "object" && "error" in body && typeof body.error === "string"
-        ? body.error
-        : "Request failed";
-    throw new Error(message);
-  }
-  return body as T;
+/**
+ * A read's answer, or a LoadFailure with the server's status, so the page can
+ * tell a refused login or a gone conversation from a dropped connection.
+ */
+async function readOk<T>(res: Response, what: string): Promise<T> {
+  return (await okOrLoadFailure(res, what).json()) as T;
+}
+
+/**
+ * One id per ask, kept until it goes through. The ask is what staff send (the
+ * conversation, the words, the outcome): pressing again after an error or a
+ * lost answer sends the same id, and the database writes once. Once it goes
+ * through, the same words again are a new ask. Kept for the page's life: the
+ * words of a send are not kept across a reload either.
+ *
+ * Unlike money asks (lib/request-ids.ts), the words are the ask here: a reply
+ * in other words is another message, never a retry of the first.
+ */
+function useAskIds() {
+  const ids = useRef(new Map<string, string>());
+  return useMemo(
+    () => ({
+      askId(ask: unknown): { key: string; id: string } {
+        const key = JSON.stringify(ask);
+        const known = ids.current.get(key);
+        if (known) return { key, id: known };
+        const id = crypto.randomUUID();
+        ids.current.set(key, id);
+        return { key, id };
+      },
+      done(key: string) {
+        ids.current.delete(key);
+      },
+    }),
+    [],
+  );
+}
+
+/**
+ * POSTs one send with its id, through sendStep: a lost answer, whether the
+ * connection dropped or a gateway answered with no words, says the send may
+ * have been done and that pressing again with the same words is safe.
+ */
+function sendOnce<T>(url: string, body: unknown): Promise<T> {
+  return sendStep<T>(url, body, "POST", SUPPORT_SEND_UNSURE);
+}
+
+/**
+ * A send that keeps its id until it goes through: `run(ask)` posts the ask
+ * with its id, and a success ends that ask.
+ */
+function useSendOnce<A, T>(url: string, withId: (ask: A) => boolean = () => true) {
+  const ids = useAskIds();
+  return async (ask: A): Promise<T> => {
+    if (!withId(ask)) return sendOnce<T>(url, ask);
+    const { key, id } = ids.askId([url, ask]);
+    const answer = await sendOnce<T>(url, { ...ask, request_id: id });
+    ids.done(key);
+    return answer;
+  };
+}
+
+/**
+ * After a support step: re-read every support panel, but stay pending only
+ * until the step's own read lands (its conversation, its list). Waiting on all
+ * of them kept a sent reply spinning while the scoreboard or the spike check
+ * was slow (round 24, UX new 3).
+ */
+function settleOn(queryClient: QueryClient, own: readonly unknown[]): Promise<void> {
+  const ownKey = JSON.stringify(own);
+  void queryClient.invalidateQueries({
+    queryKey: ["admin", "support"],
+    predicate: (query) => JSON.stringify(query.queryKey) !== ownKey,
+  });
+  return queryClient.invalidateQueries({ queryKey: [...own], exact: true });
 }
 
 /** The inbox list. Polls so a new merchant message shows up without a reload. */
 export function useSupportCases(view: "open" | "solved") {
   return useQuery<SupportCasesResponse>({
     queryKey: ["admin", "support", "cases", view],
-    queryFn: async () => readJson<SupportCasesResponse>(await adminFetch(`/api/support/cases?view=${view}`)),
-    refetchInterval: 10_000,
+    queryFn: async () => readOk<SupportCasesResponse>(await adminFetch(`/api/support/cases?view=${view}`), "the conversations"),
+    refetchInterval: pollEvery(10_000),
   });
 }
 
@@ -48,7 +126,7 @@ export function useSupportWaitingCount() {
     meta: SHELL_READ,
     enabled: useAfterPageReads(),
     queryFn: async () =>
-      (await readJson<{ waitingOnUs: number }>(await adminFetch("/api/support/cases?view=count"))).waitingOnUs,
+      (await readOk<{ waitingOnUs: number }>(await adminFetch("/api/support/cases?view=count"), "the waiting count")).waitingOnUs,
     refetchInterval: 30_000,
   });
 }
@@ -57,24 +135,19 @@ export function useSupportWaitingCount() {
 export function useSupportCase(caseId: string | null) {
   return useQuery<SupportCaseDetailResponse>({
     queryKey: ["admin", "support", "case", caseId],
-    queryFn: async () => readJson<SupportCaseDetailResponse>(await adminFetch(`/api/support/cases/${caseId}`)),
+    queryFn: async () => readOk<SupportCaseDetailResponse>(await adminFetch(`/api/support/cases/${caseId}`), "this conversation"),
     enabled: caseId !== null,
-    refetchInterval: 5_000,
+    refetchInterval: pollEvery(5_000),
   });
 }
 
+/** A step on one conversation; a reply or a note is sent once however often it is pressed. */
 export function useSupportCaseAction(caseId: string) {
   const queryClient = useQueryClient();
+  const send = useSendOnce<CaseAction, { success: true }>(`/api/support/cases/${caseId}`, writesOnce);
   return useMutation({
-    mutationFn: async (action: CaseAction) =>
-      readJson<{ success: true }>(
-        await adminFetch(`/api/support/cases/${caseId}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(action),
-        }),
-      ),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ["admin", "support"] }),
+    mutationFn: send,
+    onSettled: () => settleOn(queryClient, ["admin", "support", "case", caseId]),
   });
 }
 
@@ -85,13 +158,7 @@ export function useSupportCaseAction(caseId: string) {
 export function useSupportMarkSeen(caseId: string) {
   return useMutation({
     mutationFn: async () =>
-      readJson<{ success: true; moved: boolean }>(
-        await adminFetch(`/api/support/cases/${caseId}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "seen" } satisfies CaseAction),
-        }),
-      ),
+      sendStep<{ success: true; moved: boolean }>(`/api/support/cases/${caseId}`, { action: "seen" } satisfies CaseAction),
   });
 }
 
@@ -99,7 +166,7 @@ export function useSupportMarkSeen(caseId: string) {
 export function useSupportTeam() {
   return useQuery<SupportTeammate[]>({
     queryKey: ["admin", "support", "team"],
-    queryFn: async () => (await readJson<{ team: SupportTeammate[] }>(await adminFetch("/api/support/team"))).team,
+    queryFn: async () => (await readOk<{ team: SupportTeammate[] }>(await adminFetch("/api/support/team"), "the team")).team,
     staleTime: 5 * 60_000,
   });
 }
@@ -108,8 +175,8 @@ export function useSupportTeam() {
 export function useSupportScoreboard(days: ScoreboardDays) {
   return useQuery<SupportScoreboard>({
     queryKey: ["admin", "support", "scoreboard", days],
-    queryFn: async () => readJson<SupportScoreboard>(await adminFetch(`/api/support/scoreboard?days=${days}`)),
-    refetchInterval: 60_000,
+    queryFn: async () => readOk<SupportScoreboard>(await adminFetch(`/api/support/scoreboard?days=${days}`), "the scoreboard"),
+    refetchInterval: pollEvery(60_000),
   });
 }
 
@@ -118,7 +185,7 @@ export function useSupportShopCheck(caseId: string, enabled: boolean) {
   return useQuery<{ tenantId: string; check: ShopCheck }>({
     queryKey: ["admin", "support", "shop-check", caseId],
     queryFn: async () =>
-      readJson<{ tenantId: string; check: ShopCheck }>(await adminFetch(`/api/support/cases/${caseId}/check`)),
+      readOk<{ tenantId: string; check: ShopCheck }>(await adminFetch(`/api/support/cases/${caseId}/check`), "the shop check"),
     enabled,
     staleTime: 30_000,
   });
@@ -128,24 +195,18 @@ export function useSupportShopCheck(caseId: string, enabled: boolean) {
 export function useSupportNeedsUs() {
   return useQuery<NeedsUsShop[]>({
     queryKey: ["admin", "support", "needs-us"],
-    queryFn: async () => (await readJson<{ shops: NeedsUsShop[] }>(await adminFetch("/api/support/needs-us"))).shops,
-    refetchInterval: 60_000,
+    queryFn: async () => (await readOk<{ shops: NeedsUsShop[] }>(await adminFetch("/api/support/needs-us"), "the shops that need us")).shops,
+    refetchInterval: pollEvery(60_000),
   });
 }
 
 /** Write first to a shop that needs us; answers the conversation it went into. */
 export function useSupportStartConversation() {
   const queryClient = useQueryClient();
+  const send = useSendOnce<StartConversation, { caseId: string; started: boolean }>("/api/support/needs-us");
   return useMutation({
-    mutationFn: async (input: StartConversation) =>
-      readJson<{ caseId: string; started: boolean }>(
-        await adminFetch("/api/support/needs-us", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(input),
-        }),
-      ),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ["admin", "support"] }),
+    mutationFn: send,
+    onSettled: () => settleOn(queryClient, ["admin", "support", "needs-us"]),
   });
 }
 
@@ -153,24 +214,31 @@ export function useSupportStartConversation() {
 export function useSupportTasks() {
   return useQuery<{ tasks: SupportTask[]; me: string }>({
     queryKey: ["admin", "support", "tasks"],
-    queryFn: async () => readJson<{ tasks: SupportTask[]; me: string }>(await adminFetch("/api/support/tasks")),
-    refetchInterval: 60_000,
+    queryFn: async () => readOk<{ tasks: SupportTask[]; me: string }>(await adminFetch("/api/support/tasks"), "today's calls"),
+    refetchInterval: pollEvery(60_000),
   });
 }
 
 /** Record a call on a first-week task. */
 export function useSupportLogTask() {
   const queryClient = useQueryClient();
+  const send = useSendOnce<TaskLogInput, { success: true }>("/api/support/tasks");
   return useMutation({
-    mutationFn: async (input: TaskLogInput) =>
-      readJson<{ success: true }>(
-        await adminFetch("/api/support/tasks", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(input),
-        }),
-      ),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ["admin", "support"] }),
+    mutationFn: send,
+    onSettled: () => settleOn(queryClient, ["admin", "support", "tasks"]),
+  });
+}
+
+/** Record a call on a shop with no task (Trials, "Mark contacted"): the shop's last call shows it. */
+export function useSupportLogShopCall() {
+  const queryClient = useQueryClient();
+  const send = useSendOnce<ShopCallInput, { success: true }>("/api/support/calls");
+  return useMutation({
+    mutationFn: send,
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ["admin", "support"] });
+      void queryClient.invalidateQueries({ queryKey: TRIAL_FOLLOW_UP_KEY });
+    },
   });
 }
 
@@ -178,36 +246,29 @@ export function useSupportLogTask() {
 export function useSupportTakeShop() {
   const queryClient = useQueryClient();
   return useMutation({
+    // A teammate may have taken it since a lost answer, so look before pressing again.
     mutationFn: async (tenantId: string) =>
-      readJson<{ success: true }>(
-        await adminFetch("/api/support/owner", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ tenantId }),
-        }),
-      ),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ["admin", "support"] }),
+      sendStep<{ success: true }>("/api/support/owner", { tenantId }, "POST", SUPPORT_TAKE_SHOP_UNSURE),
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ["admin", "support"] });
+    },
   });
 }
 
 /** Start a 30-minute look-only view of a shop; answers a one-time sign-in link. */
 export function useSupportViewStart() {
   return useMutation({
+    // A lost answer may have opened a look (and logged a visit the merchant sees): look first.
     mutationFn: async (tenantId: string) =>
-      readJson<{ url: string; expiresAt: string }>(
-        await adminFetch("/api/support/view", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ tenantId }),
-        }),
-      ),
+      sendStep<{ url: string; expiresAt: string }>("/api/support/view", { tenantId }, "POST", SUPPORT_VIEW_UNSURE),
   });
 }
 
 /** End my look-only view now. */
 export function useSupportViewEnd() {
   return useMutation({
-    mutationFn: async () => readJson<{ success: true }>(await adminFetch("/api/support/view", { method: "DELETE" })),
+    // Ending twice changes nothing, so a lost answer may just be pressed again.
+    mutationFn: async () => sendStep<{ success: true }>("/api/support/view", undefined, "DELETE", SUPPORT_VIEW_END_UNSURE),
   });
 }
 
@@ -216,8 +277,8 @@ export function useSupportNotice() {
   return useQuery<SupportNotice | null>({
     queryKey: ["admin", "support", "notice"],
     queryFn: async () =>
-      (await readJson<{ notice: SupportNotice | null }>(await adminFetch("/api/support/notices"))).notice,
-    refetchInterval: 60_000,
+      (await readOk<{ notice: SupportNotice | null }>(await adminFetch("/api/support/notices"), "the merchant notice")).notice,
+    refetchInterval: pollEvery(60_000),
   });
 }
 
@@ -225,7 +286,7 @@ export function useSupportNotice() {
 export function useSupportSpike() {
   return useQuery<SupportSpike | null>({
     queryKey: ["admin", "support", "spike"],
-    queryFn: async () => (await readJson<{ spike: SupportSpike | null }>(await adminFetch("/api/support/spike"))).spike,
+    queryFn: async () => (await readOk<{ spike: SupportSpike | null }>(await adminFetch("/api/support/spike"), "the shared problem check")).spike,
     refetchInterval: 60_000,
   });
 }
@@ -233,15 +294,9 @@ export function useSupportSpike() {
 /** Post a notice to every merchant (replaces the live one). */
 export function useSupportNoticePost() {
   const queryClient = useQueryClient();
+  const send = useSendOnce<NoticePostInput, { notice: SupportNotice }>("/api/support/notices");
   return useMutation({
-    mutationFn: async (input: NoticePostInput) =>
-      readJson<{ notice: SupportNotice }>(
-        await adminFetch("/api/support/notices", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(input),
-        }),
-      ),
+    mutationFn: send,
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["admin", "support", "notice"] }),
   });
 }
@@ -250,7 +305,9 @@ export function useSupportNoticePost() {
 export function useSupportNoticeEnd() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async () => readJson<{ ended: number }>(await adminFetch("/api/support/notices", { method: "DELETE" })),
+    // Ending again could end a notice a teammate posted since: the words say to look first.
+    mutationFn: async () =>
+      sendStep<{ ended: number }>("/api/support/notices", undefined, "DELETE", SUPPORT_NOTICE_END_UNSURE),
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["admin", "support", "notice"] }),
   });
 }

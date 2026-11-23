@@ -101,7 +101,7 @@ export function CollapsedToolbar({
                                 title={t("orders.tip.returnsCockpit")}
                             >
                                 <PackageX className="w-4 h-4" />
-                                <span className="hidden sm:inline">{t("orders.chip.refunds")}</span>
+                                <span className="hidden sm:inline">{t("orders.ui.returns")}</span>
                             </button>
                             <button
                                 type="button"

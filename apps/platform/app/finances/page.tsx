@@ -4,7 +4,7 @@ import { Suspense, useMemo } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Download } from "lucide-react";
+import { Download, SlidersHorizontal } from "lucide-react";
 import { PageSkeleton } from "@scheniders/ui/skeletons";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { useFinancePeriod } from "@/hooks/use-finance-period";
@@ -37,19 +37,19 @@ function isFinanceTab(value: string | null | undefined): value is FinanceTab {
 }
 
 /**
- * The new Finances page, at its own address until it replaces /finances: one
- * Summary screen built on get_finance_summary, plus the Expenses, Salaries and
- * Returns screens of the old page as they are.
+ * The Finances page: one Summary screen built on get_finance_summary, plus the
+ * Expenses, Salaries and Returns screens of the old page as they are. The old,
+ * fuller page stays one click away at /finances/advanced.
  */
-export default function FinancesNewPage() {
+export default function FinancesPage() {
     return (
         <Suspense fallback={<div className="min-h-screen bg-[var(--background)]"><PageSkeleton /></div>}>
-            <FinancesNewContent />
+            <FinancesContent />
         </Suspense>
     );
 }
 
-function FinancesNewContent() {
+function FinancesContent() {
     const { t } = useLanguage();
     const dir = useTextDir();
     const router = useRouter();
@@ -68,7 +68,7 @@ function FinancesNewContent() {
     const { current, previous } = useFinanceSummary(dateRangeStrings, compareDays);
 
     const openTab = (tab: FinanceTab) => {
-        router.push(tab === "summary" ? "/finances/new" : `/finances/new?tab=${tab}`, { scroll: false });
+        router.push(tab === "summary" ? "/finances" : `/finances?tab=${tab}`, { scroll: false });
     };
 
     const summary = current.data;
@@ -88,18 +88,17 @@ function FinancesNewContent() {
             <div className="mx-auto max-w-[1480px] space-y-5 px-4 pt-6 md:px-6 lg:px-8">
                 <header className="flex flex-wrap items-end justify-between gap-4">
                     <div>
-                        <div className="flex items-center gap-3">
-                            <h1 className="text-[30px] font-semibold leading-tight tracking-[-0.02em] text-foreground">{t("fin.title")}</h1>
-                            <span className="rounded-full bg-[#dcfb3a] px-2.5 py-0.5 text-[11.5px] font-semibold text-stone-900">{t("fin.preview")}</span>
-                        </div>
+                        <h1 className="text-[30px] font-semibold leading-tight tracking-[-0.02em] text-foreground">{t("fin.title")}</h1>
                         <p className="mt-1 text-left text-[14px] text-muted" dir={dir}>{t("fin.subtitle")}</p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                         <Link
-                            href="/finances"
-                            className="px-2 text-[13px] text-muted underline decoration-[var(--card-border)] underline-offset-4 hover:text-foreground"
+                            href="/finances/advanced"
+                            className="flex items-center gap-2 rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] px-3.5 py-2.5 text-[13px] font-medium text-foreground transition-colors hover:border-stone-400"
+                            data-testid="finance-advanced"
                         >
-                            {t("fin.oldPage")}
+                            <SlidersHorizontal className="size-4" aria-hidden="true" />
+                            {t("fin.advanced")}
                         </Link>
                         <PeriodPicker
                             period={period}

@@ -98,6 +98,40 @@ export function logAdminAction(
   });
 }
 
+/** How long the database keeps a send's id (support_staff_requests prunes after 2 days). */
+const REQUEST_ID_KEPT_MS = 2 * 24 * 60 * 60 * 1000;
+
+/** Whether this admin's row for this send is already on record. */
+async function sendLogged(adminId: string, action: string, requestId: string): Promise<boolean> {
+  const { data, error } = await createAdminClient()
+    .from("admin_activity_logs")
+    .select("id")
+    .eq("admin_user_id", adminId)
+    .eq("action", action)
+    .eq("details->>request_id", requestId)
+    .gte("created_at", new Date(Date.now() - REQUEST_ID_KEPT_MS).toISOString())
+    .limit(1);
+  // A check that could not answer writes the row: two rows for one send beat none.
+  if (error) return false;
+  return Array.isArray(data) && data.length > 0;
+}
+
+/**
+ * Log a send that carries a request id once per id (round 23). The row keeps
+ * the id. A first send logs. A repeat (the database did nothing new) logs only
+ * when no row for that id is on record, so a row the first send failed to write
+ * is written on the retry instead of never.
+ */
+export async function logAdminActionOnce(
+  admin: Actor,
+  action: string,
+  send: { requestId: string; repeat: boolean },
+  entry: { tenantId?: string | null; details?: Record<string, unknown> } = {},
+) {
+  if (send.repeat && (await sendLogged(admin.user.id, action, send.requestId))) return;
+  await logAdminAction(admin, action, { ...entry, details: { ...entry.details, request_id: send.requestId } });
+}
+
 /**
  * Log one row per tenant for a bulk action, in a single insert. The envelope
  * (actor, action, details) is shared; only `tenant_id` varies.

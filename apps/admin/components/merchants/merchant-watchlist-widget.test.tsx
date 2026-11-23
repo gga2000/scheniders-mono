@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 /*
@@ -10,7 +10,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
  */
 
 /** What the stars read gives: the server's stars, still loading, or failed after its retries. */
-let read: { data?: { watchlist: { tenant_id: string }[] }; isError: boolean } = { isError: false };
+let read: { data?: { watchlist: { tenant_id: string }[] }; isError: boolean; refetch?: () => void } = { isError: false };
 // The console's API calls go through adminFetch, which adds the session's
 // token; here it passes each call to the fetch the test answers.
 vi.mock("@/lib/admin-fetch", () => ({ adminFetch: (input: string, init?: RequestInit) => fetch(input, init) }));
@@ -39,11 +39,15 @@ afterEach(cleanup);
 
 describe("MerchantWatchlistWidget", () => {
   it("says the stars could not be loaded when that read failed, never 'No starred merchants'", () => {
-    read = { isError: true };
+    const refetch = vi.fn();
+    read = { isError: true, refetch };
     mount([]);
 
-    expect(screen.getByText("Your stars could not be loaded")).toBeTruthy();
+    expect(screen.getByText(/^Could not load your stars\./)).toBeTruthy();
     expect(screen.queryByText("No starred merchants")).toBeNull();
+    // Round 25 (structure new 4): the only way out was a reload.
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    expect(refetch).toHaveBeenCalledTimes(1);
   });
 
   it("shows the loading rows while the stars are still being read", () => {

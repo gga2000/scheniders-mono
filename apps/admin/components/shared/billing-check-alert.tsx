@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { CalendarX } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
@@ -29,13 +30,32 @@ export function billingCheckCount(check: BillingCheck | undefined): number {
   return check ? check.trialsNotBilled.length + check.renewalsMissed.length : 0;
 }
 
-function names(rows: BillingCheck["renewalsMissed"]): string {
-  const shown = rows.slice(0, 3).map((r) => r.business_name ?? r.tenant_id.slice(0, 8));
-  return rows.length > 3 ? `${shown.join(", ")} +${rows.length - 3}` : shown.join(", ");
+const SHOWN = 3;
+
+/** Up to three shops, each opening its page, then how many more. */
+function Shops({ rows, onOpen }: { rows: BillingCheck["renewalsMissed"]; onOpen?: () => void }) {
+  const more = rows.length - SHOWN;
+  return (
+    <>
+      {rows.slice(0, SHOWN).map((row, i) => (
+        <span key={row.tenant_id}>
+          {i > 0 && ", "}
+          <Link href={`/merchants/${row.tenant_id}`} onClick={onOpen} className="font-medium underline underline-offset-2">
+            {row.business_name ?? row.tenant_id.slice(0, 8)}
+          </Link>
+        </span>
+      ))}
+      {more > 0 && ` +${more}`}
+    </>
+  );
 }
 
-/** The bell's red row when a daily billing job missed a shop. */
-export function BillingCheckAlert({ check }: { check: BillingCheck }) {
+/**
+ * The bell's red row when the daily renewal job missed a shop. Its words name
+ * the job, not the shop: the shop page's "Not renewed" means renewal is off,
+ * a month left unrenewed on purpose (round 21, UX new 6).
+ */
+export function BillingCheckAlert({ check, onOpen }: { check: BillingCheck; onOpen?: () => void }) {
   return (
     <div className="flex items-start gap-3 border-b border-[var(--card-border)] bg-red-500/5 px-4 py-3 dark:bg-red-950/30" data-testid="billing-check-alert">
       <span className="mt-0.5 text-[var(--ink-red)]"><CalendarX className="w-3.5 h-3.5" /></span>
@@ -43,12 +63,12 @@ export function BillingCheckAlert({ check }: { check: BillingCheck }) {
         <p className="text-xs font-semibold text-[var(--ink-red)]">The daily renewal job missed shops</p>
         {check.trialsNotBilled.length > 0 && (
           <p className="text-xs text-[var(--ink-red)]">
-            Trial ended, never billed: {names(check.trialsNotBilled)}
+            Trials it did not reach: <Shops rows={check.trialsNotBilled} onOpen={onOpen} />
           </p>
         )}
         {check.renewalsMissed.length > 0 && (
           <p className="text-xs text-[var(--ink-red)]">
-            Month ended, not renewed: {names(check.renewalsMissed)}
+            Months it did not reach: <Shops rows={check.renewalsMissed} onOpen={onOpen} />
           </p>
         )}
       </div>

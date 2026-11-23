@@ -27,7 +27,7 @@ export function CashHealthCard({ data }: Props) {
             accent={hasRisk ? "rose" : "emerald"}
             action={
                 <Link
-                    href="/finances?tab=cash"
+                    href="/finances/advanced?tab=cash"
                     className="inline-flex items-center gap-1 text-[11px] font-medium text-muted hover:text-foreground transition-colors"
                 >
                     {t("finances.overview.cash.open")} <ArrowRight className="w-3 h-3" />

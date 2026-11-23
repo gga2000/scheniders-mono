@@ -7,7 +7,8 @@
 --   demo store and a prospect store are not;
 --   orders and delivered count real orders only (no test, practice,
 --   deleted, abandoned-cart or demo orders; a return is not delivered);
---   shipped is any real order in transit or later;
+--   shipped is any real order in transit or later, refused at the door
+--   (rejected) too, as on Delivered rate;
 --   WhatsApp sent counts outbound sent messages, and the cap is the plan's;
 --   Prime linked, the one-trial check, the owner's phone and a billing lock
 --   are read as they are; the last call is the newest one;
@@ -23,7 +24,8 @@ INSERT INTO public.tenants (id, business_name, plan, status, restrictions, is_de
     ('10000000-0000-4000-8000-000000000004', 'paying shop',  'starter', 'active',  '{}', false, false, NULL, now() - interval '40 days'),
     ('10000000-0000-4000-8000-000000000005', 'demo store',   'starter', 'trial',   '{}', true,  false, NULL, now() - interval '3 days'),
     ('10000000-0000-4000-8000-000000000006', 'prospect',     'starter', 'trial',   '{}', false, true,  NULL, now() - interval '3 days'),
-    ('10000000-0000-4000-8000-000000000007', 'paused paying', 'starter', 'limited', '{"status_before": "active"}', false, false, NULL, now() - interval '50 days');
+    ('10000000-0000-4000-8000-000000000007', 'paused paying', 'starter', 'limited', '{"status_before": "active"}', false, false, NULL, now() - interval '50 days'),
+    ('10000000-0000-4000-8000-000000000008', 'refused trial', 'starter', 'trial',   '{}', false, false, NULL, now() - interval '12 hours');
 
 INSERT INTO public.orders (tenant_id, status, is_test, guide_practice, deleted_at, is_return, take_kind) VALUES
     ('10000000-0000-4000-8000-000000000001', 'completed',        false, false, NULL,  false, NULL),
@@ -38,7 +40,10 @@ INSERT INTO public.orders (tenant_id, status, is_test, guide_practice, deleted_a
     -- The paused trial has only orders that never shipped.
     ('10000000-0000-4000-8000-000000000002', 'new',              false, false, NULL,  false, NULL),
     ('10000000-0000-4000-8000-000000000002', 'cancelled',        false, false, NULL,  false, NULL),
-    ('10000000-0000-4000-8000-000000000005', 'delivered',        false, false, NULL,  false, NULL);
+    ('10000000-0000-4000-8000-000000000005', 'delivered',        false, false, NULL,  false, NULL),
+    -- Every parcel of this trial was refused at the door: it shipped all the same.
+    ('10000000-0000-4000-8000-000000000008', 'rejected',         false, false, NULL,  false, NULL),
+    ('10000000-0000-4000-8000-000000000008', 'rejected',         false, false, NULL,  false, NULL);
 
 INSERT INTO public.whatsapp_logs (tenant_id, direction, status) VALUES
     ('10000000-0000-4000-8000-000000000001', 'outbound', 'sent'),
@@ -68,18 +73,25 @@ DECLARE
     busy jsonb;
     paused jsonb;
     quiet jsonb;
+    refused jsonb;
 BEGIN
     IF jsonb_typeof(answer) <> 'array' THEN RAISE EXCEPTION 'not an array: %', answer; END IF;
-    -- Listed: the three trials, oldest shop first. Not listed: paying, demo,
+    -- Listed: the four trials, oldest shop first. Not listed: paying, demo,
     -- prospect, a paused paying shop.
     IF (SELECT array_agg(e->>'tenant_id' ORDER BY ord) FROM jsonb_array_elements(answer) WITH ORDINALITY AS x(e, ord))
        <> ARRAY['10000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000001',
-                '10000000-0000-4000-8000-000000000003'] THEN
+                '10000000-0000-4000-8000-000000000003', '10000000-0000-4000-8000-000000000008'] THEN
         RAISE EXCEPTION 'wrong shops listed: %', answer;
     END IF;
     SELECT e INTO busy FROM jsonb_array_elements(answer) e WHERE e->>'tenant_id' = '10000000-0000-4000-8000-000000000001';
     SELECT e INTO paused FROM jsonb_array_elements(answer) e WHERE e->>'tenant_id' = '10000000-0000-4000-8000-000000000002';
     SELECT e INTO quiet FROM jsonb_array_elements(answer) e WHERE e->>'tenant_id' = '10000000-0000-4000-8000-000000000003';
+    SELECT e INTO refused FROM jsonb_array_elements(answer) e WHERE e->>'tenant_id' = '10000000-0000-4000-8000-000000000008';
+
+    -- Audit round 22: parcels refused at the door were shipped ("Shipped no" sent staff to help it ship).
+    IF (refused->>'orders')::int <> 2 OR (refused->>'delivered')::int <> 0 OR NOT (refused->>'shipped')::boolean THEN
+        RAISE EXCEPTION 'refused trial facts: %', refused;
+    END IF;
 
     -- Real orders: completed, in_transit, new and the return (4); delivered
     -- leaves out the return (1); test, practice, deleted, abandoned cart and

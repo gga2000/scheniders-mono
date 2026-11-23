@@ -396,7 +396,7 @@ export function useOrderDetailsModel(props: OrderDetailsModalProps) {
  * status action rows. Called by OrderDetailsModal after its "no order" guard.
  */
 export function buildOrderDetailsActions(m: OrderDetailsModel, order: Order) {
-    const { onOpenTemplatePanel, messageTemplates, setIsSendingTemplate, isMobile, t, orderStatusLabel, recordContact, startOrderConv, openChat } = m;
+    const { onOpenTemplatePanel, messageTemplates, setIsSendingTemplate, isMobile, t, orderStatusLabel, recordContact, startOrderConv, openChat, onClose } = m;
 
 
 
@@ -406,6 +406,10 @@ export function buildOrderDetailsActions(m: OrderDetailsModel, order: Order) {
 
     const handleDiscuss = async () => {
         const convId = await startOrderConv.mutateAsync(order.id);
+        // The team chat is its own window under the app layout. The order
+        // window is a modal dialog: left open, it covers the chat and blocks
+        // clicks on it. Hand over to the chat, as the bell's chat link does.
+        onClose();
         openChat(convId);
     };
 

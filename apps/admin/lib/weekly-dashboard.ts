@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { addDays } from "./baghdad-day";
+import { formatDateKey } from "./format";
 import { trialCostIqd } from "./whatsapp-report";
 
 /**
@@ -59,4 +60,11 @@ export function weekSummary(row: WeekRow): WeekSummary {
     became_paying_self_serve: row.became_paying - row.became_paying_assisted,
     trial_whatsapp_cost_iqd: trialCostIqd({ trial_utility: row.trial_whatsapp_utility, trial_marketing: row.trial_whatsapp_marketing }),
   };
+}
+
+/** The week's days, "15 to 21 Nov", or "29 Nov to 5 Dec" across two months. */
+export function weekSpan(week: Pick<WeekSummary, "week_start" | "week_end">): string {
+  const sameMonth = week.week_start.slice(0, 7) === week.week_end.slice(0, 7);
+  const start = sameMonth ? String(Number(week.week_start.slice(8))) : formatDateKey(week.week_start, false);
+  return `${start} to ${formatDateKey(week.week_end, false)}`;
 }

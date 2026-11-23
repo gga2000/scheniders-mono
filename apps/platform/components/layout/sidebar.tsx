@@ -77,18 +77,12 @@ const NAV_SECTIONS: { titleKey: string; items: NavItem[] }[] = [
                 icon: Wallet,
                 href: "/finances",
                 subItems: [
-                    // Ordered the way money actually moves: what came in, what is owed, what went out.
-                    { key: "nav.financesOverview", label: "Overview", href: "/finances", tab: "overview" },
-                    { key: "nav.financesRevenue", label: "Revenue & Profit", href: "/finances?tab=revenue", tab: "revenue" },
-                    { key: "nav.financesCash", label: "Cash & COD", href: "/finances?tab=cash", tab: "cash" },
-                    { key: "nav.financesInvoices", label: "Invoices", href: "/finances?tab=invoices", tab: "invoices" },
-                    { key: "nav.financesPayouts", label: "Payouts", href: "/finances?tab=payouts", tab: "payouts" },
-                    { key: "nav.financesRefunds", label: "Refunds & Returns", href: "/finances?tab=refunds", tab: "refunds" },
+                    // The Finances page's own tabs, then the old, fuller page behind "Advanced".
+                    { key: "nav.financesSummary", label: "Summary", href: "/finances", tab: "summary" },
                     { key: "nav.financesExpenses", label: "Expenses", href: "/finances?tab=expenses", tab: "expenses" },
                     { key: "nav.financesSalaries", label: "Salaries", href: "/finances?tab=salaries", tab: "salaries" },
-                    { key: "nav.financesPrint", label: "Print & Ship", href: "/finances?tab=print", tab: "print" },
-                    { key: "nav.financesCustomers", label: "Customers", href: "/finances?tab=customers", tab: "customers" },
-                    { key: "nav.financesProducts", label: "Products", href: "/finances?tab=products", tab: "products" },
+                    { key: "nav.financesReturns", label: "Returns", href: "/finances?tab=returns", tab: "returns" },
+                    { key: "nav.financesAdvanced", label: "Advanced page", href: "/finances/advanced", tab: "advanced" },
                 ],
             },
             { key: "nav.ads", icon: Megaphone, href: "/ads" },
@@ -131,9 +125,10 @@ export function Sidebar({
     const pathname = usePathname();
     const searchParams = useSearchParams();
     const router = useRouter();
-    const currentTab =
-        searchParams?.get("tab") ||
-        (pathname.startsWith("/finances") ? "overview" : "products");
+    // Every screen of the advanced Finances page lights its one sub-link, whatever its own tab.
+    const currentTab = pathname.startsWith("/finances/advanced")
+        ? "advanced"
+        : searchParams?.get("tab") || (pathname.startsWith("/finances") ? "summary" : "products");
     const { user, profile, role, permissions, profileLoaded, signOut, isLoading: authLoading } = useAuth();
     // Only the links this user may open: the same rules PageGuard enforces.
     const prime = usePrimeConnection();

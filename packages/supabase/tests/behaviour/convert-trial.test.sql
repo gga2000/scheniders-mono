@@ -10,6 +10,9 @@
 --     * a shop on trial becomes active, its one subscription active from now
 --       to now + days with renewal on and the shop's plan, and one log row
 --       names the days, the reason, the plan and what it was before;
+--     * when staff had turned renewal off, the log row says it was turned
+--       back on (auto_renew_turned_on, 20261122165740); when it was on, or
+--       there was no subscription, the row has no such key;
 --     * a locked trial ('past_due') and a trial with no subscription convert
 --       the same way; the second gets one row, never two;
 --   Refusals change nothing and are not logged:
@@ -119,11 +122,15 @@ BEGIN
        AND l.details ->> 'reason' = 'Paid in cash for a month'
        AND l.details ->> 'plan' = 'growth'
        AND l.details ->> 'previous_subscription_status' = 'trialing'
-       AND (l.details ->> 'current_period_end')::timestamptz = _row.current_period_end;
-    PERFORM pg_temp.check('trial: wanted one log row with the days, the trimmed reason and the plan, got ' || _n, _n = 1);
+       AND (l.details ->> 'current_period_end')::timestamptz = _row.current_period_end
+       AND (l.details -> 'auto_renew_turned_on') = 'true'::jsonb;
+    PERFORM pg_temp.check('trial: wanted one log row with the days, the trimmed reason, the plan and renewal turned back on, got ' || _n, _n = 1);
 
     SELECT id INTO _id FROM tt_shops WHERE name = 'locked trial';
+    UPDATE public.subscriptions SET auto_renew = true WHERE tenant_id = _id;
     _res := public.admin_convert_trial(_id, 90, 'Paid by Qi for three months', _admin, 'boss@example.com');
+    PERFORM pg_temp.check('locked trial: renewal was on, yet the row says it was turned back on',
+        (SELECT NOT (details ? 'auto_renew_turned_on') FROM public.admin_activity_logs WHERE tenant_id = _id AND action = 'convert_trial'));
     PERFORM pg_temp.check('locked trial: refused: ' || _res::text, (_res ->> 'success')::boolean);
     PERFORM pg_temp.check('locked trial: not paid from now for 90 days',
         (SELECT s.status = 'active' AND s.current_period_start = now() AND s.current_period_end = now() + interval '90 days'
@@ -137,6 +144,8 @@ BEGIN
     PERFORM pg_temp.check('no sub: wanted one active subscription for a year, got ' || _n, _n = 1);
     PERFORM pg_temp.check('no sub: no actor does not read system',
         (SELECT admin_label FROM public.admin_activity_logs WHERE tenant_id = _id AND action = 'convert_trial') = 'system');
+    PERFORM pg_temp.check('no sub: a new subscription has no renewal to turn back on',
+        (SELECT NOT (details ? 'auto_renew_turned_on') FROM public.admin_activity_logs WHERE tenant_id = _id AND action = 'convert_trial'));
     RESET ROLE;
 END $$;
 

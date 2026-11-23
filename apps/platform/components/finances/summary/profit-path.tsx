@@ -7,6 +7,7 @@ import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { bulkDates, profitPath, scaleMarks, type FinanceSummaryDay, type PathPoint } from "@/lib/finance/summary";
 import { LOSS_COLOR, PROFIT_COLOR } from "./colors";
 import { Money, formatWhole, useMoneyText } from "./money";
+import { InfoTip } from "./info-tip";
 import { SummaryCard } from "./summary-card";
 
 interface ProfitPathProps {
@@ -27,6 +28,11 @@ const LINE_HEIGHT = 260;
 const PAD = 0.1;
 /** A day gets a ring on the line, and its name under the chart, when it alone made at least this share of the path's range. */
 const JUMP = 0.2;
+
+/** Whole days from one YYYY-MM-DD to a later one. */
+function daysBetween(from: string, to: string): number {
+    return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
+}
 
 /**
  * Profit added up from the period's first day: a line that climbs on the days
@@ -102,6 +108,20 @@ export function ProfitPath({ daily }: ProfitPathProps) {
     const net = last?.running ?? 0;
     const every = Math.max(1, Math.ceil(points.length / LABELS));
     const active = hovered === null ? null : points[hovered] ?? null;
+    /**
+     * The date under column `i`. Arabic month names are long, so a label shows only the day when the
+     * label before it is in the same month, and the first label does too when the next one starts a
+     * new month within 8 days ("24", "1 تشرين الثاني"): with both months the two touch.
+     */
+    const tickLabel = (i: number) => {
+        const from = points[i].from;
+        if (step === "month") return monthFormat.format(new Date(`${from}T00:00:00Z`));
+        const dayOnly = String(Number(from.slice(8, 10)));
+        if (i >= every && points[i - every].from.slice(0, 7) === from.slice(0, 7)) return dayOnly;
+        const next = points[i + every];
+        if (i === 0 && next && next.from.slice(0, 7) !== from.slice(0, 7) && daysBetween(from, next.from) <= 8) return dayOnly;
+        return dayLabel(from);
+    };
     const bigDay = ({ i, profit }: { i: number; profit: number }) =>
         t("fin.path.big.item", {
             date: pointLabel(points[i]),
@@ -220,6 +240,26 @@ export function ProfitPath({ daily }: ProfitPathProps) {
                                     aria-hidden="true"
                                 />
                             ))}
+                            {/* Each big day's date beside its marker, so the note under the chart points at it. Below
+                                and to the right of the marker, where a rising line leaves room; to the left near the end. */}
+                            {chart.called.map(({ i }) => (
+                                <span
+                                    key={`${points[i].from}-date`}
+                                    className={cn(
+                                        "pointer-events-none absolute whitespace-nowrap text-[11px] font-medium text-muted",
+                                        hovered !== null && "opacity-0",
+                                    )}
+                                    style={
+                                        chart.x(i) > 0.7
+                                            ? { right: `calc(${(1 - chart.x(i)) * 100}% + 8px)`, top: `calc(${chart.y(points[i].running) * 100}% + 4px)` }
+                                            : { left: `calc(${chart.x(i) * 100}% + 8px)`, top: `calc(${chart.y(points[i].running) * 100}% + 4px)` }
+                                    }
+                                    data-testid="profit-path-jump-date"
+                                    dir={dir}
+                                >
+                                    {pointLabel(points[i])}
+                                </span>
+                            ))}
 
                             {last && (
                                 <>
@@ -274,12 +314,7 @@ export function ProfitPath({ daily }: ProfitPathProps) {
                                             )}
                                             dir={dir}
                                         >
-                                            {step === "month"
-                                                ? monthFormat.format(new Date(`${point.from}T00:00:00Z`))
-                                                : // Arabic month names are long: a label in the same month as the one before it shows only the day.
-                                                  i >= every && points[i - every].from.slice(0, 7) === point.from.slice(0, 7)
-                                                  ? String(Number(point.from.slice(8, 10)))
-                                                  : dayLabel(point.from)}
+                                            {tickLabel(i)}
                                         </span>
                                     )}
                                 </span>
@@ -288,7 +323,13 @@ export function ProfitPath({ daily }: ProfitPathProps) {
                     </div>
                 </div>
                 {bigDays && (
-                    <p className="mt-3 text-left text-[12.5px] leading-relaxed text-muted" dir={dir} data-testid="profit-path-big">{[bigDays, bulkLine, restLine].filter(Boolean).join(" ")}</p>
+                    <p className="mt-3 text-left text-[12.5px] leading-relaxed text-muted" dir={dir} data-testid="profit-path-big">
+                        {bigDays}
+                        {/* Whether those days were bulk marking, and what the other days added: one tap away. */}
+                        {(bulkLine || restLine) && (
+                            <InfoTip text={[bulkLine, restLine].filter(Boolean).join(" ")} textDir={dir} className="ms-1" testId="profit-path-big-info" />
+                        )}
+                    </p>
                 )}
             </div>
         </SummaryCard>

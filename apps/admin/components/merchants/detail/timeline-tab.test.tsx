@@ -1,14 +1,13 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createElement } from "react";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 vi.mock("@/hooks/use-admin-auth", () => ({ useAdminAuth: () => ({ role: "super_admin" }) }));
 vi.mock("@/hooks/use-admin-users", () => ({ useAdminUsers: () => ({ data: [] }) }));
-vi.mock("@/lib/admin-fetch", () => ({
-  adminFetch: async () => new Response(JSON.stringify({ entries: [], nextBefore: null }), { status: 200 }),
-}));
+const answer = vi.hoisted(() => ({ next: async (): Promise<Response> => new Response(JSON.stringify({ entries: [], nextBefore: null }), { status: 200 }) }));
+vi.mock("@/lib/admin-fetch", () => ({ adminFetch: () => answer.next() }));
 
 import { TimelineTab } from "./timeline-tab";
 
@@ -22,8 +21,7 @@ function leaving(): boolean {
   return event.defaultPrevented;
 }
 
-function renderTab() {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+function renderTab(client = new QueryClient({ defaultOptions: { queries: { retry: false } } })) {
   return render(createElement(QueryClientProvider, { client }, createElement(TimelineTab, { merchantId: "m1" })));
 }
 
@@ -40,5 +38,66 @@ describe("TimelineTab: a shop note being written", () => {
 
     fireEvent.change(box, { target: { value: "  " } });
     expect(leaving()).toBe(false);
+  });
+});
+
+/*
+ * Round 24 structure new 2: the timeline is read again after every step on
+ * the shop. One failed re-read, or a failed "Show older", replaced every
+ * entry on screen with its error.
+ */
+describe("TimelineTab when a later read fails", () => {
+  const entry = { id: "e1", kind: "note", at: "2026-11-22T15:00:00Z", title: "Note", who: "Noor", detail: "Call after 6" };
+  const page = (nextBefore: string | null) =>
+    new Response(JSON.stringify({ entries: [entry], nextBefore }), { status: 200 });
+
+  it("keeps the entries and says the refresh failed", async () => {
+    answer.next = async () => page(null);
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    renderTab(client);
+    await screen.findByText("Call after 6");
+    answer.next = async () => {
+      throw new TypeError("Failed to fetch");
+    };
+    await act(() => client.refetchQueries({ queryKey: ["admin", "merchant", "m1"] }));
+    await waitFor(() => expect(screen.getByText(/Could not refresh the timeline\. This list is from/)).toBeTruthy());
+    expect(screen.getByText("Call after 6")).toBeTruthy();
+  });
+
+  it("keeps the entries when older ones fail to load, and offers them again", async () => {
+    answer.next = async () => page("2026-11-22T15:00:00Z");
+    renderTab();
+    await screen.findByText("Call after 6");
+    answer.next = async () => new Response("{}", { status: 502 });
+    fireEvent.click(screen.getByRole("button", { name: "Show older" }));
+    await screen.findByText(/Could not load older entries/);
+    expect(screen.getByText("Call after 6")).toBeTruthy();
+    expect(screen.queryByText(/Could not refresh/)).toBeNull();
+  });
+
+  // Round 25 (structure new 6): "Show older" moved the read's own time to the
+  // newest page; nothing checked that the line names the oldest page's time.
+  it("names the time of its oldest page when a refresh fails after Show older", async () => {
+    const older = { ...entry, id: "e0", at: "2026-11-21T15:00:00Z", detail: "Owner travelling" };
+    const firstRead = Date.parse("2026-11-22T17:00:00Z"); // 20:00 in Baghdad
+    const now = vi.spyOn(Date, "now").mockReturnValue(firstRead);
+    answer.next = async () => page("2026-11-22T15:00:00Z");
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    renderTab(client);
+    await screen.findByText("Call after 6");
+
+    now.mockReturnValue(firstRead + 10 * 60_000);
+    answer.next = async () => new Response(JSON.stringify({ entries: [older], nextBefore: null }), { status: 200 });
+    fireEvent.click(screen.getByRole("button", { name: "Show older" }));
+    await screen.findByText("Owner travelling");
+
+    answer.next = async () => {
+      throw new TypeError("Failed to fetch");
+    };
+    await act(() => client.refetchQueries({ queryKey: ["admin", "merchant", "m1"] }));
+    await waitFor(() =>
+      expect(screen.getByText(/^Could not refresh the timeline\. This list is from (Sun 22 Nov, )?20:00\./)).toBeTruthy(),
+    );
+    now.mockRestore();
   });
 });

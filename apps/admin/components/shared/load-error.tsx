@@ -17,7 +17,21 @@ interface LoadErrorProps {
   error?: unknown;
   /** Inside a pop-up or side panel: the size of its content, not of a page. */
   compact?: boolean;
+  /**
+   * What the part shows once it loads: numbers (the default), a list, or a
+   * page of facts. It picks the words, as `kept` does on `StaleLine`, so a
+   * list that did not load is not said to hide its numbers (round 24 UX new 7).
+   */
+  shows?: Shows;
 }
+
+type Shows = "numbers" | "list" | "page";
+
+const NOT_SHOWN: Readonly<Record<Shows, string>> = {
+  numbers: "No numbers are shown, because they could be wrong.",
+  list: "No list is shown until it can be read.",
+  page: "Nothing is shown until it can be read.",
+};
 
 const BUTTON =
   "inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#1E1E1E] text-white text-sm font-semibold hover:bg-[#2D2D2D] disabled:opacity-50 transition-all";
@@ -26,7 +40,7 @@ const BUTTON =
  * Shown in place of a page whose numbers could not be loaded. A page that
  * keeps its spinner, or draws zeros, tells staff nothing is wrong.
  */
-export function LoadError({ what, onRetry, retrying = false, error, compact = false }: LoadErrorProps) {
+export function LoadError({ what, onRetry, retrying = false, error, compact = false, shows = "numbers" }: LoadErrorProps) {
   const kind = loadFailureKind(error);
   const refused = kind === "forbidden";
   const signedOut = kind === "signed_out";
@@ -72,7 +86,7 @@ export function LoadError({ what, onRetry, retrying = false, error, compact = fa
                 ? `Sign in again to see ${what}.`
                 : missing
                   ? "It may have been removed, or the link is wrong."
-                  : "No numbers are shown, because they could be wrong. Check your connection and try again."}
+                  : `${NOT_SHOWN[shows]} Check your connection and try again.`}
           </p>
         </div>
         {signedOut ? (

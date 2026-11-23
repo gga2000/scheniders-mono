@@ -6,8 +6,10 @@ import { useAdminStore } from "@/store/use-admin-store";
 import { DEFAULT_MERCHANT_SORT } from "@/lib/merchant-sort";
 import { useMemo } from "react";
 import { adminFetch } from "@/lib/admin-fetch";
+import { okOrLoadFailure } from "@/lib/load-failure";
+import { oldestRead, stampRead, type ReadAt } from "@/lib/page-read-at";
 
-interface MerchantsPage {
+interface MerchantsPage extends ReadAt {
   merchants: AdminTenant[];
   total: number;
   page: number;
@@ -94,9 +96,8 @@ export function useInfiniteMerchants(limit = 50) {
       if (dateRange.from) params.set("date_from", dateRange.from);
       if (dateRange.to) params.set("date_to", dateRange.to);
 
-      const res = await adminFetch(`/api/merchants?${params.toString()}`);
-      if (!res.ok) throw new Error("Failed to fetch merchants");
-      return res.json();
+      const res = okOrLoadFailure(await adminFetch(`/api/merchants?${params.toString()}`), "the merchants");
+      return stampRead((await res.json()) as Omit<MerchantsPage, "readAt">);
     },
     initialPageParam: 1,
     getNextPageParam: (lastPage) => {
@@ -118,11 +119,21 @@ export function useInfiniteMerchants(limit = 50) {
     return [...starred, ...unstarred];
   }, [query.data?.pages, starredMerchants]);
 
+  // Each page's shop ids as the server sent them: a starred shop moving up
+  // the list does not change them.
+  const pageIds = useMemo(
+    () => query.data?.pages.map((p) => p.merchants.map((m) => m.id)) ?? [],
+    [query.data?.pages],
+  );
+
   const total = query.data?.pages[0]?.total ?? 0;
 
   return {
     ...query,
+    // The list is as old as its oldest page, not the page loaded last.
+    dataUpdatedAt: oldestRead(query.data?.pages, query.dataUpdatedAt),
     merchants,
+    pageIds,
     total,
   };
 }

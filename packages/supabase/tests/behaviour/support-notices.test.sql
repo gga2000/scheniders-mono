@@ -47,10 +47,10 @@ BEGIN
     PERFORM pg_temp.check('access: service role reads', has_table_privilege('service_role', 'public.support_notices', 'SELECT'));
     PERFORM pg_temp.check('access: service role deletes', NOT has_table_privilege('service_role', 'public.support_notices', 'DELETE'));
     PERFORM pg_temp.check('access: rls on', (SELECT relrowsecurity FROM pg_class WHERE oid = 'public.support_notices'::regclass));
-    PERFORM pg_temp.check('access: anon posts', NOT has_function_privilege('anon', 'public.support_notice_post(uuid, text, text, integer)', 'EXECUTE'));
-    PERFORM pg_temp.check('access: authenticated posts', NOT has_function_privilege('authenticated', 'public.support_notice_post(uuid, text, text, integer)', 'EXECUTE'));
+    PERFORM pg_temp.check('access: anon posts', NOT has_function_privilege('anon', 'public.support_notice_post(uuid, text, text, integer, uuid)', 'EXECUTE'));
+    PERFORM pg_temp.check('access: authenticated posts', NOT has_function_privilege('authenticated', 'public.support_notice_post(uuid, text, text, integer, uuid)', 'EXECUTE'));
     PERFORM pg_temp.check('access: authenticated ends', NOT has_function_privilege('authenticated', 'public.support_notice_end(uuid)', 'EXECUTE'));
-    PERFORM pg_temp.check('access: service role posts', has_function_privilege('service_role', 'public.support_notice_post(uuid, text, text, integer)', 'EXECUTE'));
+    PERFORM pg_temp.check('access: service role posts', has_function_privilege('service_role', 'public.support_notice_post(uuid, text, text, integer, uuid)', 'EXECUTE'));
     PERFORM pg_temp.check('access: service role ends', has_function_privilege('service_role', 'public.support_notice_end(uuid)', 'EXECUTE'));
 END $$;
 
@@ -112,6 +112,18 @@ BEGIN
     PERFORM public.support_notice_post(a2, 'Ali', 'New', 3);
     SELECT * INTO r FROM public.support_notices WHERE id = (n->>'id')::uuid;
     PERFORM pg_temp.check('post closes a run-out notice at its end', r.ended_at = r.ends_at AND r.ended_by IS NULL);
+END $$;
+
+-- A request id (round 22, N8): a repeat posts no second notice and does not end the first.
+DO $$
+DECLARE
+    rid uuid := gen_random_uuid();
+    first_ jsonb := public.support_notice_post('00000000-0000-4000-8000-0000000000a1', 'Sara', 'Posted once', 2, rid);
+    again jsonb := public.support_notice_post('00000000-0000-4000-8000-0000000000a1', 'Sara', 'Posted once', 2, rid);
+BEGIN
+    PERFORM pg_temp.check('request id: one notice', (SELECT count(*) FROM public.support_notices WHERE body = 'Posted once') = 1);
+    PERFORM pg_temp.check('request id: still live', (SELECT ended_at IS NULL FROM public.support_notices WHERE id = (first_ ->> 'id')::uuid));
+    PERFORM pg_temp.check('request id: same notice back', again ->> 'id' = first_ ->> 'id' AND (again ->> 'repeat')::boolean);
 END $$;
 
 DO $$

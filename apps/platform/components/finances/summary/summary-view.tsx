@@ -93,10 +93,11 @@ export function SummaryView({ current, previous, onOpenTab }: SummaryViewProps) 
                     summary={summary}
                     delivery={statement.lines.find((l) => l.id === "delivery") ?? { id: "delivery", amount: 0, share: 0, parts: [] }}
                 />
-                {/* Beside the long money card: the path, then what the delivery companies actually paid out. */}
+                {/* Beside the long money card: first what the delivery companies actually paid out, which its
+                    "paid to you" walks to, then the path. */}
                 <div className="flex min-w-0 flex-col gap-5">
-                    {!nothingDelivered && <ProfitPath daily={summary.daily} />}
                     <CourierPayments summary={summary} onAddPayment={() => setImportOpen(true)} />
+                    {!nothingDelivered && <ProfitPath daily={summary.daily} />}
                 </div>
             </div>
 

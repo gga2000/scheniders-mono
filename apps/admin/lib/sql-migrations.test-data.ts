@@ -28,3 +28,19 @@ export function newestDefinition(fn: string): string {
   }
   return latest;
 }
+
+/**
+ * The values the newest `add constraint <name> check (<column> in (...))`
+ * allows, in the order written: what the database takes today.
+ */
+export function newestCheckValues(constraint: string): string[] {
+  const check = new RegExp(`add\\s+constraint\\s+${constraint}\\s+check\\s*\\(\\s*\\w+\\s+in\\s*\\(([^)]*)\\)`, "gi");
+  let latest: string[] = [];
+  for (const file of readdirSync(MIGRATIONS_DIR).filter((name) => /^\d{14}_.*\.sql$/.test(name)).sort()) {
+    const sql = readFileSync(path.join(MIGRATIONS_DIR, file), "utf8");
+    for (const match of sql.matchAll(check)) {
+      latest = [...match[1].matchAll(/'([^']*)'/g)].map((value) => value[1]);
+    }
+  }
+  return latest;
+}

@@ -34,8 +34,9 @@ function shop(over: {
     // What billing_lock_snapshot reads for an unlocked starter shop with no add-on.
     billingLock: over.lock ?? { locked: false, reason: null, since: null, orders_left: null, allowance: 50, plan: "starter", price_iqd: 9_000, renewal_off: false },
     stoppedBy: over.stoppedBy ?? null,
-    // Charged on 19 Sep and 19 Oct: the month that runs now was paid for.
-    paidPlan: over.paidPlan ?? { first_paid_at: "2026-09-19T09:00:00Z", month_end: "2026-11-18T09:00:00Z" },
+    // Charged on 19 Sep and 19 Oct: the month that runs now was paid for. The
+    // renewal sets the period's end and the paid month's end the same way.
+    paidPlan: over.paidPlan ?? { first_paid_at: "2026-09-19T09:00:00Z", month_end: "2026-11-19T09:00:00Z" },
   };
 }
 
@@ -172,7 +173,7 @@ describe("shopStatusLine", () => {
       tone: "ended",
       label: "Not renewed",
       sentence: "This month ended on Mon 16 Nov. Renewal is off, so it is not charged.",
-      next: "The shop locks with the next daily renewal, until it pays on its lock screen or staff turn renewal on.",
+      next: "The shop locks with the next daily renewal, until the shop pays 9,000 IQD on its lock screen, or staff turn renewal on and the wallet pays it.",
     });
   });
 
@@ -181,11 +182,16 @@ describe("shopStatusLine", () => {
     const line = shopStatusLine(shop({ wallet: 2_000, lock, subscription: { status: "past_due", auto_renew: false } }), now);
     expect(line.sentence).toBe("Month not paid. Locked since Mon 16 Nov.");
     expect(line.next).toBe(
-      "Renewal is off, so money alone does not open it: it opens when the shop pays 9,000 IQD on its lock screen, or when staff turn renewal on and the wallet pays it. Wallet 2,000 IQD, short by 7,000 IQD.",
+      "Renewal is off, so money alone does not open it: it opens when the shop pays 9,000 IQD on its lock screen, or staff turn renewal on and the wallet pays it. Wallet 2,000 IQD, short by 7,000 IQD.",
+    );
+    // Round 21 (structure new 6): a free unlock and free days open it too, for that time only.
+    const superAdmin = shopStatusLine({ ...shop({ wallet: 2_000, lock, subscription: { status: "past_due", auto_renew: false } }), canForceUnlock: true }, now);
+    expect(superAdmin.next).toBe(
+      "Renewal is off, so money alone does not open it: it opens when the shop pays 9,000 IQD on its lock screen, or staff turn renewal on and the wallet pays it. A free unlock or free days also open it, with no charge, for that time only. Wallet 2,000 IQD, short by 7,000 IQD.",
     );
     const paused = shopStatusLine(shop({ wallet: 9_000, lock, tenant: { status: "limited" } }), now);
     expect(paused.next).toBe(
-      "Paused, and renewal is off. Once the pause lifts, it opens when the shop pays 9,000 IQD on its lock screen, or when staff turn renewal on and the wallet pays it.",
+      "Paused, and renewal is off. Once the pause lifts, it opens when the shop pays 9,000 IQD on its lock screen, or staff turn renewal on and the wallet pays it.",
     );
   });
 
@@ -234,9 +240,16 @@ describe("shopStatusLine", () => {
     });
   });
 
-  it("keeps Paying while a charged month covers now, even when free days run past it", () => {
+  // Round 21 (data new 4): with free days this month the line read "This month runs from … to" the
+  // free days' end, while the Paying page names the paid month's own end.
+  it("keeps Paying while a charged month covers now, and says the paid month and the free days apart", () => {
     const line = shopStatusLine(shop({ subscription: { current_period_end: "2026-11-28T09:00:00Z" } }), now);
     expect(line.label).toBe("Paying");
+    expect(line.sentence).toBe("Paying. Paid until Thu 19 Nov, then free days to Sat 28 Nov.");
+    expect(line.next).toBe("Next charge 9,000 IQD on Sat 28 Nov.");
+    const off = shopStatusLine(shop({ subscription: { current_period_end: "2026-11-28T09:00:00Z", auto_renew: false } }), now);
+    expect(off.sentence).toBe("Paying. Renewal is off. Paid until Thu 19 Nov, then free days to Sat 28 Nov.");
+    expect(off.next).toBe("This period ends on Sat 28 Nov and is not charged: renewal is off, so the shop locks with the next daily renewal.");
   });
 
   it("keeps Paying for a charged month that has ended and waits for the renewal run, and Behind for a month behind", () => {
@@ -294,7 +307,7 @@ describe("shopStatusLine", () => {
       tone: "ended",
       label: "Not renewed",
       sentence: "Free time ended on Mon 16 Nov. Renewal is off, so it is not charged.",
-      next: "The shop locks with the next daily renewal, until it pays on its lock screen or staff turn renewal on.",
+      next: "The shop locks with the next daily renewal, until the shop pays 9,000 IQD on its lock screen, or staff turn renewal on and the wallet pays it.",
     });
   });
 

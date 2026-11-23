@@ -1,17 +1,28 @@
+// @vitest-environment jsdom
 // The trial and month card, rendered to markup: only a super admin gets the
 // renewal switch; support staff read whether renewal is on. The switch used to
 // show for everyone and answer "Forbidden" to support staff.
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { describe, expect, it, vi } from "vitest";
+import { QueryClient, QueryClientProvider, useMutation } from "@tanstack/react-query";
+import { cleanup, fireEvent, render as draw, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AdminRole } from "@/types/admin";
 import type { MerchantDetail } from "@/hooks/use-merchant-detail";
+import type { BillingLockSnapshot } from "@/lib/billing-lock-tools";
+import { shopActionKey } from "@/lib/shop-actions";
 
 const auth: { role: AdminRole | null } = { role: "super_admin" };
 vi.mock("@/hooks/use-admin-auth", () => ({ useAdminAuth: () => ({ role: auth.role }) }));
+const send = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/admin-fetch", () => ({ adminFetch: send }));
 
 const { SubscriptionCard } = await import("./subscription-card");
+
+afterEach(() => {
+  cleanup();
+  send.mockReset();
+});
 
 const tenant = { status: "active", plan: "starter", trial_ends_at: null } as unknown as MerchantDetail["tenant"];
 const subscription = {
@@ -26,12 +37,36 @@ const render = (role: AdminRole | null, shop: MerchantDetail["tenant"] = tenant)
     createElement(
       QueryClientProvider,
       { client: new QueryClient() },
-      createElement(SubscriptionCard, { merchantId: "t1", tenant: shop, subscription }),
+      createElement(SubscriptionCard, { merchantId: "t1", tenant: shop, subscription, billingLock: null, walletIqd: 0 }),
     ),
   );
 };
 
 describe("SubscriptionCard renewal", () => {
+  /*
+   * Round 25 (structure new 6): the card's Off line takes the lock's reason
+   * (round 24 UX new 8), but no test drew the card locked, so passing null
+   * there passed every suite.
+   */
+  it("tells a shop that renewal off has already locked what happened", () => {
+    auth.role = "super_admin";
+    const html = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(SubscriptionCard, {
+          merchantId: "t1",
+          tenant,
+          subscription: { ...subscription, auto_renew: false } as MerchantDetail["subscription"],
+          billingLock: { locked: true, reason: "unpaid" } as unknown as BillingLockSnapshot,
+          walletIqd: 0,
+        }),
+      ),
+    );
+    expect(html).toContain("Off: the month ended unpaid, so the shop is locked");
+    expect(html).not.toContain("when the month ends");
+  });
+
   it("gives a super admin the switch", () => {
     const html = render("super_admin");
     expect(html).toContain('role="switch"');
@@ -44,7 +79,7 @@ describe("SubscriptionCard renewal", () => {
     expect(html).toContain("On: charges the wallet each month");
   });
 
-  it("asks nothing until the switch is pressed: the reason form opens only to stop renewing", () => {
+  it("asks nothing until the switch is pressed", () => {
     const html = render("super_admin");
     expect(html).not.toContain('aria-label="Reason"');
     expect(html).not.toContain("Stop renewing");
@@ -97,10 +132,186 @@ describe("SubscriptionCard on a paused trial", () => {
     auth.role = "super_admin";
     const year = { ...subscription, current_period_start: "2026-11-19T00:00:00+00:00", current_period_end: "2027-11-19T00:00:00+00:00" } as MerchantDetail["subscription"];
     const html = renderToStaticMarkup(
-      createElement(QueryClientProvider, { client: new QueryClient() }, createElement(SubscriptionCard, { merchantId: "t1", tenant, subscription: year })),
+      createElement(QueryClientProvider, { client: new QueryClient() }, createElement(SubscriptionCard, { merchantId: "t1", tenant, subscription: year, billingLock: null, walletIqd: 0 })),
     );
     expect(html).toContain("This period");
     expect(html).not.toContain("This month");
     expect(render("super_admin")).toContain("This month");
+  });
+});
+
+/*
+ * Round 21 (UX new 2 and 3): one click on the switch turned renewal back on,
+ * with no sentence and no reason. Since renewal off locks the shop and turning
+ * it on charges the month within the hour (20261119073654), a stray click took
+ * the month from a shop whose renewal was stopped on purpose. And the switch
+ * did not wait for the page's other writes.
+ */
+describe("SubscriptionCard turning renewal back on", () => {
+  const LOCK: BillingLockSnapshot = {
+    locked: true,
+    reason: "unpaid",
+    since: "2026-11-21T00:00:00+00:00",
+    orders_left: 50,
+    allowance: 50,
+    plan: "starter",
+    price_iqd: 9000,
+    renewal_off: true,
+  };
+  const off = { ...subscription, auto_renew: false, status: "past_due" } as MerchantDetail["subscription"];
+
+  /** A write on this shop from another panel, held open until the test ends. */
+  function OtherWrite() {
+    const write = useMutation({ mutationKey: shopActionKey("t1"), mutationFn: () => new Promise<never>(() => {}) });
+    return createElement("button", { type: "button", onClick: () => write.mutate() }, "Other write");
+  }
+
+  const open = (walletIqd: number, billingLock: BillingLockSnapshot | null = LOCK, subs = off) => {
+    auth.role = "super_admin";
+    draw(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(SubscriptionCard, { merchantId: "t1", tenant, subscription: subs, billingLock, walletIqd }),
+        createElement(OtherWrite),
+      ),
+    );
+    return screen.getByRole("switch", { name: "Renew each month" });
+  };
+
+  it("says a locked shop's wallet pays the month within the hour, and sends nothing on the click", () => {
+    fireEvent.click(open(20000));
+    expect(
+      screen.getByText(
+        "Renewal turns on. Within the hour the wallet pays 9,000 IQD for the month and the shop opens. The wallet holds 20,000 IQD now.",
+      ),
+    ).toBeTruthy();
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it("says when the wallet is short of the month", () => {
+    fireEvent.click(open(4000));
+    expect(
+      screen.getByText(
+        "Renewal turns on. The wallet holds 4,000 IQD, short of the month's 9,000 IQD. Once it holds the month, it pays and the shop opens.",
+      ),
+    ).toBeTruthy();
+  });
+
+  it("waits for a reason, then sends it with the change", async () => {
+    send.mockResolvedValue(new Response(JSON.stringify({ success: true }), { status: 200 }));
+    fireEvent.click(open(20000));
+    const go = screen.getByRole("button", { name: "Turn renewal on" }) as HTMLButtonElement;
+    expect(go.disabled).toBe(true);
+    fireEvent.change(screen.getByPlaceholderText("Why turn renewal on? (the shop's timeline shows it)"), {
+      target: { value: "Owner paid in cash at the office" },
+    });
+    fireEvent.click(go);
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(1));
+    const [url, init] = send.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("/api/merchants/t1");
+    expect(init.method).toBe("PATCH");
+    expect(JSON.parse(String(init.body))).toEqual({ auto_renew: true, reason: "Owner paid in cash at the office" });
+  });
+
+  it("asks why before a shop that is not locked turns renewal on, too", () => {
+    fireEvent.click(open(0, null, { ...off, status: "active" } as MerchantDetail["subscription"]));
+    expect(screen.getByText("Renewal turns on. The month after Tue 1 Dec is charged from the wallet as usual.")).toBeTruthy();
+    expect((screen.getByRole("button", { name: "Turn renewal on" }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("waits while another write on this shop runs", () => {
+    const toggle = open(20000) as HTMLButtonElement;
+    fireEvent.click(toggle);
+    fireEvent.change(screen.getByPlaceholderText("Why turn renewal on? (the shop's timeline shows it)"), {
+      target: { value: "Owner paid in cash at the office" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Other write" }));
+    return waitFor(() => {
+      expect(toggle.disabled).toBe(true);
+      expect((screen.getByRole("button", { name: "Turn renewal on" }) as HTMLButtonElement).disabled).toBe(true);
+      // The reason box sits in the panel's fieldset, which the browser disables as a whole.
+      expect(screen.getByPlaceholderText("Why turn renewal on? (the shop's timeline shows it)").matches(":disabled")).toBe(true);
+    });
+  });
+});
+
+/*
+ * Round 22 (structure new 3): the panel worked out its step from the switch on
+ * each draw. Staff pressed Stop renewing, the answer was lost, and the re-read
+ * showed renewal off: the open panel turned into "Turn renewal on" with the
+ * reason still filled in, so one more press undid the stop and charged a
+ * locked shop's month.
+ */
+describe("SubscriptionCard after a lost answer", () => {
+  const REASON = "Owner asked to stop at the end of the month";
+  const lost = () => Promise.resolve(new Response("upstream timed out", { status: 504 }));
+
+  function Card({ on }: { on: boolean }) {
+    return createElement(SubscriptionCard, {
+      merchantId: "t1",
+      tenant,
+      subscription: { ...subscription, auto_renew: on } as MerchantDetail["subscription"],
+      billingLock: null,
+      walletIqd: 0,
+    });
+  }
+
+  const pressStop = async () => {
+    auth.role = "super_admin";
+    send.mockImplementation(lost);
+    const client = new QueryClient();
+    const view = draw(createElement(QueryClientProvider, { client }, createElement(Card, { on: true })));
+    fireEvent.click(screen.getByRole("switch", { name: "Renew each month" }));
+    fireEvent.change(screen.getByPlaceholderText("Why stop renewing? (the shop's timeline shows it)"), {
+      target: { value: REASON },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Stop renewing" }));
+    await screen.findByText(/No answer came back/);
+    return (on: boolean) => view.rerender(createElement(QueryClientProvider, { client }, createElement(Card, { on })));
+  };
+
+  it("closes the panel when the shop, read again, shows renewal stopped", async () => {
+    const reread = await pressStop();
+    reread(false);
+    expect(screen.queryByRole("button", { name: "Turn renewal on" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Stop renewing" })).toBeNull();
+    expect(screen.queryByDisplayValue(REASON)).toBeNull();
+    expect(screen.getByRole("switch", { name: "Renew each month" }).getAttribute("aria-checked")).toBe("false");
+  });
+
+  it("keeps asking the same step, reason kept, when the shop still renews", async () => {
+    const reread = await pressStop();
+    reread(true);
+    expect(screen.getByDisplayValue(REASON)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Turn renewal on" })).toBeNull();
+    send.mockClear();
+    fireEvent.click(screen.getByRole("button", { name: "Stop renewing" }));
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(1));
+    const [, init] = send.mock.calls[0] as [string, RequestInit];
+    expect(JSON.parse(String(init.body))).toEqual({ auto_renew: false, reason: REASON });
+  });
+});
+
+// Round 22 (UX new 4): the demo store's Stop renewing panel said it would lock.
+describe("SubscriptionCard stopping renewal on the demo store", () => {
+  it("says the switch changes nothing there", () => {
+    auth.role = "super_admin";
+    draw(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(SubscriptionCard, {
+          merchantId: "t1",
+          tenant: { ...tenant, is_demo: true } as MerchantDetail["tenant"],
+          subscription,
+          billingLock: null,
+          walletIqd: 0,
+        }),
+      ),
+    );
+    fireEvent.click(screen.getByRole("switch", { name: "Renew each month" }));
+    expect(screen.getByText("The demo store still renews each month at no charge: this switch changes nothing there.")).toBeTruthy();
+    expect(screen.queryByText(/the shop locks/)).toBeNull();
   });
 });

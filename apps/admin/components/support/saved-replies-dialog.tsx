@@ -7,6 +7,8 @@ import { toast } from "sonner";
 import { useAddSavedReply, useChangeSavedReply, useRemoveSavedReply, useSavedReplies } from "@/hooks/use-saved-replies";
 import type { SupportSavedReply } from "@/lib/support";
 import { useLeaveGuard } from "@/hooks/use-leave-guard";
+import { LoadError } from "@/components/shared/load-error";
+import { StaleLine } from "@/components/shared/stale-line";
 
 interface Draft {
   id: string | null;
@@ -116,9 +118,18 @@ export function SavedRepliesDialog({ open, onOpenChange }: { open: boolean; onOp
               <div className="flex justify-center py-8">
                 <Loader2 className="h-5 w-5 animate-spin text-foreground/70" />
               </div>
-            ) : replies.isError ? (
-              <p className="py-6 text-center text-sm text-[var(--ink-red)]">{replies.error.message}</p>
+            ) : replies.isError && !replies.data ? (
+              <LoadError
+                what="the saved replies"
+                shows="list"
+                onRetry={() => void replies.refetch()}
+                retrying={replies.isFetching}
+                error={replies.error}
+                compact
+              />
             ) : (
+              <>
+              <StaleLine read={replies} what="the saved replies" kept="list" className="mb-2" />
               <ul className="space-y-2">
                 {(replies.data ?? []).map((reply) => (
                   <li
@@ -169,6 +180,7 @@ export function SavedRepliesDialog({ open, onOpenChange }: { open: boolean; onOp
                   </li>
                 )}
               </ul>
+              </>
             )}
           </div>
 

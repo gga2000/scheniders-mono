@@ -1,13 +1,16 @@
-import { countLine } from "@/lib/load-failure";
 import { formatCount } from "@/lib/format";
 
-/** The Leads header line, on desktop and phone alike. */
-export function leadsCountLine(read: { count: number | undefined; isError: boolean }): string {
-  return countLine(read, {
-    loading: "Counting leads...",
-    failed: "Could not count the leads",
-    counted: (n) => `${formatCount(n)} ${n === 1 ? "lead" : "leads"} in the pipeline`,
-  });
+/**
+ * The Leads header line, on desktop and phone alike, or none. A list that
+ * never loaded gets no line: the list says it could not load, and Lead
+ * numbers count the leads from their own read, so "Could not count the leads"
+ * here sat above "Leads, now 28" (round 25 UX new 3). Never "0 leads" while
+ * the read is running (round 5).
+ */
+export function leadsCountLine(read: { count: number | undefined; neverRead: boolean }): string | null {
+  if (read.neverRead) return null;
+  if (read.count === undefined) return "Counting leads...";
+  return `${formatCount(read.count)} ${read.count === 1 ? "lead" : "leads"} in the pipeline`;
 }
 
 /** Leads on a page of the table and card views. */

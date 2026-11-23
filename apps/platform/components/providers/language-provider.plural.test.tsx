@@ -108,8 +108,8 @@ describe("t() singular forms", () => {
         expect(t("reports.batch.shipped", { count: 2 })).toBe("دفعتان مشحونتان");
         expect(t("reports.batch.shipped", { count: 5 })).toBe("5 دفعات مشحونة");
         expect(t("reports.batch.shipped", { count: 25 })).toBe("25 دفعة مشحونة");
-        expect(t("reports.kpi.plusReturns", { count: 1, total: 9 })).toBe("+ مرتجع واحد = 9 في صفحة الطلبات");
-        expect(t("reports.kpi.plusReturns", { count: 9, total: 328 })).toBe("+ 9 مرتجعات = 328 في صفحة الطلبات");
+        expect(t("reports.kpi.plusReturns", { count: 1, total: 9 })).toBe("+ استرجاع واحد = 9 في صفحة الطلبات");
+        expect(t("reports.kpi.plusReturns", { count: 9, total: 328 })).toBe("+ 9 استرجاعات = 328 في صفحة الطلبات");
         expect(t("orders.card.waN", { count: 0 })).toBe("واتساب · لم تُرسل رسالة بعد");
         expect(t("orders.card.waN", { count: 2 })).toBe("واتساب · أُرسلت رسالتان");
     });

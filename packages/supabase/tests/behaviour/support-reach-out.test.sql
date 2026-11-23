@@ -50,11 +50,11 @@ DO $$
 BEGIN
     PERFORM pg_temp.check('access: anon needs us', NOT has_function_privilege('anon', 'public.support_shops_needing_us(timestamptz)', 'EXECUTE'));
     PERFORM pg_temp.check('access: authenticated needs us', NOT has_function_privilege('authenticated', 'public.support_shops_needing_us(timestamptz)', 'EXECUTE'));
-    PERFORM pg_temp.check('access: anon start', NOT has_function_privilege('anon', 'public.support_staff_start(uuid,uuid,text,text)', 'EXECUTE'));
-    PERFORM pg_temp.check('access: authenticated start', NOT has_function_privilege('authenticated', 'public.support_staff_start(uuid,uuid,text,text)', 'EXECUTE'));
+    PERFORM pg_temp.check('access: anon start', NOT has_function_privilege('anon', 'public.support_staff_start(uuid,uuid,text,text,uuid)', 'EXECUTE'));
+    PERFORM pg_temp.check('access: authenticated start', NOT has_function_privilege('authenticated', 'public.support_staff_start(uuid,uuid,text,text,uuid)', 'EXECUTE'));
     PERFORM pg_temp.check('access: anon owner', NOT has_function_privilege('anon', 'public.support_shop_owner(uuid)', 'EXECUTE'));
     PERFORM pg_temp.check('access: authenticated owner', NOT has_function_privilege('authenticated', 'public.support_shop_owner(uuid)', 'EXECUTE'));
-    PERFORM pg_temp.check('access: service start', has_function_privilege('service_role', 'public.support_staff_start(uuid,uuid,text,text)', 'EXECUTE'));
+    PERFORM pg_temp.check('access: service start', has_function_privilege('service_role', 'public.support_staff_start(uuid,uuid,text,text,uuid)', 'EXECUTE'));
     PERFORM pg_temp.check('access: service needs us', has_function_privilege('service_role', 'public.support_shops_needing_us(timestamptz)', 'EXECUTE'));
 END $$;
 
@@ -217,6 +217,11 @@ BEGIN
 END $$;
 
 -- Scoreboard: Basra's question counts, Amal's outreach does not.
+-- The board reads the 7 days before now, so the question is dated inside
+-- them here: dated 16 Nov 09:30 as above, it fell out of the window on
+-- 23 Nov at 09:30 and the board counted nothing.
+UPDATE public.support_cases SET created_at = now() - interval '1 day'
+ WHERE id = 'bc000000-0000-4000-8000-000000000001';
 DO $$
 DECLARE
     s jsonb := public.support_scoreboard(7);
@@ -279,6 +284,80 @@ BEGIN
          WHERE x ->> 'business_name' = 'Pause on') = to_jsonb('catalogue check'::text));
     PERFORM pg_temp.check('store paused: an ended pause is not listed at all',
         NOT EXISTS (SELECT 1 FROM jsonb_array_elements(v) x WHERE x ->> 'business_name' IN ('Pause ended, not lifted', 'Blocks, not paused')));
+END $$;
+
+-- A request id (round 22, N8): a retry after a lost answer writes once and
+-- gets the first answer back, marked as a repeat; an id is one step only.
+DO $$
+DECLARE
+    rid uuid := gen_random_uuid();
+    first_ jsonb;
+    again jsonb;
+    k uuid := 'bc000000-0000-4000-8000-000000000001';
+    before_ int := (SELECT count(*) FROM public.support_messages WHERE case_id = 'bc000000-0000-4000-8000-000000000001');
+BEGIN
+    first_ := public.support_staff_reply(k, '99999999-0000-4000-8000-000000000001', 'Noor', 'Sent once', rid);
+    again := public.support_staff_reply(k, '99999999-0000-4000-8000-000000000001', 'Noor', 'Sent once', rid);
+    PERFORM pg_temp.check('request id: one message', (SELECT count(*) FROM public.support_messages WHERE case_id = k) = before_ + 1);
+    PERFORM pg_temp.check('request id: first not a repeat', first_ -> 'repeat' IS NULL);
+    PERFORM pg_temp.check('request id: repeat gives the first answer ' || again::text,
+        again ->> 'message_id' = first_ ->> 'message_id' AND (again ->> 'repeat')::boolean);
+    PERFORM pg_temp.check('request id: one ping',
+        (SELECT count(*) FROM public.notifications WHERE type = 'support.reply' AND entity_id = k AND payload ->> 'preview' = 'Sent once') = 1);
+    PERFORM pg_temp.check('request id: a new id writes again',
+        public.support_staff_reply(k, '99999999-0000-4000-8000-000000000001', 'Noor', 'Sent once', gen_random_uuid()) ->> 'message_id' <> first_ ->> 'message_id');
+    PERFORM pg_temp.check('request id: no id writes every time',
+        public.support_staff_reply(k, '99999999-0000-4000-8000-000000000001', 'Noor', 'x') ->> 'message_id'
+        <> public.support_staff_reply(k, '99999999-0000-4000-8000-000000000001', 'Noor', 'x') ->> 'message_id');
+    BEGIN
+        PERFORM public.support_staff_start('b0000000-0000-4000-8000-000000000002', '99999999-0000-4000-8000-000000000001', 'Noor', 'once more', rid);
+        PERFORM pg_temp.check('request id: a reply id refused for a first message', false);
+    EXCEPTION WHEN raise_exception THEN
+        PERFORM pg_temp.check('request id: an id is one step (' || SQLERRM || ')', SQLERRM = 'support_request_reused');
+    END;
+END $$;
+
+-- A failed step keeps no id: the retry does it.
+DO $$
+DECLARE
+    rid uuid := gen_random_uuid();
+BEGIN
+    BEGIN
+        PERFORM public.support_staff_start('b0000000-0000-4000-8000-000000000002', '99999999-0000-4000-8000-000000000001', 'Noor', '   ', rid);
+    EXCEPTION WHEN raise_exception THEN NULL;
+    END;
+    PERFORM pg_temp.check('request id: failed step kept nothing', NOT EXISTS (SELECT 1 FROM public.support_staff_requests WHERE request_id = rid));
+    PERFORM pg_temp.check('request id: retry after a failure writes',
+        (public.support_staff_start('b0000000-0000-4000-8000-000000000002', '99999999-0000-4000-8000-000000000001', 'Noor', 'retry', rid) -> 'repeat') IS NULL);
+    PERFORM pg_temp.check('request id: service role cannot read the ids', NOT has_table_privilege('service_role', 'public.support_staff_requests', 'SELECT'));
+    PERFORM pg_temp.check('request id: anon cannot begin', NOT has_function_privilege('anon', 'public.support_request_begin(uuid,text,uuid)', 'EXECUTE'));
+END $$;
+
+-- Round 23 (6): the same id and step on another conversation gives back the
+-- first answer and writes nothing there. Meant: the console makes a new random
+-- id for each ask (the conversation, the words), so a retry is the only way an
+-- id comes back. Two sessions sending one id at once: the second waits on the
+-- first's primary key row in support_staff_requests, then gets its answer.
+-- This harness runs one session, so that wait is not tested here.
+DO $$
+DECLARE
+    rid uuid := gen_random_uuid();
+    k uuid := 'bc000000-0000-4000-8000-000000000001';
+    other uuid := (SELECT id FROM public.support_cases
+                   WHERE id <> 'bc000000-0000-4000-8000-000000000001' AND status <> 'solved'
+                   ORDER BY created_at LIMIT 1);
+    first_ jsonb;
+    again jsonb;
+    before_ int;
+BEGIN
+    PERFORM pg_temp.check('request id: a second open conversation to send to', other IS NOT NULL);
+    before_ := (SELECT count(*) FROM public.support_messages WHERE case_id = other);
+    first_ := public.support_staff_reply(k, '99999999-0000-4000-8000-000000000001', 'Noor', 'For Basra', rid);
+    again := public.support_staff_reply(other, '99999999-0000-4000-8000-000000000001', 'Noor', 'For Basra', rid);
+    PERFORM pg_temp.check('request id: another conversation gets the first answer ' || again::text,
+        again ->> 'case_id' = k::text AND again ->> 'message_id' = first_ ->> 'message_id' AND (again ->> 'repeat')::boolean);
+    PERFORM pg_temp.check('request id: another conversation gets no message',
+        (SELECT count(*) FROM public.support_messages WHERE case_id = other) = before_);
 END $$;
 
 DO $$

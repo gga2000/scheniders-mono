@@ -28,9 +28,10 @@ const card = (status: string, restrictions: unknown, plan = "starter"): ShopCard
     contact_phone: null,
     trial_ends_at: "2026-11-20T09:00:00Z",
     created_at: "2026-11-13T09:00:00Z",
+    is_demo: false,
   },
   walletBalanceIqd: 0,
-  subscriptionEndsAt: null,
+  subscription: null,
   ordersLast7Days: 0,
   ordersTotal: 0,
   teamSize: 1,
@@ -82,5 +83,62 @@ describe("SupportShopCard", () => {
   ])("names the %s plan %s, never the stored key", (plan, name) => {
     const html = render(card("active", {}, plan));
     expect(html).toContain(`>${name}<`);
+  });
+});
+
+/*
+ * Round 21 (data new 2): the "Renews" row gave the end of any subscription.
+ * An unpaid ended trial read "Renews Tue 17 Nov", the internal shop would read
+ * "Renews Sat 9 May", and a shop with renewal off "Renews" a day that locks it.
+ * The card's clock is Mon 16 Nov 09:00Z.
+ */
+describe("the card's month end", () => {
+  type Sub = NonNullable<ShopCard["subscription"]>;
+  const withSub = (status: string, sub: Partial<Sub>, plan = "starter", tenant: Partial<ShopCard["tenant"]> = {}) => {
+    const shop = card(status, {}, plan);
+    return {
+      ...shop,
+      tenant: { ...shop.tenant, ...tenant },
+      subscription: { status: "active", plan, auto_renew: true, current_period_end: "2026-11-28T09:00:00Z", ...sub },
+    };
+  };
+  const monthRow = (shop: ShopCard) => {
+    const html = render(shop);
+    const row = /<dt[^>]*>(Renews|Ends|Ended)<\/dt><dd[^>]*>([^<]*)<\/dd>/.exec(html);
+    return row ? `${row[1]} ${row[2]}` : null;
+  };
+
+  it("says Renews for a month that renews", () => {
+    expect(monthRow(withSub("active", {}))).toBe("Renews Sat 28 Nov");
+    expect(monthRow(withSub("trial", { status: "trialing", current_period_end: "2026-11-20T09:00:00Z" }))).toBe("Renews Fri 20 Nov");
+  });
+
+  it("says an unpaid ended trial is unpaid, never Renews", () => {
+    const shop = withSub("trial", { status: "past_due", current_period_end: "2026-11-15T09:00:00Z" });
+    expect(monthRow(shop)).toBe("Ended Sun 15 Nov, unpaid");
+  });
+
+  it("says a month with renewal off is not renewed", () => {
+    expect(monthRow(withSub("active", { auto_renew: false }))).toBe("Ends Sat 28 Nov, not renewed (renewal off)");
+  });
+
+  it("gives a stopped shop's month its date, and says it was not charged once it has passed", () => {
+    expect(monthRow(withSub("suspended", {}))).toBe("Ends Sat 28 Nov");
+    expect(monthRow(withSub("limited", { current_period_end: "2026-11-14T09:00:00Z" }))).toBe(
+      "Ended Sat 14 Nov, not charged while paused",
+    );
+  });
+
+  it("shows no month for the internal plan or an ended subscription", () => {
+    expect(monthRow(withSub("active", {}, "internal"))).toBeNull();
+    expect(monthRow(withSub("active", { plan: "internal" }))).toBeNull();
+    expect(monthRow(withSub("cancelled", { status: "cancelled" }))).toBeNull();
+    expect(monthRow(card("active", {}))).toBeNull();
+  });
+
+  it("says the demo store renews at no charge, whatever its switch says", () => {
+    expect(monthRow(withSub("active", { auto_renew: false }, "starter", { is_demo: true }))).toBe(
+      "Renews Sat 28 Nov, never charged (demo store)",
+    );
   });
 });

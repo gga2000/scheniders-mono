@@ -10,6 +10,7 @@ import {
   type WalletRow,
 } from "@/lib/shop-timeline";
 import { notAnId } from "@/lib/route-id";
+import { readStaffProfiles, staffNames } from "@/lib/staff-names";
 
 /** Rows read from each table per page. */
 const PAGE = 100;
@@ -71,29 +72,18 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const logRows = (logs.data ?? []) as LogRow[];
   const noteRows = (notes.data ?? []) as NoteRow[];
 
-  const people = Array.from(
-    new Set(
-      [
+  let names: Map<string, string>;
+  try {
+    names = staffNames(
+      await readStaffProfiles(supabase, [
         ...walletRows.map((row) => row.created_by),
         ...logRows.map((row) => row.admin_user_id),
         ...noteRows.map((row) => row.admin_user_id),
-      ].filter((value): value is string => typeof value === "string" && value.length > 0),
-    ),
-  );
-  const names = new Map<string, string>();
-  if (people.length > 0) {
-    const { data: profiles, error } = await supabase
-      .from("user_profiles")
-      .select("id, display_name, email")
-      .in("id", people);
-    if (error) {
-      console.error("[merchants/timeline] names failed:", id, error.message);
-      return NextResponse.json({ error: "Could not load the timeline." }, { status: 500 });
-    }
-    for (const profile of profiles ?? []) {
-      const name = profile.display_name?.trim() || profile.email;
-      if (name) names.set(profile.id, name);
-    }
+      ]),
+    );
+  } catch (error) {
+    console.error("[merchants/timeline] names failed:", id, error instanceof Error ? error.message : error);
+    return NextResponse.json({ error: "Could not load the timeline." }, { status: 500 });
   }
 
   const cutoff = timelineCutoff([walletRows, logRows, noteRows], PAGE);

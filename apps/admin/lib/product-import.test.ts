@@ -10,7 +10,7 @@ import {
   type ColumnMapping,
 } from "./product-import";
 
-const noShop = { names: [], skus: [], barcodes: [] };
+const noShop = { names: [], skus: [], barcodes: [], noImages: [] };
 
 describe("guessMapping", () => {
   it("reads Arabic and English headers, spelling variants and numbered image columns", () => {
@@ -109,7 +109,7 @@ describe("planImport", () => {
       headers,
       firstRow: 2,
       mapping,
-      shop: { names: ["عطر العود"], skus: ["TAKEN"], barcodes: [] },
+      shop: { names: ["عطر العود"], skus: ["TAKEN"], barcodes: [], noImages: [] },
       rows: [
         ["عطر  العود", "1000", "", "", "", ""],
         ["بخور", "8000", "", "", "A", ""],
@@ -193,11 +193,50 @@ describe("planImport", () => {
       firstRow: 2,
       mapping: guessMapping(codeHeaders),
       // The read answers the barcodes of products and of their choices together.
-      shop: { names: [], skus: [], barcodes: ["6251000000890"] },
+      shop: { names: [], skus: [], barcodes: ["6251000000890"], noImages: [] },
       rows: [["حزام", "9000", "6251000000890"]],
     });
     expect(plan.products).toEqual([]);
     expect(plan.problems).toEqual([{ row: 2, text: 'Barcode "6251000000890" is already used in the shop' }]);
+  });
+
+  it("gives the file's photos to a product the shop has with none, and only to that one", () => {
+    const m: ColumnMapping = ["name", "price", "size", "images"];
+    const plan = planImport({
+      headers: ["n", "p", "s", "i"],
+      firstRow: 2,
+      mapping: m,
+      shop: {
+        names: ["عطر عود", "مسك", "بخور", "بخور", "شمعة"],
+        skus: [],
+        barcodes: [],
+        noImages: [
+          { id: "00000000-0000-4000-8000-000000000001", name: "عطر عود" },
+          { id: "00000000-0000-4000-8000-000000000002", name: "بخور" },
+          { id: "00000000-0000-4000-8000-000000000003", name: "شمعة" },
+        ],
+      },
+      rows: [
+        ["عطر عود", "35000", "50", "https://a.example/1.jpg https://a.example/2.jpg"],
+        ["عطر  عود", "60000", "100", "https://a.example/2.jpg https://a.example/3.jpg"],
+        ["مسك", "5000", "", "https://a.example/musk.jpg"],
+        ["بخور", "8000", "", "https://a.example/b.jpg"],
+        ["شمعة", "5000", "", ""],
+      ],
+    });
+    expect(plan.products).toEqual([]);
+    // One product, its links from both rows once each; مسك has a photo; two shop
+    // products are named بخور, so the file cannot say which; شمعة's row has no link.
+    expect(plan.photosOnly).toEqual([
+      { productId: "00000000-0000-4000-8000-000000000001", row: 2, links: ["https://a.example/1.jpg", "https://a.example/2.jpg", "https://a.example/3.jpg"] },
+    ]);
+    expect(plan.inShop.map((n) => n.text)).toEqual([
+      "Already in the shop with no photo: only its photos are added",
+      "Already in the shop with no photo: only its photos are added",
+      "A product with this name is already in the shop: left out",
+      "A product with this name is already in the shop: left out",
+      "A product with this name is already in the shop: left out",
+    ]);
   });
 
   it("warns about what it drops and keeps the row", () => {

@@ -1,6 +1,7 @@
 import { Readable } from "node:stream";
 import { inflateRawSync } from "node:zlib";
 import ExcelJS from "exceljs";
+import { SaxesParser } from "saxes";
 import { formatCount } from "./format";
 import { IMPORT_MAX_ROWS } from "./product-import";
 
@@ -205,50 +206,142 @@ function fromGrid(grid: string[][], sheet: string | null): ReadImportFile {
 
 export type ZipUnpacked = { ok: true; bytes: number } | { ok: false; reason: "unreadable" | "too_big" };
 
+/** One entry of a zip: its name, and where its local header starts and its data (and descriptor) ends. */
+interface ZipPart {
+  name: string;
+  start: number;
+  end: number;
+  /** The workbook's links part only: its text, unpacked (see hasLinksRoot). */
+  text?: string;
+}
+
+const LINKS_PART = "xl/_rels/workbook.xml.rels";
+
+type ZipRead = { ok: true; bytes: number; parts: ZipPart[]; directory: number } | Extract<ZipUnpacked, { ok: false }>;
+
+/**
+ * The parts the workbook reader keeps whole in memory (sharedStrings and
+ * styles "cache"), at about 13 times their unpacked size (audit round 21),
+ * and the links part, which this file holds as text to check (hasLinksRoot).
+ * A product list of 2,000 rows never comes near these; Excel writes links of
+ * a few KB (audit round 25: a links part of one 8 MB comment, packed to 9 KB).
+ */
+export const PART_LIMITS: Readonly<Record<string, number>> = {
+  "xl/sharedStrings.xml": 8 * 1024 * 1024,
+  "xl/styles.xml": 2 * 1024 * 1024,
+  [LINKS_PART]: 1024 * 1024,
+};
+
+const LOCAL_HEADER = 0x04034b50;
+const CENTRAL_HEADER = 0x02014b50;
+const END_OF_DIRECTORY = 0x06054b50;
+const DESCRIPTOR = Buffer.from([0x50, 0x4b, 0x07, 0x08]);
+
 /**
  * What an .xlsx (a zip) really unpacks to: every entry is inflated and its
- * bytes counted, stopping as soon as the count passes `limit`. The sizes a
- * zip states about itself are not trusted: the workbook reader inflates
- * every entry before it compares them. An entry whose real size differs from
- * the stated one, a zip64, or a packing other than stored or deflate is
+ * bytes counted, stopping as soon as the count passes `limit`, or a part
+ * the reader keeps whole passes its own limit (PART_LIMITS). The sizes a zip
+ * states about itself are not trusted: the workbook reader inflates every
+ * entry before it compares them. An entry whose real size differs from the
+ * stated one, a zip64, or a packing other than stored or deflate is
  * unreadable; no file Excel saves is any of those.
+ *
+ * The workbook reader (unzipper's Parse) reads the entries one after another
+ * from the file's first byte, not from the directory at its end. So the
+ * count holds only if the two describe the same entries: the directory's
+ * entries, in file order, must sit back to back from byte 0, each where the
+ * one before it ends as that reader finds the end (its data, then its data
+ * descriptor when the header leaves the size out), the last ending where the
+ * directory starts, and the directory ending where its end record starts.
+ * Anything else, an entry the directory leaves out, one it lists twice, or
+ * bytes between them, is unreadable (audit round 21: a 4 MB file hid 1.6 GB
+ * of shared strings from the count).
  */
 export function zipUnpacked(bytes: Uint8Array, limit: number = MAX_UNPACKED_BYTES): ZipUnpacked {
-  const unreadable: ZipUnpacked = { ok: false, reason: "unreadable" };
+  const read = readZip(bytes, limit);
+  return read.ok ? { ok: true, bytes: read.bytes } : read;
+}
+
+/** zipUnpacked's walk, also giving each entry's place in the file in the order the reader meets them. */
+function readZip(bytes: Uint8Array, limit: number): ZipRead {
+  const unreadable: ZipRead = { ok: false, reason: "unreadable" };
   if (bytes.length < 22) return unreadable;
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const buffer = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const lowest = Math.max(0, bytes.length - 22 - 0xffff);
   let end = -1;
   for (let i = bytes.length - 22; i >= lowest; i--) {
-    if (view.getUint32(i, true) === 0x06054b50) {
+    if (view.getUint32(i, true) === END_OF_DIRECTORY) {
       end = i;
       break;
     }
   }
   if (end === -1) return unreadable;
-  const entries = view.getUint16(end + 10, true);
-  let at = view.getUint32(end + 16, true);
-  if (entries === 0xffff || at === 0xffffffff) return unreadable;
-  let total = 0;
-  for (let n = 0; n < entries; n++) {
-    if (at + 46 > bytes.length || view.getUint32(at, true) !== 0x02014b50) return unreadable;
-    const method = view.getUint16(at + 10, true);
-    const packed = view.getUint32(at + 20, true);
-    const stated = view.getUint32(at + 24, true);
-    const local = view.getUint32(at + 42, true);
-    if (packed === 0xffffffff || stated === 0xffffffff || local === 0xffffffff) return unreadable;
-    if (local + 30 > bytes.length || view.getUint32(local, true) !== 0x04034b50) return unreadable;
-    const dataAt = local + 30 + view.getUint16(local + 26, true) + view.getUint16(local + 28, true);
-    if (dataAt + packed > bytes.length) return unreadable;
-    const data = bytes.subarray(dataAt, dataAt + packed);
+  const count = view.getUint16(end + 10, true);
+  const directory = view.getUint32(end + 16, true);
+  if (count === 0xffff || directory === 0xffffffff) return unreadable;
 
+  // The directory, read through to its end record.
+  const listed: Array<{ method: number; packed: number; stated: number; local: number; name: Uint8Array }> = [];
+  let at = directory;
+  for (let n = 0; n < count; n++) {
+    if (at + 46 > end || view.getUint32(at, true) !== CENTRAL_HEADER) return unreadable;
+    const nameLength = view.getUint16(at + 28, true);
+    const entry = {
+      method: view.getUint16(at + 10, true),
+      packed: view.getUint32(at + 20, true),
+      stated: view.getUint32(at + 24, true),
+      local: view.getUint32(at + 42, true),
+      name: bytes.subarray(at + 46, at + 46 + nameLength),
+    };
+    if (entry.packed === 0xffffffff || entry.stated === 0xffffffff || entry.local === 0xffffffff) return unreadable;
+    listed.push(entry);
+    at += 46 + nameLength + view.getUint16(at + 30, true) + view.getUint16(at + 32, true);
+  }
+  if (at !== end) return unreadable;
+
+  // The entries as the reader meets them, from byte 0.
+  listed.sort((a, b) => a.local - b.local);
+  const parts: ZipPart[] = [];
+  let next = 0;
+  let total = 0;
+  for (const entry of listed) {
+    const local = entry.local;
+    if (local !== next || local + 30 > directory || view.getUint32(local, true) !== LOCAL_HEADER) return unreadable;
+    const flags = view.getUint16(local + 6, true);
+    const localPacked = view.getUint32(local + 18, true);
+    const nameLength = view.getUint16(local + 26, true);
+    if (view.getUint16(local + 8, true) !== entry.method) return unreadable;
+    if (!buffer.subarray(local + 30, local + 30 + nameLength).equals(entry.name)) return unreadable;
+    const dataAt = local + 30 + nameLength + view.getUint16(local + 28, true);
+    const dataEnd = dataAt + entry.packed;
+    if (dataEnd > directory) return unreadable;
+    // The reader's own rule: the header's size, unless the header leaves it
+    // out (bit 3, size 0); then the data runs to the first descriptor mark.
+    if (!(flags & 0x08) || localPacked > 0) {
+      if (localPacked !== entry.packed) return unreadable;
+      next = dataEnd;
+    } else {
+      if (buffer.indexOf(DESCRIPTOR, dataAt) !== dataEnd) return unreadable;
+      next = dataEnd + 16;
+    }
+
+    const name = Buffer.from(entry.name).toString("utf8");
+    const part: ZipPart = { name, start: local, end: next };
+    parts.push(part);
+    const partLimit = PART_LIMITS[name] ?? Number.POSITIVE_INFINITY;
+    const room = Math.min(limit - total, partLimit);
+    const data = bytes.subarray(dataAt, dataEnd);
     let size: number;
-    if (method === 0) {
-      size = packed;
-    } else if (method === 8) {
+    if (entry.method === 0) {
+      size = entry.packed;
+      if (name === LINKS_PART && size <= room) part.text = Buffer.from(data).toString("utf8");
+    } else if (entry.method === 8) {
       try {
-        // Never more than what is left under the limit, plus one byte to know it was passed.
-        size = inflateRawSync(data, { maxOutputLength: limit - total + 1 }).length;
+        // Never more than the room left, plus one byte to know it was passed.
+        const unpacked = inflateRawSync(data, { maxOutputLength: room + 1 });
+        size = unpacked.length;
+        if (name === LINKS_PART && size <= room) part.text = unpacked.toString("utf8");
       } catch (error) {
         if (error instanceof RangeError && "code" in error && error.code === "ERR_BUFFER_TOO_LARGE") return { ok: false, reason: "too_big" };
         return unreadable;
@@ -256,12 +349,91 @@ export function zipUnpacked(bytes: Uint8Array, limit: number = MAX_UNPACKED_BYTE
     } else {
       return unreadable;
     }
+    if (size > room) return { ok: false, reason: "too_big" };
     total += size;
-    if (total > limit) return { ok: false, reason: "too_big" };
-    if (size !== stated) return unreadable;
-    at += 46 + view.getUint16(at + 28, true) + view.getUint16(at + 30, true) + view.getUint16(at + 32, true);
+    if (size !== entry.stated) return unreadable;
   }
-  return { ok: true, bytes: total };
+  if (next !== directory) return unreadable;
+  return { ok: true, bytes: total, parts, directory };
+}
+
+/**
+ * The parts the reader must have met before a sheet to read the sheet as it
+ * comes: met later, it writes the sheet to a temporary file and reads it at
+ * the file's end. Excel saves the shared strings after the sheets, so every
+ * workbook went through temporary files, and a sheet that broke the reader
+ * left the files of the sheets after it behind (audit round 21).
+ */
+const FIRST_PARTS = ["xl/workbook.xml", LINKS_PART, "xl/styles.xml", "xl/sharedStrings.xml"];
+
+/**
+ * Whether the reader will find the links. It keeps them only once its XML
+ * parser (saxes, which ExcelJS runs with these same defaults) reports the
+ * Relationships element's start tag; without that (an empty part, only a
+ * header or a comment) it still writes each sheet to a temporary file
+ * (audit round 22), so such a part is refused, as Excel never saves one.
+ * - The parser must read the whole part with no error, and the first element
+ *   it reports must be Relationships: the same text inside a comment is no
+ *   element, nor is a start tag cut off at the part's end ("<Relationships "),
+ *   which looks right as text (audit rounds 23 and 24).
+ * - No DOCTYPE and no instruction (<?...?>, past the XML header), which Excel
+ *   never writes here (audit round 23).
+ * Only the parser reads the text. A pattern run over it first ran out of
+ * stack on one long comment and threw out of the reader (audit round 25).
+ */
+export function hasLinksRoot(text: string): boolean {
+  const parser = new SaxesParser();
+  const seen: { first: string | null; refused: boolean } = { first: null, refused: false };
+  parser.on("opentag", (tag) => {
+    seen.first ??= tag.name;
+  });
+  parser.on("doctype", () => {
+    seen.refused = true;
+  });
+  parser.on("processinginstruction", () => {
+    seen.refused = true;
+  });
+  parser.on("error", () => {
+    seen.refused = true;
+  });
+  parser.write(text).close();
+  return !seen.refused && seen.first === "Relationships";
+}
+
+/** A stored zip entry of shared strings with none in it, for a workbook whose cells all hold their own text. */
+function emptySharedStrings(): Buffer {
+  const name = Buffer.from("xl/sharedStrings.xml");
+  const data = Buffer.from('<?xml version="1.0" encoding="UTF-8"?><sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="0" uniqueCount="0"/>');
+  const header = Buffer.alloc(30);
+  header.writeUInt32LE(LOCAL_HEADER, 0);
+  header.writeUInt16LE(20, 4);
+  // Stored, with its sizes. The reader checks no CRC.
+  header.writeUInt32LE(data.length, 18);
+  header.writeUInt32LE(data.length, 22);
+  header.writeUInt16LE(name.length, 26);
+  return Buffer.concat([header, name, data]);
+}
+
+/**
+ * The same entries, the workbook, its links, styles and shared strings first,
+ * the rest in file order, then the file's directory as it was: the reader
+ * reads entries one after another and does not check where the directory
+ * says they are. Null for a workbook without its workbook part, or links
+ * with their Relationships element: no file Excel saves lacks them.
+ */
+function inReaderOrder(bytes: Uint8Array, zip: Extract<ZipRead, { ok: true }>): Buffer | null {
+  const named = (name: string) => zip.parts.filter((part) => part.name === name);
+  if (named("xl/workbook.xml").length === 0) return null;
+  const links = named(LINKS_PART);
+  if (links.length === 0 || !links.every((part) => part.text !== undefined && hasLinksRoot(part.text))) return null;
+  const file = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const slice = (part: ZipPart) => file.subarray(part.start, part.end);
+  return Buffer.concat([
+    ...(named("xl/sharedStrings.xml").length === 0 ? [emptySharedStrings()] : []),
+    ...FIRST_PARTS.flatMap(named).map(slice),
+    ...zip.parts.filter((part) => !FIRST_PARTS.includes(part.name)).map(slice),
+    file.subarray(zip.directory),
+  ]);
 }
 
 /** One Excel cell as text: a link cell gives its link when its text is the link or empty. */
@@ -284,8 +456,8 @@ export function cellText(value: ExcelJS.CellValue): string {
   return "";
 }
 
-/** The stream a workbook is read from: the file's bytes, in one piece. */
-const bytesStream = (bytes: Uint8Array) => Readable.from([Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength)]);
+/** The stream a workbook is read from: its bytes, in one piece. */
+const bytesStream = (bytes: Buffer) => Readable.from([bytes]);
 
 /**
  * The first sheet with anything in it, read row by row with ExcelJS's
@@ -294,21 +466,27 @@ const bytesStream = (bytes: Uint8Array) => Readable.from([Buffer.from(bytes.buff
  * workbook made a cell object for every cell a merge range names: a 1.5 KB
  * file with one merge over the whole sheet ran the server out of memory, and
  * 30,000 rows of 50 cells took 750 MB before the row limit was checked (audit
- * round 20). Every sheet is read to its end, past the limits too: leaving the
- * reader early leaves its temporary files and open files behind. Past the
- * limits rows are only counted, never turned into text.
+ * round 20). The parts a sheet needs are handed to it first (inReaderOrder),
+ * so it reads each sheet as it comes and writes no temporary file. Every
+ * sheet is read to its end, past the limits and past a row with no number
+ * too. Past the limits rows are only counted, never turned into text.
  *
  * A link cell gives the text it shows (the streaming reader reads a sheet's
  * links only after its rows); a product list's image links show as the links.
  */
 async function readWorkbook(bytes: Uint8Array): Promise<ReadImportFile> {
-  const unpacked = zipUnpacked(bytes);
-  if (!unpacked.ok && unpacked.reason === "unreadable") return { ok: false, error: CANNOT_OPEN };
-  if (!unpacked.ok) return { ok: false, error: "This .xlsx file is too big inside. Send a CSV of the products instead." };
+  const zip = readZip(bytes, MAX_UNPACKED_BYTES);
+  if (!zip.ok && zip.reason === "unreadable") return { ok: false, error: CANNOT_OPEN };
+  if (!zip.ok) return { ok: false, error: "This .xlsx file is too big inside. Send a CSV of the products instead." };
 
   let chosen: { name: string; grid: string[][]; rowsWithValues: number; farRow: number; text: number } | null = null;
+  let unnumbered = false;
+  // The links check runs in here too: whatever a file makes it throw is a
+  // file that cannot be opened, not a failed request (audit round 25).
   try {
-    const reader = new ExcelJS.stream.xlsx.WorkbookReader(bytesStream(bytes), {
+    const ordered = inReaderOrder(bytes, zip);
+    if (!ordered) return { ok: false, error: CANNOT_OPEN };
+    const reader = new ExcelJS.stream.xlsx.WorkbookReader(bytesStream(ordered), {
       worksheets: "emit",
       sharedStrings: "cache",
       hyperlinks: "ignore",
@@ -321,9 +499,12 @@ async function readWorkbook(bytes: Uint8Array): Promise<ReadImportFile> {
       const reading = chosen === null;
       const sheet = { name: sheetNameOf(worksheet), grid: [] as string[][], rowsWithValues: 0, farRow: 0, text: 0 };
       for await (const row of worksheet) {
-        if (!reading || !row.hasValues) continue;
+        if (!reading || unnumbered || !row.hasValues) continue;
         const rowNumber = row.number;
-        if (!Number.isInteger(rowNumber) || rowNumber < 1) throw new Error("A row without its number");
+        if (!Number.isInteger(rowNumber) || rowNumber < 1) {
+          unnumbered = true;
+          continue;
+        }
         sheet.rowsWithValues++;
         if (rowNumber > MAX_ROW_NUMBER) {
           if (sheet.farRow === 0) sheet.farRow = rowNumber;
@@ -345,6 +526,7 @@ async function readWorkbook(bytes: Uint8Array): Promise<ReadImportFile> {
   } catch {
     return { ok: false, error: CANNOT_OPEN };
   }
+  if (unnumbered) return { ok: false, error: CANNOT_OPEN };
   if (!chosen) return { ok: false, error: "The file is empty." };
   if (chosen.rowsWithValues > IMPORT_MAX_ROWS + 1) {
     return { ok: false, error: `The sheet has ${formatCount(chosen.rowsWithValues)} rows. Split it into files of ${formatCount(IMPORT_MAX_ROWS)} rows at most.` };

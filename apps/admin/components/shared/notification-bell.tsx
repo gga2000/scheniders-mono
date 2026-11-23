@@ -16,6 +16,8 @@ import { activityKind } from "@/lib/activity-kinds";
 import { useRecentSteps, type RecentStep } from "@/hooks/use-recent-steps";
 import { isNewStep, useBellReadMark } from "@/hooks/use-bell-read-mark";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
+import { StaleLine } from "@/components/shared/stale-line";
+import { LoadFailedLine } from "@/components/shared/load-failed-line";
 
 // Icon and tint per kind of step (lib/activity-kinds), keyed on the names the
 // console writes; the words come from staffActionText, as on the Team page.
@@ -180,8 +182,8 @@ export function NotificationBell() {
               </div>
             )}
 
-            {/* A daily billing job missed shops: trial not paused or month not renewed */}
-            {billingMissed && billingCheck && <BillingCheckAlert check={billingCheck} />}
+            {/* The daily renewal job missed shops: a trial or a month it did not reach */}
+            {billingMissed && billingCheck && <BillingCheckAlert check={billingCheck} onOpen={() => setIsOpen(false)} />}
 
             {/* An hourly job failed or stopped, or a pause did not lift on its own */}
             {hourlyMissed && hourlyCheck && <HourlyJobsAlert check={hourlyCheck} />}
@@ -200,18 +202,15 @@ export function NotificationBell() {
 
             {/* Notifications list */}
             <div className="max-h-[360px] overflow-y-auto">
-              {recent.isError ? (
-                <div role="alert" className="px-4 py-6 text-center text-sm text-foreground/70">
-                  <p>Could not load the recent steps.</p>
-                  <button
-                    type="button"
-                    onClick={() => void recent.refetch()}
-                    disabled={recent.isFetching}
-                    className="mt-2 text-xs font-semibold text-foreground underline underline-offset-2 disabled:opacity-50"
-                  >
-                    {recent.isFetching ? "Loading" : "Try again"}
-                  </button>
-                </div>
+              <StaleLine read={recent} what="the recent steps" kept="list" className="px-4 pt-3" />
+              {recent.isError && !recent.data ? (
+                <LoadFailedLine
+                  className="justify-center px-4 py-6"
+                  what="the recent steps"
+                  error={recent.error}
+                  onRetry={() => void recent.refetch()}
+                  retrying={recent.isFetching}
+                />
               ) : recent.isPending ? (
                 // Pending, not loading: the read may still wait for the page's own reads.
                 <div className="px-4 py-8 text-center text-sm text-foreground/70">Loading...</div>

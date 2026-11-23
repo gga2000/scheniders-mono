@@ -14,7 +14,7 @@ type GetUser = { data: { user: { id: string } | null }; error: unknown };
 type Claims = Record<string, unknown>;
 type GetClaims = { data: { claims: Claims } | null; error: unknown };
 type AdminRead = {
-  data: { admin_role: string; is_active: boolean } | null;
+  data: { user_id: string; admin_role: string; is_active: boolean } | null;
   error: { message: string; code?: string } | null;
   status?: number;
 };
@@ -31,6 +31,39 @@ let adminRead: AdminRead;
 let refreshedCookies: Array<{ name: string; value: string; options: object }>;
 /** What the middleware hands to Sentry (the edge config captures console.error). */
 let errors: MockInstance<typeof console.error>;
+/** The order in which the two Supabase reads start and the auth server answers. */
+let steps: string[];
+/** The access token in the session cookie. */
+const COOKIE_TOKEN = "cookie-access-token";
+/** The tokens the staff row reads were sent with. */
+let staffReadTokens: string[];
+/**
+ * Held while the cookie client asks the auth server about the session: the
+ * real client lets one call at a time use the session, so anything else that
+ * needs it (getSession, and every database read through that client) waits
+ * for the answer. Live logs showed a staff row read through that client sent
+ * only once the auth server had answered.
+ */
+let sessionInUse: Promise<void> | null;
+
+// The staff row's own client, which sends the session's token.
+vi.mock("@supabase/supabase-js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@supabase/supabase-js")>()),
+  createClient: (_url: string, _key: string, { accessToken }: { accessToken: () => Promise<string> }) => ({
+    from: () => {
+      const query = {
+        select: () => query,
+        eq: () => query,
+        maybeSingle: async () => {
+          steps.push("staff row read");
+          staffReadTokens.push(await accessToken());
+          return adminRead;
+        },
+      };
+      return query;
+    },
+  }),
+}));
 
 vi.mock("@supabase/ssr", () => ({
   createServerClient: (
@@ -40,8 +73,18 @@ vi.mock("@supabase/ssr", () => ({
   ) => ({
     auth: {
       getUser: async () => {
+        steps.push("auth server asked");
+        let answered = () => {};
+        sessionInUse = new Promise((resolve) => (answered = resolve));
         if (refreshedCookies.length > 0) cookies.setAll(refreshedCookies);
+        await Promise.resolve();
+        steps.push("auth server answered");
+        answered();
         return getUser;
+      },
+      getSession: async () => {
+        await sessionInUse;
+        return { data: { session: { access_token: COOKIE_TOKEN } }, error: null };
       },
       getClaims: async (token?: string) => {
         if (token === undefined) return sessionClaims;
@@ -53,14 +96,6 @@ vi.mock("@supabase/ssr", () => ({
         return signOut(options);
       },
     },
-    from: () => {
-      const query = {
-        select: () => query,
-        eq: () => query,
-        maybeSingle: async () => adminRead,
-      };
-      return query;
-    },
   }),
 }));
 
@@ -68,6 +103,7 @@ const { middleware, config } = await import("./middleware");
 const { CSP_HEADER } = await import("./lib/csp");
 
 const STAFF = { id: "11111111-1111-4111-8111-111111111111" };
+const OTHER = "33333333-3333-4333-8333-333333333333";
 const SESSION = "22222222-2222-4222-8222-222222222222";
 const HOUR = 60 * 60 * 1000;
 const call = (path: string) => middleware(new NextRequest(`https://console.test${path}`));
@@ -88,8 +124,11 @@ beforeEach(() => {
   sentClaims = {};
   signOutError = null;
   signOut = vi.fn<(options: { scope: string }) => Promise<{ error: unknown }>>(async () => ({ error: signOutError }));
-  adminRead = { data: { admin_role: "super_admin", is_active: true }, error: null };
+  adminRead = { data: { user_id: STAFF.id, admin_role: "super_admin", is_active: true }, error: null };
   refreshedCookies = [];
+  steps = [];
+  staffReadTokens = [];
+  sessionInUse = null;
   errors = vi.spyOn(console, "error").mockImplementation(() => {});
   errors.mockClear();
 });
@@ -123,17 +162,44 @@ describe("middleware access check", () => {
     adminRead = { data: null, error: null };
     expect((await call("/merchants")).headers.get("location")).toBe("https://console.test/login?error=forbidden&next=%2Fmerchants");
     expect((await call("/api/leads")).status).toBe(403);
-    adminRead = { data: { admin_role: "super_admin", is_active: false }, error: null };
+    adminRead = { data: { user_id: STAFF.id, admin_role: "super_admin", is_active: false }, error: null };
     expect((await call("/api/leads")).status).toBe(403);
   });
 
   // Round 15: the API's 403 looked like any other, so an open page whose role
   // was removed never left. It carries the mark adminFetch leaves on.
   it("marks the API's no-access 403, in the login page's words", async () => {
-    adminRead = { data: { admin_role: "sales", is_active: false }, error: null };
+    adminRead = { data: { user_id: STAFF.id, admin_role: "sales", is_active: false }, error: null };
     const answer = await call("/api/leads");
     expect(isNoConsoleAccess(answer)).toBe(true);
     expect(await answer.json()).toEqual({ error: NO_CONSOLE_ACCESS });
+  });
+
+  // Speed round 1: the staff row was read only after the auth server had
+  // answered, two round trips to Supabase on every page and API request. A
+  // read through the cookie client still waited (the session is in use until
+  // the auth server answers), so the row has a client of its own.
+  it("reads the staff row while the auth server answers, one round trip instead of two", async () => {
+    expect((await call("/api/leads")).status).toBe(200);
+    expect(steps.indexOf("staff row read")).toBeGreaterThanOrEqual(0);
+    expect(steps.indexOf("staff row read")).toBeLessThan(steps.indexOf("auth server answered"));
+  });
+
+  it("reads the staff row with the session's own token", async () => {
+    expect((await call("/merchants")).status).toBe(200);
+    expect(staffReadTokens).toEqual([COOKIE_TOKEN]);
+  });
+
+  it("counts a staff row only for the user the auth server named", async () => {
+    adminRead = { data: { user_id: OTHER, admin_role: "super_admin", is_active: true }, error: null };
+    expect(isNoConsoleAccess(await call("/api/leads"))).toBe(true);
+    expect((await call("/merchants")).headers.get("location")).toBe("https://console.test/login?error=forbidden&next=%2Fmerchants");
+  });
+
+  it("does not read a staff row without a session token that checks out", async () => {
+    sessionClaims = { data: null, error: new AuthInvalidJwtError("Invalid JWT signature") };
+    await call("/merchants");
+    expect(steps).not.toContain("staff row read");
   });
 
   it("answers 503, not forbidden, when the admin_users read fails", async () => {
@@ -163,7 +229,7 @@ describe("middleware access check", () => {
   it("reports each failed check to Sentry with its stage, and a plain sign-out not at all", async () => {
     adminRead = { data: null, error: { message: "connection lost" } };
     await call("/api/leads");
-    adminRead = { data: { admin_role: "super_admin", is_active: true }, error: null };
+    adminRead = { data: { user_id: STAFF.id, admin_role: "super_admin", is_active: true }, error: null };
     getUser = { data: { user: null }, error: new AuthRetryableFetchError("fetch failed", 0) };
     await call("/merchants");
     getUser = { data: { user: null }, error: new AuthSessionMissingError() };

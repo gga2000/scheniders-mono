@@ -61,7 +61,7 @@ import { cn } from "@/lib/utils";
 import { OPEN_EDITOR_SCREEN_EVENT, isGuideEditorScreen } from "@/lib/merchant-guide/steps";
 import { EditorLocaleProvider } from "@/lib/editor-locale-context";
 import { EditorModeProvider, type EditorMode } from "@/lib/editor-mode-context";
-import { useGuideSetupActive } from "@/components/merchant-guide/guide-setup-store";
+import { useGuideSetup, useGuideSetupActive } from "@/components/merchant-guide/guide-setup-store";
 import { EditorLinkTargetsProvider } from "@/lib/editor-link-targets-context";
 import { EditorStoreLocalesProvider } from "@/lib/editor-store-locales-context";
 import { useUserPreferences, PREFERENCE_KEYS } from "@/hooks/use-user-preferences";
@@ -1478,6 +1478,16 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
     // unchanged for ≥1024px and swap to MobileEditorShell below.
     const isMobile = useIsMobileEditor();
 
+    // The setup guide's pill sits at the canvas's bottom-left corner, where the
+    // zoom pill is: lift it above the zoom pill while that pill is on screen.
+    const setGuideBottomInset = useGuideSetup((s) => s.setBottomInset);
+    const zoomPillRef = useCallback(
+        (el: HTMLDivElement | null) => {
+            setGuideBottomInset(el ? Math.ceil(window.innerHeight - el.getBoundingClientRect().top) : 0);
+        },
+        [setGuideBottomInset],
+    );
+
     // Render-prop used by the mobile inspector drawer to lazily mount
     // SectionEditPanel for the currently-edited section. Hoisted here so
     // we reuse the shell's `activeSections` slice + `onChange` plumbing.
@@ -1999,6 +2009,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                                 </div>
                                 {/* Zoom pill (A1) — bottom-left over the canvas */}
                                 <div
+                                    ref={zoomPillRef}
                                     data-testid="canvas-zoom-pill"
                                     role="radiogroup"
                                     aria-label={t(STRINGS.toolbar.zoom_group, builder.active_locale)}

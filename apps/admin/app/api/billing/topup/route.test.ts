@@ -113,7 +113,7 @@ describe("POST /api/billing/topup", () => {
 
     rpc.mockResolvedValue({ data: null, error: { message: 'permission denied for table "wallet"' } });
     const body = await (await POST(req({ tenant_id: TENANT, amount: 5000 }))).json();
-    expect(body).toEqual({ error: "The top-up could not be confirmed. Trying again adds it once at most." });
+    expect(body).toEqual({ error: "The top-up could not be confirmed. Check the wallet before trying again: a retry from this browser within the hour adds it once at most." });
     expect(JSON.stringify(body)).not.toMatch(/permission|wallet"/);
   });
 

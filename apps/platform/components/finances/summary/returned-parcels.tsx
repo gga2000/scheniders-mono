@@ -89,7 +89,10 @@ export function ReturnedParcels({ summary }: ReturnedParcelsProps) {
                     </div>
                     {fee > 0 && (
                         <div className="mt-4 flex items-baseline justify-between gap-4 text-[13px]" data-testid="failed-fee">
-                            <span className="text-left text-muted" dir={dir}>{t("fin.failed.fee", { n: formatWhole(returnedParcels), count: returnedParcels })}</span>
+                            <span className="text-left text-muted" dir={dir}>{/* Prime's refused parcels are among the refused ones counted above: say so, so the two counts are not read as one. */}
+                                {returnedParcels <= refused
+                                    ? t("fin.failed.feeOf", { n: formatWhole(returnedParcels), count: returnedParcels, total: formatWhole(refused) })
+                                    : t("fin.failed.fee", { n: formatWhole(returnedParcels), count: returnedParcels })}</span>
                             <Money value={fee} className="font-semibold text-foreground" />
                         </div>
                     )}

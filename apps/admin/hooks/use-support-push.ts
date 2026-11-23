@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { adminFetch } from "@/lib/admin-fetch";
+import { sendStep } from "@/lib/send-json";
 
 /** Public VAPID key; the same pair the merchant app and the push senders use. */
 const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY?.trim() ?? "";
@@ -21,20 +21,12 @@ function base64UrlToBytes(value: string): Uint8Array<ArrayBuffer> {
   return bytes;
 }
 
+/** Turning alerts on or off twice changes nothing more, so a lost answer may just be pressed again. */
+const ALERTS_UNSURE = "No answer came back, so alerts may have changed. Pressing again is safe.";
+
+/** Stores or removes this device through the console's one sender, so its words match every other write. */
 async function send(method: "POST" | "DELETE", body: unknown): Promise<void> {
-  const res = await adminFetch("/api/support/push", {
-    method,
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const data: unknown = await res.json().catch(() => null);
-    const message =
-      data && typeof data === "object" && "error" in data && typeof data.error === "string"
-        ? data.error
-        : "Request failed";
-    throw new Error(message);
-  }
+  await sendStep<unknown>("/api/support/push", body, method, ALERTS_UNSURE, "Could not change alerts.");
 }
 
 function supported(): boolean {

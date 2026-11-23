@@ -1,7 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminPermission } from "@/lib/api-auth";
-import { SUPPORT_CASE_COLUMNS, sortInbox, type SupportCaseRow } from "@/lib/support";
+import { SUPPORT_CASE_COLUMNS, sortInbox, type SupportCaseRow, type SupportInboxRow } from "@/lib/support";
+
+/**
+ * When each listed conversation's first change request was sent ("Need a
+ * change?" in the merchant header): the 24-hour promise runs from it until the
+ * conversation is solved. `ids` null means every unsolved one (up to 300 ids,
+ * too long for one URL); otherwise just those ids (the latest 100 solved).
+ */
+async function changeRequestTimes(supabase: ReturnType<typeof createAdminClient>, ids: string[] | null): Promise<Map<string, string>> {
+  if (ids !== null && ids.length === 0) return new Map();
+  const asked = supabase
+    .from("support_messages")
+    .select("case_id, created_at, support_cases!inner(status)")
+    .eq("context->>kind", "change_request")
+    .order("created_at", { ascending: true });
+  const { data, error } = await (ids === null ? asked.neq("support_cases.status", "solved") : asked.in("case_id", ids));
+  if (error) throw error;
+  const first = new Map<string, string>();
+  for (const row of data ?? []) if (!first.has(row.case_id)) first.set(row.case_id, row.created_at);
+  return first;
+}
 
 /**
  * The support inbox. `view=open` (default) lists every unsolved conversation,
@@ -38,7 +58,9 @@ export async function GET(request: NextRequest) {
     if (casesResult.error) throw casesResult.error;
     if (waitingResult.error) throw waitingResult.error;
 
-    const cases = (casesResult.data ?? []) as unknown as SupportCaseRow[];
+    const listed = (casesResult.data ?? []) as unknown as SupportCaseRow[];
+    const asked = await changeRequestTimes(supabase, view === "open" ? null : listed.map((c) => c.id));
+    const cases: SupportInboxRow[] = listed.map((c) => ({ ...c, change_requested_at: asked.get(c.id) ?? null }));
     return NextResponse.json({
       cases: view === "open" ? sortInbox(cases) : cases,
       waitingOnUs: waitingResult.count ?? 0,

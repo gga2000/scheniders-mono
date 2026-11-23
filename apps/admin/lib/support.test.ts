@@ -1,9 +1,13 @@
 import { describe, it, expect } from "vitest";
+import { newestCheckValues } from "./sql-migrations.test-data";
 import {
+  SUPPORT_REASONS,
   CaseActionSchema,
   fillSavedReply,
   formatAgo,
   formatDue,
+  changeRequestDueAt,
+  changeRequestClock,
   callBackNumber,
   sortTasks,
   taskLabel,
@@ -309,6 +313,33 @@ describe("formatDue", () => {
   });
 });
 
+describe("changeRequestDueAt", () => {
+  it("is 24 hours after the merchant asked, read the same way as a task's due time", () => {
+    const due = changeRequestDueAt("2026-11-22T08:00:00Z");
+    expect(due).toBe("2026-11-23T08:00:00.000Z");
+    expect(formatDue(due, Date.parse("2026-11-23T03:00:00Z"))).toBe("Due in 5 h");
+    expect(formatDue(due, Date.parse("2026-11-23T10:00:00Z"))).toBe("Late by 2 h");
+  });
+});
+
+describe("changeRequestClock", () => {
+  const asked = "2026-11-22T08:00:00Z";
+  it.each([
+    ["2026-11-22T08:01:00Z", "23 h", false],
+    ["2026-11-22T09:01:00Z", "22 h", false],
+    ["2026-11-23T06:59:00Z", "1 h", false],
+    ["2026-11-23T07:00:30Z", "59 min", false],
+    ["2026-11-23T07:59:50Z", "1 min", false],
+    ["2026-11-23T09:59:00Z", "1 h late", true],
+    ["2026-11-23T03:00:00Z", "5 h", false],
+    ["2026-11-23T07:20:00Z", "40 min", false],
+    ["2026-11-23T08:15:00Z", "15 min late", true],
+    ["2026-11-23T10:10:00Z", "2 h late", true],
+  ])("at %s reads %s", (now, label, late) => {
+    expect(changeRequestClock(asked, Date.parse(now))).toEqual({ label, late });
+  });
+});
+
 describe("TaskLogSchema", () => {
   it("trims the note and gives an empty one when none is sent", () => {
     const id = "66666666-6666-4666-8666-666666666666";
@@ -372,5 +403,16 @@ describe("waitingOnUsLine", () => {
     expect(waitingOnUsLine({ count: undefined, isError: false })).toBe("Loading...");
     expect(waitingOnUsLine({ count: undefined, isError: true })).toBe("Could not check who is waiting on us");
     expect(waitingOnUsLine({ count: 0, isError: true })).toBe("Could not check who is waiting on us");
+  });
+});
+
+/*
+ * Round 22 (structure new 6): the reasons live here and in the database's
+ * check. The scoreboard reads reasons with z.enum(SUPPORT_REASONS), so a
+ * reason added in SQL alone fails the whole scoreboard, not one row.
+ */
+describe("SUPPORT_REASONS", () => {
+  it("is the list the newest support_cases_reason_check allows", () => {
+    expect([...SUPPORT_REASONS].sort()).toEqual(newestCheckValues("support_cases_reason_check").sort());
   });
 });

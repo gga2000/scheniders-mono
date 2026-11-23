@@ -11,6 +11,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { LoadError } from "@/components/shared/load-error";
+import { StaleLine } from "@/components/shared/stale-line";
 import { okOrLoadFailure } from "@/lib/load-failure";
 import { formatDayTime, formatWhen } from "@/lib/format";
 import { staffActionText, staffLogSummary } from "@/lib/staff-actions";
@@ -29,6 +30,8 @@ interface ActivityLog {
   admin_user_id: string | null;
   admin_label: string | null;
   actor_email: string | null;
+  /** Who took the step, named as the Merchants badge and the shop's timeline name it (logActor). */
+  actor: string;
   created_at: string;
   business_name: string | null;
 }
@@ -68,20 +71,6 @@ function shortenId(id: string): string {
   return id.length > 8 ? `${id.slice(0, 8)}...` : id;
 }
 
-/** Who performed the action. `admin_label` is the human-readable actor the
- *  writer records (a name, or "system"); fall back to the email, then to a
- *  shortened user id. Rows written before 2026-10 have none of the three. */
-function actorLabel(log: {
-  admin_label: string | null;
-  actor_email: string | null;
-  admin_user_id: string | null;
-}): string {
-  if (log.admin_label) return log.admin_label;
-  if (log.actor_email) return log.actor_email;
-  if (log.admin_user_id) return shortenId(log.admin_user_id);
-  return "\u2014";
-}
-
 /* ------------------------------------------------------------------ */
 /* Page                                                                */
 /* ------------------------------------------------------------------ */
@@ -96,7 +85,7 @@ export default function ActivityLogPage() {
   params.set("limit", String(limit));
   if (kindFilter) params.set("kind", kindFilter);
 
-  const { data, isLoading, isError, error, refetch, isFetching } = useQuery<ActivityResponse>({
+  const pageRead = useQuery<ActivityResponse>({
     queryKey: ["admin", "activity", page, kindFilter],
     queryFn: async () => {
       const res = okOrLoadFailure(await adminFetch(`/api/activity?${params.toString()}`), "the activity log");
@@ -104,9 +93,10 @@ export default function ActivityLogPage() {
     },
     staleTime: 30_000,
   });
+  const { data, isLoading, isError, error, refetch, isFetching } = pageRead;
 
   if (isError && !data) {
-    return <LoadError what="the activity log" error={error} onRetry={() => refetch()} retrying={isFetching} />;
+    return <LoadError what="the activity log" shows="list" error={error} onRetry={() => refetch()} retrying={isFetching} />;
   }
 
   const logs = data?.logs ?? [];
@@ -121,6 +111,7 @@ export default function ActivityLogPage() {
         <p className="text-[13px] text-foreground/70">
           {isLoading ? "Loading..." : `${total} log entr${total !== 1 ? "ies" : "y"}`}
         </p>
+        <StaleLine read={pageRead} what="the activity log" kept="list" className="mt-2" />
       </div>
 
       {/* Filter Bar */}
@@ -240,7 +231,7 @@ export default function ActivityLogPage() {
                         {log.business_name || (log.tenant_id ? shortenId(log.tenant_id) : "\u2014")}
                       </td>
                       <td className="p-3 text-foreground/70 font-mono text-xs">
-                        {actorLabel(log)}
+                        {log.actor}
                       </td>
                     </tr>
                   );

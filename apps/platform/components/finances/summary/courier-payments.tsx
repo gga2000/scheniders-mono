@@ -151,7 +151,7 @@ export function CourierPayments({ summary, onAddPayment }: CourierPaymentsProps)
                   {
                       key: "refunds-open",
                       label: counted("fin.money.cash.part.refundsOpen", statement.returns_open_orders),
-                      note: t("fin.money.cash.part.refundsOpenNote", { amount: money(-statement.returns_open) }),
+                      note: t("fin.money.cash.part.refundsOpenNote"),
                       amount: statement.returns_open,
                       orders: ordersOf("refund_open"),
                   },
@@ -197,11 +197,20 @@ export function CourierPayments({ summary, onAddPayment }: CourierPaymentsProps)
     return (
         <SummaryCard
             title={t("fin.money.cash.title")}
-            sub={payments.payments > 0 ? counted("fin.money.cash.count", payments.payments) : t("fin.money.payments.none")}
+            sub={link ?? undefined}
             textDir={dir}
             testId="money-payments"
             id={COURIER_PAYMENTS_ID}
-            action={payments.payments > 0 && <Money value={payments.amount} className="text-[22px] font-bold tracking-[-0.01em] text-foreground" />}
+            action={
+                payments.payments > 0 && (
+                    <div className="text-right">
+                        <Money value={payments.amount} className="text-[22px] font-bold tracking-[-0.01em] text-foreground" />
+                        <p className="mt-0.5 text-[12.5px] text-muted" dir={dir} data-testid="money-payments-count">
+                            {counted("fin.money.cash.count", payments.payments)}
+                        </p>
+                    </div>
+                )
+            }
             footer={
                 <button type="button" onClick={onAddPayment} className={CARD_LINK} data-testid="money-add-payment">
                     <FileUp className="size-3.5" aria-hidden="true" />
@@ -209,13 +218,13 @@ export function CourierPayments({ summary, onAddPayment }: CourierPaymentsProps)
                 </button>
             }
         >
-            {link && (
-                <p className="text-left text-[13px] leading-relaxed text-muted" dir={dir} data-testid="money-payments-link">
-                    {link}
+            {payments.payments === 0 && (
+                <p className="text-left text-[13px] text-muted" dir={dir}>
+                    {t("fin.money.payments.none")}
                 </p>
             )}
             {parts.length > 0 && (
-                <dl className="mt-3 divide-y divide-[var(--card-border)]" data-testid="money-payments-parts">
+                <dl className="divide-y divide-[var(--card-border)]" data-testid="money-payments-parts">
                     {parts.map((part) => {
                         // A quiet line with something behind it folds; a line the shop must act on stays open.
                         const folds = part.quiet === true && (part.note !== undefined || (part.orders?.length ?? 0) > 0);
@@ -231,11 +240,11 @@ export function CourierPayments({ summary, onAddPayment }: CourierPaymentsProps)
                                             className="inline-flex items-baseline gap-1.5 text-left decoration-foreground/30 underline-offset-4 hover:underline"
                                             data-fold={part.key}
                                         >
-                                            {part.label}
                                             <ChevronRight
                                                 className={cn("size-3 shrink-0 self-center text-muted transition-transform", open && "rotate-90")}
                                                 aria-hidden="true"
                                             />
+                                            {part.label}
                                         </button>
                                     ) : (
                                         part.label
@@ -250,10 +259,7 @@ export function CourierPayments({ summary, onAddPayment }: CourierPaymentsProps)
                                 </dt>
                                 <dd className="shrink-0">
                                     {/* A difference that adds to the payments carries its sign, like the ones that take away. */}
-                                    <span className="whitespace-nowrap font-semibold text-foreground" dir="ltr">
-                                        {part.key !== "now" && part.amount > 0 && "+"}
-                                        <Money value={part.amount} />
-                                    </span>
+                                    <Money value={part.amount} plus={part.key !== "now"} className="font-semibold text-foreground" />
                                 </dd>
                             </div>
                         );

@@ -7,9 +7,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 vi.mock("@/hooks/use-admin-users", () => ({
   useAdminUsers: () => ({ data: [{ id: "u1", display_name: "Noor", role: "support" }] }),
 }));
-vi.mock("@/lib/admin-fetch", () => ({
-  adminFetch: async () => new Response(JSON.stringify({ notes: [] }), { status: 200 }),
+const notesAnswer = vi.hoisted(() => ({
+  current: (): Response => new Response(JSON.stringify({ notes: [] }), { status: 200 }),
 }));
+vi.mock("@/lib/admin-fetch", () => ({ adminFetch: async () => notesAnswer.current() }));
 
 import { QuickNotePopover } from "./quick-note-popover";
 
@@ -25,8 +26,7 @@ function leaving(): boolean {
   return event.defaultPrevented;
 }
 
-function open() {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+function open(client = new QueryClient({ defaultOptions: { queries: { retry: false } } })) {
   const view = render(createElement(QueryClientProvider, { client }, createElement(QuickNotePopover, { merchantId: "m1" })));
   fireEvent.click(screen.getByLabelText("Quick note"));
   return view;
@@ -37,7 +37,10 @@ const box = () => screen.getByPlaceholderText("Add a quick note... @ to mention"
 /** The pop-up listens for a press outside only after the press that opened it. */
 const settle = () => act(() => new Promise((resolve) => setTimeout(resolve, 0)));
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  notesAnswer.current = () => new Response(JSON.stringify({ notes: [] }), { status: 200 });
+});
 
 describe("QuickNotePopover: a quick note being written", () => {
   it("asks before the page is left while a draft is kept, the box open or closed", async () => {
@@ -86,5 +89,36 @@ describe("QuickNotePopover: a quick note being written", () => {
     fireEvent.click(screen.getByLabelText("Quick note"));
     await settle();
     expect((box() as HTMLTextAreaElement).value).toBe("Ask @No");
+  });
+});
+
+/*
+ * Round 25 (structure new 1): one failed refresh of the latest notes swapped
+ * the notes the box showed for "Could not load the notes". The box keeps them
+ * and says how old they are; only notes never read show the error.
+ */
+describe("QuickNotePopover: the latest notes", () => {
+  const note = { id: "n1", content: "Owner asked for a call on Sunday", created_at: "2026-11-22T17:00:00Z", is_pinned: false };
+
+  it("keeps the notes and says how old they are when a refresh fails", async () => {
+    notesAnswer.current = () => new Response(JSON.stringify({ notes: [note] }), { status: 200 });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    open(client);
+    expect(await screen.findByText(note.content)).toBeTruthy();
+
+    notesAnswer.current = () => new Response(JSON.stringify({ error: "down" }), { status: 500 });
+    await act(() => client.refetchQueries({ queryKey: ["admin", "merchant-notes", "m1"] }));
+
+    expect(await screen.findByText(/^Could not refresh the notes\. This list is from /)).toBeTruthy();
+    expect(screen.getByText(note.content)).toBeTruthy();
+    expect(screen.queryByText(/Could not load the notes/)).toBeNull();
+  });
+
+  it("shows the error only when the notes were never read", async () => {
+    notesAnswer.current = () => new Response(JSON.stringify({ error: "down" }), { status: 500 });
+    open();
+
+    expect(await screen.findByText(/^Could not load the notes\./)).toBeTruthy();
+    expect(screen.queryByText(/Could not refresh the notes/)).toBeNull();
   });
 });

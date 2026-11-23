@@ -6,7 +6,7 @@ import { CalendarPlus, ChevronDown, ChevronLeft, Wallet } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@scheniders/ui";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { hasPermission } from "@/lib/admin-permissions";
-import { createRequestIds } from "@/lib/request-ids";
+import { keptRequestIds } from "@/lib/request-ids";
 import {
   CONVERT_ACTION,
   freeDaysKind,
@@ -53,6 +53,8 @@ interface ShopActionsProps {
   /** What the shop comes back as from hold (Reactivate says so). */
   comeback: Comeback;
   trialEndsAt: string | null;
+  /** Staff turned monthly renewal off: the free-time panel warns it turns it back on. */
+  renewalOff: boolean;
   /** The lock card holds the store-orders tool; this brings it into view. */
   onGiveOrders: () => void;
   onAddNote: () => void;
@@ -82,6 +84,7 @@ export function ShopActions({
   freeDaysFrom,
   comeback,
   trialEndsAt,
+  renewalOff,
   onGiveOrders,
   onAddNote,
   startOpen = null,
@@ -91,9 +94,9 @@ export function ShopActions({
   const [open, setOpen] = useState<ShopForm | "more" | null>(startOpen);
   const [view, setView] = useState<MoreAction | null>(null);
   const [requestIds] = useState(() => ({
-    money: createRequestIds(),
-    days: createRequestIds(),
-    convert: createRequestIds(),
+    money: keptRequestIds("topup"),
+    days: keptRequestIds("free-days"),
+    convert: keptRequestIds("convert"),
   }));
   const writing = useIsMutating({ mutationKey: shopActionKey(shopId) }) > 0;
 
@@ -159,6 +162,7 @@ export function ShopActions({
               kind={daysKind}
               endsAt={freeDaysFrom}
               locked={facts.locked}
+              renewalOff={renewalOff}
               requestIds={requestIds.days}
               onDone={done}
             />
@@ -214,6 +218,7 @@ export function ShopActions({
                     shopName={shopName}
                     requestIds={requestIds.convert}
                     locked={facts.locked}
+                    renewalOff={renewalOff}
                     onDone={done}
                   />
                 )}

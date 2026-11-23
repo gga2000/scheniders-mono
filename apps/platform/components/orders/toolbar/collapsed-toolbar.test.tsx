@@ -5,6 +5,7 @@ import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import { LanguageProvider } from "@/components/providers/language-provider";
 import { CollapsedToolbar } from "./collapsed-toolbar";
 import { getOrderStatusLabel } from "@/lib/order-status-labels";
+import { translations } from "@/lib/i18n";
 
 afterEach(cleanup);
 
@@ -34,6 +35,14 @@ describe("CollapsedToolbar", () => {
         expect(screen.queryByText(/return_pending|return pending/)).toBeNull();
         const labels = [getOrderStatusLabel("return_pending", "en"), getOrderStatusLabel("return_pending", "ar")];
         expect(screen.getByText((text) => labels.includes(text))).toBeTruthy();
+    });
+
+    it("names the returns desk as the full toolbar does, not as the refunds chip", () => {
+        show();
+        const desk = screen.getAllByRole("button").find((b) => b.title === translations.en["orders.tip.returnsCockpit"] || b.title === translations.ar["orders.tip.returnsCockpit"]);
+        const name = desk?.textContent?.trim();
+        expect([translations.en["orders.ui.returns"], translations.ar["orders.ui.returns"]]).toContain(name);
+        expect([translations.en["orders.chip.refunds"], translations.ar["orders.chip.refunds"]]).not.toContain(name);
     });
 
     it("selects all from the checkbox", () => {

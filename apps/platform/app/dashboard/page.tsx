@@ -23,6 +23,7 @@ import { useDashboardRange } from "@/hooks/use-dashboard-range";
 import type { RevenueWindowPick } from "@/lib/analytics/dashboard-bento";
 import { TodayStrip } from "@/components/dashboard/widgets/today-strip";
 import { BuildStoreBanner } from "@/components/dashboard/build-store-banner";
+import { TrialReportSlot } from "@/components/billing/trial-report-slot";
 import { OrderPipeline } from "@/components/dashboard/widgets/order-pipeline";
 import { PrimeHomeRow } from "@/components/dashboard/prime/prime-home-row";
 import { ShieldHomeRow } from "@/components/dashboard/shield/shield-home-row";
@@ -274,6 +275,9 @@ export default function Home() {
             </button>
           </div>
         </div>
+
+        {/* Trial report: the shop's own trial numbers from day 5 until it pays (Fermi B12 item 2) */}
+        <WidgetBoundary label="trial-report"><TrialReportSlot place="home" /></WidgetBoundary>
 
         {/* Store overview: the header's period from the first-party storefront log, above everything else */}
         <WidgetBoundary label="store-overview"><StoreOverviewRow range={dateRange} /></WidgetBoundary>

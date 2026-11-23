@@ -1,8 +1,10 @@
 import { createContext, useContext, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { InfoTip } from "./info-tip";
 
 interface SummaryCardProps {
     title: string;
+    /** What the card shows, in a sentence: kept behind an info icon by the title so the card leads with its numbers. */
     sub?: string;
     /** Direction of the title and subtitle text (Arabic sentences lay out right to left inside the LTR page). */
     textDir: "rtl" | "ltr";
@@ -41,7 +43,7 @@ export function SummaryPanel({ children, testId }: { children: ReactNode; testId
     );
 }
 
-/** A white card of the summary page: a plain title, one quiet line under it, then the content. */
+/** A white card of the summary page: a plain title (its explanation behind an info icon), then the content. */
 export function SummaryCard({ title, sub, textDir, action, children, footer, className, testId, id }: SummaryCardProps) {
     const inPanel = useContext(InPanel);
     return (
@@ -52,8 +54,10 @@ export function SummaryCard({ title, sub, textDir, action, children, footer, cla
         >
             <header className="mb-4 flex items-start justify-between gap-4">
                 <div className="min-w-0">
-                    <h2 className="text-left text-[17px] font-semibold tracking-[-0.01em] text-foreground" dir={textDir}>{title}</h2>
-                    {sub && <p className="mt-1 text-left text-[13px] leading-relaxed text-muted" dir={textDir}>{sub}</p>}
+                    <div className="flex items-center gap-1.5">
+                        <h2 className="text-left text-[17px] font-semibold tracking-[-0.01em] text-foreground" dir={textDir}>{title}</h2>
+                        {sub && <InfoTip text={sub} textDir={textDir} testId={testId ? `${testId}-info` : undefined} />}
+                    </div>
                 </div>
                 {action && <div className="shrink-0">{action}</div>}
             </header>

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminFromRequest } from "@/lib/api-auth";
 import { activityKindFilter, isActivityKind } from "@/lib/activity-kinds";
+import { logActor } from "@/lib/shop-timeline";
+import { readStaffProfiles, staffNames } from "@/lib/staff-names";
 import { z } from "zod";
 
 export async function GET(request: NextRequest) {
@@ -50,10 +52,15 @@ export async function GET(request: NextRequest) {
 
     if (error) throw error;
 
+    // Each step named as the Merchants badge and the shop's timeline name the
+    // same row, so one step names one person on every page (round 25 data new 2).
+    const rows = data ?? [];
+    const names = staffNames(await readStaffProfiles(supabase, rows.map((row) => row.admin_user_id)));
+
     return NextResponse.json({
-      logs: (data ?? []).map(({ tenant, ...log }) => {
+      logs: rows.map(({ tenant, ...log }) => {
         const shop = Array.isArray(tenant) ? tenant[0] : tenant;
-        return { ...log, business_name: shop?.business_name ?? null };
+        return { ...log, actor: logActor(log, names), business_name: shop?.business_name ?? null };
       }),
       total: counted ? (count ?? 0) : null,
       page,

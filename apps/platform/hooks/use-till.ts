@@ -369,8 +369,13 @@ const historySale = z.object({
 });
 export type TillHistorySale = z.infer<typeof historySale>;
 
-/** A receipt number: what the QR on a printed receipt holds. */
-export const RECEIPT_CODE = /^\d{10}$/;
+/**
+ * A receipt number: what the QR on a printed receipt holds. The order number,
+ * source digit + YYMMDD + a day counter of 3 digits, or 4 from the 1,000th
+ * order of a day. 11 digits at most keeps product barcodes (8, 12, 13 and 14
+ * digits) out of the receipt lookup.
+ */
+export const RECEIPT_CODE = /^\d{10,11}$/;
 
 /** One past till sale of this store by its receipt number, from any shop and any day; null when there is none. */
 export function useTillFindSale(sessionId: string | null, orderId: string | null) {

@@ -50,10 +50,10 @@ BEGIN
     PERFORM pg_temp.check('access: service role updates', NOT has_table_privilege('service_role', 'public.support_case_notes', 'UPDATE'));
     PERFORM pg_temp.check('access: service role deletes', NOT has_table_privilege('service_role', 'public.support_case_notes', 'DELETE'));
     PERFORM pg_temp.check('access: rls on', (SELECT relrowsecurity FROM pg_class WHERE oid = 'public.support_case_notes'::regclass));
-    PERFORM pg_temp.check('access: anon notes', NOT has_function_privilege('anon', 'public.support_case_add_note(uuid, uuid, text, text)', 'EXECUTE'));
-    PERFORM pg_temp.check('access: authenticated notes', NOT has_function_privilege('authenticated', 'public.support_case_add_note(uuid, uuid, text, text)', 'EXECUTE'));
+    PERFORM pg_temp.check('access: anon notes', NOT has_function_privilege('anon', 'public.support_case_add_note(uuid, uuid, text, text, uuid)', 'EXECUTE'));
+    PERFORM pg_temp.check('access: authenticated notes', NOT has_function_privilege('authenticated', 'public.support_case_add_note(uuid, uuid, text, text, uuid)', 'EXECUTE'));
     PERFORM pg_temp.check('access: authenticated hands over', NOT has_function_privilege('authenticated', 'public.support_case_hand_over(uuid, uuid, text, uuid, text)', 'EXECUTE'));
-    PERFORM pg_temp.check('access: service role notes', has_function_privilege('service_role', 'public.support_case_add_note(uuid, uuid, text, text)', 'EXECUTE'));
+    PERFORM pg_temp.check('access: service role notes', has_function_privilege('service_role', 'public.support_case_add_note(uuid, uuid, text, text, uuid)', 'EXECUTE'));
     PERFORM pg_temp.check('access: service role hands over', has_function_privilege('service_role', 'public.support_case_hand_over(uuid, uuid, text, uuid, text)', 'EXECUTE'));
 END $$;
 
@@ -139,6 +139,17 @@ BEGIN
         PERFORM pg_temp.check('shape: hand-over without teammate stored', false);
     EXCEPTION WHEN check_violation THEN NULL;
     END;
+END $$;
+
+-- A request id (round 22, N8): a repeat adds no second note.
+DO $$
+DECLARE
+    rid uuid := gen_random_uuid();
+    first_ jsonb := public.support_case_add_note('00000000-0000-4000-8000-0000000000d1', '00000000-0000-4000-8000-0000000000a1', 'Noor', 'Once only', rid);
+    again jsonb := public.support_case_add_note('00000000-0000-4000-8000-0000000000d1', '00000000-0000-4000-8000-0000000000a1', 'Noor', 'Once only', rid);
+BEGIN
+    PERFORM pg_temp.check('request id: one note', (SELECT count(*) FROM public.support_case_notes WHERE body = 'Once only') = 1);
+    PERFORM pg_temp.check('request id: same note back ' || again::text, again ->> 'id' = first_ ->> 'id' AND (again ->> 'repeat')::boolean);
 END $$;
 
 DO $$

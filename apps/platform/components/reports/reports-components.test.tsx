@@ -46,6 +46,19 @@ describe("PeriodComparison", () => {
         expect(screen.getByText(/20\.0\s*pp/)).toBeTruthy();
     });
 
+    it("shows «—» and no trend for the rate and the time while nothing in the period has finished (critic r18)", () => {
+        const data = comparison({
+            current: { ...empty, totalOrders: 3, deliveryRate: null, avgProcessingTime: null },
+            previous: { ...empty, totalOrders: 4, deliveredOrders: 4, deliveryRate: 100, avgProcessingTime: 49 },
+            changes: { orders: -25, deliveryRate: null, revenue: 0, avgProcessingTime: null },
+        });
+        const { container } = inLanguage("ar", <PeriodComparison data={data} currentRange={range} />);
+        expect(container.textContent).not.toMatch(/(?<![\d.])0\.0%/);
+        expect(container.textContent).not.toMatch(/(?<!\d)0 ساعة/);
+        expect(container.textContent).not.toMatch(/pp|نقطة/);
+        expect(screen.getAllByText("—")).toHaveLength(2);
+    });
+
     it("writes revenue in the one money format, never «8.1M»", () => {
         const data = comparison({
             current: { ...empty, totalOrders: 10, deliveredOrders: 8, rejectedOrders: 2, deliveryRate: 80, totalRevenue: 8_075_500 },
@@ -93,7 +106,7 @@ const kpis: KPIMetrics = {
 describe("KPICards", () => {
     it("says on the sales card how it adds up to the Orders page's count when the period has returns", () => {
         const { container } = inLanguage("ar", <KPICards metrics={kpis} returnsCount={1} />);
-        expect(container.querySelector("[data-kpi-note]")?.textContent).toBe("+ مرتجع واحد = 9 في صفحة الطلبات");
+        expect(container.querySelector("[data-kpi-note]")?.textContent).toBe("+ استرجاع واحد = 9 في صفحة الطلبات");
         // The note is on the card, not hidden in a hover.
         expect(container.querySelector("[title]")?.getAttribute("title")).not.toMatch(/المرتجعات/);
     });

@@ -2,10 +2,24 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminFromRequest } from "@/lib/api-auth";
+import { AUTOMATIC, logActor } from "@/lib/shop-timeline";
+import { readStaffProfiles, staffNames } from "@/lib/staff-names";
 
 const BodySchema = z.object({
   tenant_ids: z.array(z.string().uuid()).min(1).max(200),
 });
+
+/** Each shop's newest staff step, one per shop, as admin_last_actors answers it. */
+const LastStepsSchema = z.record(
+  z.string(),
+  z.object({
+    admin_user_id: z.string().nullable(),
+    admin_label: z.string().nullable(),
+    actor_email: z.string().nullable(),
+    action: z.string(),
+    created_at: z.string(),
+  }),
+);
 
 export async function POST(request: NextRequest) {
   const auth = await requireAdminFromRequest(request);
@@ -22,58 +36,19 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = createAdminClient();
-    const ids = parsed.data.tenant_ids;
 
-    // Fetch latest activity per tenant via window function approach.
-    // Since supabase-js doesn't expose window functions directly, do a fetch
-    // sorted desc and dedupe by tenant_id in app code.
-    const { data: rows, error } = await supabase
-      .from("admin_activity_logs")
-      .select("admin_user_id, admin_label, action, created_at, tenant_id")
-      .in("tenant_id", ids)
-      .order("created_at", { ascending: false })
-      .limit(ids.length * 5);
-
+    // One step per shop, however busy the other shops are (audit R3-6).
+    const { data, error } = await supabase.rpc("admin_last_actors", { p_tenant_ids: parsed.data.tenant_ids });
     if (error) throw error;
+    const latestByTenant = LastStepsSchema.parse(data);
 
-    const latestByTenant = new Map<
-      string,
-      {
-        admin_user_id: string | null;
-        admin_label: string | null;
-        action: string;
-        created_at: string;
-      }
-    >();
-    for (const r of rows ?? []) {
-      if (!r.tenant_id || latestByTenant.has(r.tenant_id)) continue;
-      latestByTenant.set(r.tenant_id, {
-        admin_user_id: r.admin_user_id,
-        admin_label: r.admin_label,
-        action: r.action,
-        created_at: r.created_at,
-      });
-    }
-
-    const adminIds = Array.from(
-      new Set(
-        Array.from(latestByTenant.values())
-          .map((v) => v.admin_user_id)
-          .filter((v): v is string => typeof v === "string" && v.length > 0)
-      )
+    // Named as the shop's timeline names the same row, from the same rule.
+    const profiles = await readStaffProfiles(
+      supabase,
+      Object.values(latestByTenant).map((v) => v.admin_user_id),
     );
-
-    let profilesById = new Map<
-      string,
-      { id: string; display_name: string | null; email: string; avatar_url: string | null }
-    >();
-    if (adminIds.length > 0) {
-      const { data: profiles } = await supabase
-        .from("user_profiles")
-        .select("id, display_name, email, avatar_url")
-        .in("id", adminIds);
-      profilesById = new Map((profiles ?? []).map((p) => [p.id, p]));
-    }
+    const profilesById = new Map(profiles.map((p) => [p.id, p]));
+    const names = staffNames(profiles);
 
     const actors: Record<
       string,
@@ -86,15 +61,16 @@ export async function POST(request: NextRequest) {
         is_system: boolean;
       }
     > = {};
-    for (const [tenantId, entry] of latestByTenant.entries()) {
+    for (const [tenantId, entry] of Object.entries(latestByTenant)) {
       const profile = entry.admin_user_id ? profilesById.get(entry.admin_user_id) : null;
+      const who = logActor(entry, names);
       actors[tenantId] = {
-        display_name: profile?.display_name ?? entry.admin_label ?? "system",
-        email: profile?.email ?? null,
+        display_name: who,
+        email: profile?.email ?? entry.actor_email,
         avatar_url: profile?.avatar_url ?? null,
         action: entry.action,
         when: entry.created_at,
-        is_system: !profile,
+        is_system: who === AUTOMATIC,
       };
     }
 

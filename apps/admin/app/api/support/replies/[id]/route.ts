@@ -32,7 +32,10 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     .eq("id", id)
     .select(SUPPORT_SAVED_REPLY_COLUMNS)
     .maybeSingle();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("Support saved reply change error:", error);
+    return NextResponse.json({ error: "Failed to change the saved reply" }, { status: 500 });
+  }
   if (!data) return notFound();
 
   await logAdminAction(admin, "support_saved_reply_changed", { details: { id, title: parsed.data.title } });
@@ -51,7 +54,10 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     .eq("id", id)
     .select("title")
     .maybeSingle();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("Support saved reply remove error:", error);
+    return NextResponse.json({ error: "Failed to remove the saved reply" }, { status: 500 });
+  }
   if (!data) return notFound();
 
   await logAdminAction(admin, "support_saved_reply_removed", {

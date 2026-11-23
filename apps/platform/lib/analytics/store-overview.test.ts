@@ -73,6 +73,20 @@ describe("storeOverviewMetrics for a period", () => {
         expect(storeOverviewMetrics(short, "30d").every((m) => m.deltaPct === null)).toBe(true);
     });
 
+    it("gives no comparison when the log began inside the earlier run of days (critic r18: «↑ ×5165»)", () => {
+        // 60 padded days; the log's first visit is 3 days before the last 30 began.
+        const days = Array.from({ length: 60 }, (_, i) => ({
+            day: `2026-09-${String(i).padStart(2, "0")}`,
+            visitors: i >= 27 ? 500 : 0,
+            orders: i >= 27 ? 1 : 0,
+            sales: i >= 27 ? 1000 : 0,
+        }));
+        const young = storeOverviewSchema.parse({ days, yesterday_same_time: {} });
+        expect(storeOverviewMetrics(young, "30d").every((m) => m.deltaPct === null)).toBe(true);
+        // The last 7 days and the 7 before them are both inside the log: compared as before.
+        expect(storeOverviewMetrics(young, "7d").find((m) => m.key === "visitors")!.deltaPct).toBe(0);
+    });
+
     it("reads every day the log returns for «all», with no comparison", () => {
         expect(pick("all", "orders").value).toBe(60);
         expect(pick("all", "orders").deltaPct).toBeNull();

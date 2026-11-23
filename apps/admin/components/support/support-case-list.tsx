@@ -1,13 +1,14 @@
 "use client";
 
-import { CheckCircle2, Clock, Inbox, ThumbsDown, ThumbsUp } from "lucide-react";
+import { CheckCircle2, Clock, Inbox, Lightbulb, ThumbsDown, ThumbsUp } from "lucide-react";
 import { SUPPORT_REPLY_MINUTES, supportWaitMinutes } from "@scheniders/shared/support-hours";
 import { cn } from "@/lib/utils";
 import { useLiveTick } from "@/hooks/use-live-tick";
-import { formatWait, SUPPORT_REASON_LABELS, type SupportCaseRow } from "@/lib/support";
+import { formatDayTime } from "@/lib/format";
+import { changeRequestClock, changeRequestDueAt, formatWait, SUPPORT_REASON_LABELS, type SupportInboxRow } from "@/lib/support";
 
 interface SupportCaseListProps {
-  cases: SupportCaseRow[];
+  cases: SupportInboxRow[];
   selectedId: string | null;
   onSelect: (id: string) => void;
   isLoading: boolean;
@@ -23,6 +24,30 @@ function waitTone(since: string, now: number): string {
   if (minutes >= 15) return "bg-red-500/15 text-[var(--ink-red)]";
   if (minutes >= SUPPORT_REPLY_MINUTES) return "bg-amber-500/15 text-[var(--ink-amber)]";
   return "bg-foreground/5 text-foreground/70";
+}
+
+/**
+ * The change request tag. Until the conversation is solved it counts down the
+ * 24-hour promise ("Change · 23 h", then red "Change · 2 h late"), whoever
+ * wrote last. It sits on the message line, not beside the name: in the 320 px
+ * column the name, the tag and the wait chip did not fit on one line, and the
+ * tag ran into the chip (round 24).
+ */
+function ChangeRequestTag({ requestedAt, solved, now }: { requestedAt: string; solved: boolean; now: number }) {
+  const clock = changeRequestClock(requestedAt, now);
+  const late = !solved && clock.late;
+  return (
+    <span
+      title={`Change request: we promised it by ${formatDayTime(changeRequestDueAt(requestedAt), new Date(now))}`}
+      className={cn(
+        "inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-1.5 py-0.5 text-xs font-semibold tabular-nums",
+        late ? "bg-red-500/15 text-[var(--ink-red)]" : "bg-amber-500/15 text-[var(--ink-amber)]",
+      )}
+    >
+      <Lightbulb className="h-3 w-3" />
+      {solved ? "Change" : `Change · ${clock.label}`}
+    </span>
+  );
 }
 
 export function SupportCaseList({ cases, selectedId, onSelect, isLoading, emptyLabel }: SupportCaseListProps) {
@@ -59,7 +84,7 @@ export function SupportCaseList({ cases, selectedId, onSelect, isLoading, emptyL
               c.id === selectedId ? "bg-foreground/[0.06]" : "hover:bg-foreground/[0.03]",
             )}
           >
-            <div className="flex items-center justify-between gap-2">
+            <div data-row="name" className="flex items-center justify-between gap-2">
               <span dir="auto" className="min-w-0 truncate text-sm font-semibold text-foreground">
                 {c.tenants?.business_name ?? "Unknown shop"}
               </span>
@@ -84,10 +109,15 @@ export function SupportCaseList({ cases, selectedId, onSelect, isLoading, emptyL
                 <span className="shrink-0 text-xs font-medium text-foreground/70">Replied</span>
               )}
             </div>
-            <p dir="auto" className="line-clamp-1 text-[13px] text-foreground-muted">
-              {c.last_sender_kind === "staff" ? "Team: " : ""}
-              {c.last_message_preview}
-            </p>
+            <div data-row="message" className="flex min-w-0 items-center gap-1.5">
+              {c.change_requested_at && (
+                <ChangeRequestTag requestedAt={c.change_requested_at} solved={c.status === "solved"} now={now} />
+              )}
+              <p dir="auto" className="min-w-0 truncate text-[13px] text-foreground-muted">
+                {c.last_sender_kind === "staff" ? "Team: " : ""}
+                {c.last_message_preview}
+              </p>
+            </div>
             <div className="flex items-center justify-between gap-2 text-xs text-foreground/70">
               <span dir="auto" className="min-w-0 truncate">
                 {c.opened_by_name}

@@ -9,7 +9,8 @@ import {
   Loader2,
 } from "lucide-react";
 import { LoadError } from "@/components/shared/load-error";
-import { okOrLoadFailure } from "@/lib/load-failure";
+import { StaleLine } from "@/components/shared/stale-line";
+import { okOrLoadFailure, pollEvery } from "@/lib/load-failure";
 import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
 import { formatCount, formatIQD } from "@/lib/format";
 import { shopFormHref } from "@/lib/shop-actions";
@@ -90,12 +91,13 @@ async function fetchHealth(): Promise<HealthData> {
 
 export default function HealthPage() {
   const canTopUp = useCan()("top_up_wallet");
-  const { data, isLoading, isError, error, refetch, isFetching } = useQuery<HealthData>({
+  const pageRead = useQuery<HealthData>({
     queryKey: ["admin", "health"],
     queryFn: fetchHealth,
     staleTime: 30_000,
-    refetchInterval: 60_000,
+    refetchInterval: pollEvery(60_000),
   });
+  const { data, isLoading, isError, error, refetch, isFetching } = pageRead;
 
   if (isError && !data) {
     return <LoadError what="the health numbers" error={error} onRetry={() => refetch()} retrying={isFetching} />;
@@ -119,6 +121,7 @@ export default function HealthPage() {
       {/* Header */}
       <div>
         <h1 className="text-[22px] font-semibold text-foreground">Shops at risk</h1>
+        <StaleLine read={pageRead} what="the health numbers" className="mt-2" />
       </div>
 
       {/* Platform Status Bar. While the read runs, a neutral bar of the same

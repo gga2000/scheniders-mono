@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminPermission } from "@/lib/api-auth";
 import { adminDisplayName } from "@/lib/support-admin-name";
@@ -6,12 +7,15 @@ import { logAdminActivity } from "@/lib/activity-logger";
 import { lastDaysStart } from "@/lib/baghdad-day";
 import {
   CaseActionSchema,
+  SupportRequestIdSchema,
   SUPPORT_CASE_COLUMNS,
   SUPPORT_CASE_NOTE_COLUMNS,
+  SUPPORT_SEND_UNSURE,
   SUPPORT_SHOT_BUCKET,
   SUPPORT_VOICE_BUCKET,
   filePaths,
   supportRefusal,
+  writesOnce,
   type SupportCaseNote,
   type SupportCaseRow,
   type SupportMessageRow,
@@ -23,6 +27,14 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const FILE_LINK_SECONDS = 15 * 60;
 
 type AdminDb = ReturnType<typeof createAdminClient>;
+
+/** Whether the shop's month renews: the card says "Renews" only when it will. */
+const subscriptionSchema = z.object({
+  status: z.string(),
+  plan: z.string(),
+  auto_renew: z.boolean(),
+  current_period_end: z.string().nullable(),
+});
 
 /** Signed links for every path in one call; a file that is gone has no link. */
 async function signPaths(supabase: AdminDb, bucket: string, paths: string[]): Promise<Map<string, string>> {
@@ -49,11 +61,11 @@ async function loadShopCard(
   const [tenant, wallet, subscription, ordersWeek, ordersTotal, team, notes, earlier, owner, calls] = await Promise.all([
     supabase
       .from("tenants")
-      .select("id, business_name, display_id, plan, status, restrictions, city, contact_phone, trial_ends_at, created_at")
+      .select("id, business_name, display_id, plan, status, restrictions, city, contact_phone, trial_ends_at, created_at, is_demo")
       .eq("id", tenantId)
       .single(),
     supabase.from("wallet").select("balance_iqd").eq("tenant_id", tenantId).maybeSingle(),
-    supabase.from("subscriptions").select("current_period_end").eq("tenant_id", tenantId).maybeSingle(),
+    supabase.from("subscriptions").select("status, plan, auto_renew, current_period_end").eq("tenant_id", tenantId).maybeSingle(),
     supabase
       .from("admin_order_facts")
       .select("tenant_id", { count: "exact", head: true })
@@ -97,8 +109,7 @@ async function loadShopCard(
   return {
     tenant: tenant.data as SupportShopCard["tenant"],
     walletBalanceIqd: balance === undefined || balance === null ? null : Number(balance),
-    subscriptionEndsAt:
-      (subscription.data as { current_period_end: string | null } | null)?.current_period_end ?? null,
+    subscription: subscriptionSchema.nullable().parse(subscription.data),
     ordersLast7Days: ordersWeek.count ?? 0,
     ordersTotal: ordersTotal.count ?? 0,
     teamSize: team.count ?? 0,
@@ -122,16 +133,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   try {
     const supabase = createAdminClient();
 
-    const { data: caseRow, error: caseError } = await supabase
-      .from("support_cases")
-      .select(SUPPORT_CASE_COLUMNS)
-      .eq("id", id)
-      .maybeSingle();
-    if (caseError) throw caseError;
-    if (!caseRow) return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
-    const supportCase = caseRow as unknown as SupportCaseRow;
-
-    const [messages, notes, shop] = await Promise.all([
+    // The messages and notes need only the conversation's id, so they are read
+    // with the conversation itself: one round trip less to open a conversation.
+    const [caseRead, messages, notes] = await Promise.all([
+      supabase.from("support_cases").select(SUPPORT_CASE_COLUMNS).eq("id", id).maybeSingle(),
       supabase
         .from("support_messages")
         .select("id, case_id, sender_kind, sender_name, body, context, created_at")
@@ -144,13 +149,16 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         .eq("case_id", id)
         .order("created_at", { ascending: true })
         .limit(200),
-      loadShopCard(supabase, supportCase.tenant_id, id, auth.user.id),
     ]);
+    if (caseRead.error) throw caseRead.error;
+    if (!caseRead.data) return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
     if (messages.error) throw messages.error;
     if (notes.error) throw notes.error;
+    const supportCase = caseRead.data as unknown as SupportCaseRow;
 
     const rows = (messages.data ?? []) as Omit<SupportMessageRow, "screenshot_url" | "voice_url">[];
-    const [shotLinks, voiceLinks] = await Promise.all([
+    const [shop, shotLinks, voiceLinks] = await Promise.all([
+      loadShopCard(supabase, supportCase.tenant_id, id, auth.user.id),
       signPaths(supabase, SUPPORT_SHOT_BUCKET, filePaths(rows, supportCase.tenant_id, "screenshot")),
       signPaths(supabase, SUPPORT_VOICE_BUCKET, filePaths(rows, supportCase.tenant_id, "voice")),
     ]);
@@ -184,11 +192,22 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const { id } = await params;
   if (!UUID_RE.test(id)) return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
 
-  const parsed = CaseActionSchema.safeParse(await request.json().catch(() => null));
+  const raw: unknown = await request.json().catch(() => null);
+  const parsed = CaseActionSchema.safeParse(raw);
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid input", details: parsed.error.flatten() }, { status: 400 });
   }
   const input = parsed.data;
+
+  // A reply or a note carries the id of its send: a retry after a lost answer writes once.
+  let requestId: string | null = null;
+  if (writesOnce(input)) {
+    const sent = SupportRequestIdSchema.safeParse(raw);
+    if (!sent.success) {
+      return NextResponse.json({ error: sent.error.issues[0]?.message ?? "Invalid input" }, { status: 400 });
+    }
+    requestId = sent.data.request_id;
+  }
 
   try {
     const supabase = createAdminClient();
@@ -235,6 +254,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
               p_admin_id: auth.user.id,
               p_admin_name: adminName,
               p_body: input.body,
+              p_request_id: requestId,
             })
           : await supabase.rpc("support_case_hand_over", {
               p_case_id: id,
@@ -268,6 +288,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
             p_admin_id: auth.user.id,
             p_admin_name: adminName,
             p_body: input.body,
+            p_request_id: requestId,
           })
         : await supabase.rpc("support_staff_solve", {
             p_case_id: id,
@@ -294,6 +315,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Support case action error:", error);
+    // A reply or note may have been written before its answer was lost; its id makes a retry safe.
+    if (requestId) return NextResponse.json({ error: SUPPORT_SEND_UNSURE }, { status: 502 });
     return NextResponse.json({ error: "Failed to update the conversation" }, { status: 500 });
   }
 }

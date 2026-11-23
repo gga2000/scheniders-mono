@@ -1,7 +1,14 @@
-import { describe, expect, it } from "vitest";
-import { QueryClient, type InfiniteData } from "@tanstack/react-query";
+// @vitest-environment jsdom
+import { createElement, type ReactNode } from "react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { QueryClient, QueryClientProvider, type InfiniteData } from "@tanstack/react-query";
+import { renderHook, waitFor } from "@testing-library/react";
 import type { AdminTenant } from "@/types/admin";
-import { patchMerchantInCache } from "./use-infinite-merchants";
+
+const send = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/admin-fetch", () => ({ adminFetch: send }));
+
+const { patchMerchantInCache, useInfiniteMerchants } = await import("./use-infinite-merchants");
 
 type Page = { merchants: AdminTenant[]; total: number; page: number; limit: number };
 
@@ -44,5 +51,37 @@ describe("patchMerchantInCache", () => {
     restore();
     expect(statusesOf(client)).toEqual(before);
     expect(statusesOf(client)).toEqual([["a:trial:starter", "b:active:internal"], ["a:trial:starter"]]);
+  });
+});
+
+/*
+ * Round 24 data new 4: "load more" moved the query's own time to the newest
+ * page, so after a failed refresh the stale line named that page's time,
+ * while the first pages on screen were older.
+ */
+describe("how old the shop list is", () => {
+  afterEach(() => {
+    send.mockReset();
+    vi.restoreAllMocks();
+  });
+
+  it("is as old as its oldest page, not the page loaded last", async () => {
+    const ids = Array.from({ length: 100 }, (_, i) => `00000000-0000-4000-8000-${String(i).padStart(12, "0")}`);
+    send.mockImplementation(async (url: string) => {
+      const page = Number(new URL(url, "http://x").searchParams.get("page") ?? "1");
+      const merchants = ids.slice((page - 1) * 50, page * 50).map((id) => ({ id }));
+      return new Response(JSON.stringify({ merchants, total: ids.length, page, limit: 50 }), { status: 200 });
+    });
+    const firstRead = Date.parse("2026-11-22T17:00:00Z");
+    const now = vi.spyOn(Date, "now").mockReturnValue(firstRead);
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const wrapper = ({ children }: { children: ReactNode }) => createElement(QueryClientProvider, { client }, children);
+    const { result } = renderHook(() => useInfiniteMerchants(50), { wrapper });
+    await waitFor(() => expect(result.current.pageIds).toHaveLength(1));
+    expect(result.current.dataUpdatedAt).toBe(firstRead);
+    now.mockReturnValue(firstRead + 10 * 60_000);
+    await result.current.fetchNextPage();
+    await waitFor(() => expect(result.current.pageIds).toHaveLength(2));
+    expect(result.current.dataUpdatedAt).toBe(firstRead);
   });
 });

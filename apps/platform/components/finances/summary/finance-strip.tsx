@@ -6,7 +6,7 @@ import type { Format } from "@number-flow/react";
 import { motion, useReducedMotion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { NumberTicker } from "@/components/ui/number-ticker";
-import { useLanguage } from "@/hooks/use-language";
+import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { changePct, perOrder, type FinanceSummary, type ProfitStatement } from "@/lib/finance/summary";
 import { ChangeChip, isShownChange } from "./change-chip";
 import { StripCell } from "./strip-cell";
@@ -35,10 +35,14 @@ function adSpend(statement: ProfitStatement): number {
 export function FinanceStrip({ summary, statement, previous }: FinanceStripProps) {
     const { t } = useLanguage();
     const reduceMotion = useReducedMotion();
+    // In Arabic each amount is a right-to-left run, as every other page writes money: the number, then «د.ع».
+    const dir = useTextDir();
     const unit = <span className="ms-1.5 text-[0.5em] font-medium text-stone-400">{t("common.iqd")}</span>;
     const iqd = (n: number) => (
-        <span dir="ltr">
-            <NumberTicker value={Math.round(n)} format={WHOLE} />
+        <span dir={dir}>
+            <bdi dir="ltr">
+                <NumberTicker value={Math.round(n)} format={WHOLE} />
+            </bdi>
             {unit}
         </span>
     );
@@ -71,9 +75,12 @@ export function FinanceStrip({ summary, statement, previous }: FinanceStripProps
                         loss ? "text-rose-400" : "text-[#dcfb3a]",
                     )}
                     data-stat="net_profit"
-                    dir="ltr"
+                    dir={dir}
                 >
-                    <NumberTicker value={Math.round(statement.netProfit)} format={WHOLE} />
+                    {/* The sign stays glued to the digits in its own left-to-right run. */}
+                    <bdi dir="ltr">
+                        <NumberTicker value={Math.round(statement.netProfit)} format={WHOLE} />
+                    </bdi>
                     <span className="ms-2 text-[15px] font-medium tracking-normal text-stone-400">{t("common.iqd")}</span>
                 </div>
                 <div className="mt-2 flex min-h-[18px] items-center gap-2 text-[12px] text-stone-400">
@@ -133,7 +140,7 @@ export function FinanceStrip({ summary, statement, previous }: FinanceStripProps
                     note={
                         stuck.count > 0 ? (
                             <Link href={STUCK_ORDERS_HREF} className="underline decoration-white/25 underline-offset-2 hover:text-stone-200">
-                                <span dir="ltr">{formatWhole(stuck.amount)} {t("common.iqd")}</span>
+                                <span dir={dir}>{formatWhole(stuck.amount)} {t("common.iqd")}</span>
                             </Link>
                         ) : null
                     }

@@ -1,11 +1,26 @@
+// @vitest-environment jsdom
 // The staff card for a locked store (Fermi A1), rendered to markup: what the
 // lock is, the storefront orders left, and the tools staff may use.
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { describe, expect, it } from "vitest";
-import { BillingLockCard } from "./billing-lock-card";
+import { QueryClient, QueryClientProvider, useMutation } from "@tanstack/react-query";
+import { cleanup, fireEvent, render as draw, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { BillingLockSnapshot } from "@/lib/billing-lock-tools";
+import { shopActionKey } from "@/lib/shop-actions";
+
+const send = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/admin-fetch", () => ({ adminFetch: send }));
+const { BillingLockCard } = await import("./billing-lock-card");
+
+afterEach(() => {
+  cleanup();
+  send.mockReset();
+  localStorage.clear();
+});
+
+/** A shop id as the database makes them: the request key takes no other. */
+const SHOP_ID = "6d4e6d9b-eaf5-42f9-abd1-a8afee593d9d";
 
 const LOCK: BillingLockSnapshot = {
   locked: true,
@@ -23,7 +38,7 @@ const render = (canForceUnlock: boolean, lock: BillingLockSnapshot = LOCK, shopP
     createElement(
       QueryClientProvider,
       { client: new QueryClient() },
-      createElement(BillingLockCard, { merchantId: "t1", lock, canForceUnlock, shopPaused }),
+      createElement(BillingLockCard, { merchantId: SHOP_ID, lock, canForceUnlock, shopPaused }),
     ),
   );
 
@@ -55,10 +70,21 @@ describe("BillingLockCard", () => {
     // receipt or hourly run charges a month that ended with renewal off.
     const html = render(true, { ...LOCK, renewal_off: true });
     expect(html).toContain(
-      "Renewal is off, so money alone does not open it: it opens when the shop pays 25,000 IQD on its lock screen, or when staff turn renewal on and the wallet pays it.",
+      "Renewal is off, so money alone does not open it: it opens when the shop pays 25,000 IQD on its lock screen, or staff turn renewal on and the wallet pays it.",
     );
     expect(html).not.toContain("from the wallet opens it");
     expect(render(true, { ...LOCK, renewal_off: true }, true)).toContain("Paused, and renewal is off. Once the pause lifts, it opens when the shop pays");
+  });
+
+  // Round 21 (data new 1): the free unlock's note said renewal charges the wallet as usual when it
+  // ends. admin_force_unlock leaves renewal off, so the shop locks again, uncharged.
+  it("with renewal off, says the shop locks again when the free unlock ends", () => {
+    const html = render(true, { ...LOCK, renewal_off: true });
+    expect(html).toContain("Opens free time with no wallet charge. Renewal is off, so the shop locks again when that time ends.");
+    expect(html).toContain("A free unlock or free days also open it, with no charge, for that time only.");
+    expect(html).not.toContain("renewal charges the wallet as usual");
+    expect(render(true)).toContain("Opens free time with no wallet charge. When it ends, renewal charges the wallet as usual.");
+    expect(render(false, { ...LOCK, reason: "trial_ended", renewal_off: true })).not.toContain("A free unlock or free days");
   });
 
   it("offers the free unlock to super admins only", () => {
@@ -86,5 +112,57 @@ describe("BillingLockCard", () => {
     );
     expect(tools).toHaveLength(5);
     for (const button of tools) expect(button).toMatch(/disabled=""/);
+  });
+});
+
+/*
+ * Round 21 (UX new 3): the card's tools did not wait for the page's writes. A
+ * click on + 10 during a held Add money sent a second write, and during the
+ * card's own unlock the 7 or 30 choice still changed, so the button named 7
+ * days while 30 were written.
+ */
+describe("BillingLockCard while a write on the shop runs", () => {
+  const REASON = "Owner paid in cash at the office";
+
+  /** A write on this shop from another panel, held open until the test ends. */
+  function OtherWrite() {
+    const write = useMutation({ mutationKey: shopActionKey(SHOP_ID), mutationFn: () => new Promise<never>(() => {}) });
+    return createElement("button", { type: "button", onClick: () => write.mutate() }, "Other write");
+  }
+
+  const drawCard = () => {
+    draw(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(BillingLockCard, { merchantId: SHOP_ID, lock: LOCK, canForceUnlock: true, shopPaused: false }),
+        createElement(OtherWrite),
+      ),
+    );
+    fireEvent.change(screen.getByPlaceholderText("Why? (needed for both tools, saved in the log)"), { target: { value: REASON } });
+  };
+  const off = (name: string) => screen.getByRole("button", { name }).matches(":disabled");
+
+  it("holds every tool while another panel's write runs, and sends nothing", async () => {
+    drawCard();
+    expect(off("+ 10")).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: "Other write" }));
+    await waitFor(() => expect(off("+ 10")).toBe(true));
+    expect(off("7 days")).toBe(true);
+    expect(off("Unlock for 30 days")).toBe(true);
+    expect(screen.getByPlaceholderText("Why? (needed for both tools, saved in the log)").matches(":disabled")).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "+ 10" }));
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it("keeps the days it is writing: the 7 or 30 choice waits during its own unlock", async () => {
+    send.mockReturnValue(new Promise<never>(() => {}));
+    drawCard();
+    fireEvent.click(screen.getByRole("button", { name: "Unlock for 30 days" }));
+    // A disabled control takes no click in the browser, so the button keeps naming what is written.
+    await waitFor(() => expect(off("7 days")).toBe(true));
+    expect(off("30 days")).toBe(true);
+    expect(screen.getByRole("button", { name: "Unlock for 30 days" })).toBeTruthy();
+    expect(send).toHaveBeenCalledTimes(1);
   });
 });
