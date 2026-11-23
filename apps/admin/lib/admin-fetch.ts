@@ -137,9 +137,29 @@ export async function leaveIfSignedOut(): Promise<void> {
 }
 
 /**
+ * How long the console waits for any answer (round 25, row 17). The console's
+ * routes stop at 30 s (vercel.json), so a slow route's own 504 comes first;
+ * this ends a request whose answer never comes at all. Before, a hung read
+ * spun and a hung import held the leave guard until the browser gave up.
+ */
+export const ADMIN_FETCH_TIMEOUT_MS = 35_000;
+
+/** The caller's signal, if any, ended also by the console's time limit. */
+function withTimeLimit(signal: AbortSignal | null | undefined): AbortSignal {
+  const limit = AbortSignal.timeout(ADMIN_FETCH_TIMEOUT_MS);
+  return signal ? AbortSignal.any([signal, limit]) : limit;
+}
+
+/** A request the console's time limit ended: no answer came in time. */
+export function timedOut(error: unknown): boolean {
+  return error instanceof DOMException && error.name === "TimeoutError";
+}
+
+/**
  * Fetch wrapper that automatically attaches the Supabase session token
  * as an Authorization: Bearer header. Use this for all admin API routes
- * that call requireAdmin().
+ * that call requireAdmin(). Every request ends after ADMIN_FETCH_TIMEOUT_MS
+ * with a TimeoutError (see timedOut).
  */
 export async function adminFetch(
   input: string,
@@ -158,7 +178,7 @@ export async function adminFetch(
   // Sent after the page tried to leave, so after staff chose to stay: an
   // answer that went through means they signed in again in another tab.
   const afterLeaving = leaving;
-  const response = await fetch(input, { ...init, headers });
+  const response = await fetch(input, { ...init, headers, signal: withTimeLimit(init?.signal) });
   if (afterLeaving && response.ok) signedInAgain();
   if (response.status === 401) void leaveIfSignedOut();
   // The login has no console access any more (its staff row was removed or

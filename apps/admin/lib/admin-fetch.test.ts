@@ -87,6 +87,81 @@ describe("leaveIfSignedOut", () => {
   });
 });
 
+/*
+ * Round 25 (row 17): no request had a time limit, so a hung read spun and a
+ * hung import held the leave guard until the browser gave up.
+ */
+describe("the console's time limit", () => {
+  /** fetch as the browser runs it: it rejects with the signal's reason once the signal ends. */
+  function hangingFetch(): void {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        (_url: string, init: RequestInit) =>
+          new Promise<Response>((_, reject) => {
+            if (init.signal?.aborted) reject(init.signal.reason);
+            init.signal?.addEventListener("abort", () => reject(init.signal?.reason));
+          }),
+      ),
+    );
+  }
+  /** The time limit's signal, ended by the test instead of the clock. */
+  function limitEndedByHand(): () => void {
+    const limit = new AbortController();
+    vi.spyOn(AbortSignal, "timeout").mockReturnValue(limit.signal);
+    return () => limit.abort(new DOMException("The operation timed out.", "TimeoutError"));
+  }
+  afterEach(() => vi.restoreAllMocks());
+
+  it("ends a request with no answer after 35 s, as a TimeoutError", async () => {
+    auth.session = { access_token: "jwt" };
+    hangingFetch();
+    const end = limitEndedByHand();
+    const { ADMIN_FETCH_TIMEOUT_MS, adminFetch, timedOut } = await import("./admin-fetch");
+    const read = adminFetch("/api/dashboard").catch((error: unknown) => error);
+    await Promise.resolve();
+    expect(AbortSignal.timeout).toHaveBeenCalledWith(ADMIN_FETCH_TIMEOUT_MS);
+    expect(ADMIN_FETCH_TIMEOUT_MS).toBe(35_000);
+    end();
+    expect(timedOut(await read)).toBe(true);
+  });
+
+  it("waits longer than any route may run, so a slow route's own answer comes first", async () => {
+    const { ADMIN_FETCH_TIMEOUT_MS } = await import("./admin-fetch");
+    const vercel: unknown = JSON.parse(readFileSync(path.join(__dirname, "..", "vercel.json"), "utf8"));
+    const routes = (vercel as { functions?: Record<string, { maxDuration?: number }> }).functions?.["app/api/**/*.ts"];
+    expect(routes?.maxDuration).toBe(30);
+    expect((routes?.maxDuration ?? Infinity) * 1000).toBeLessThan(ADMIN_FETCH_TIMEOUT_MS);
+  });
+
+  it("still ends when the caller's own signal does, and that is not a time-out", async () => {
+    auth.session = { access_token: "jwt" };
+    hangingFetch();
+    limitEndedByHand();
+    const { adminFetch, timedOut } = await import("./admin-fetch");
+    const caller = new AbortController();
+    const read = adminFetch("/api/dashboard", { signal: caller.signal }).catch((error: unknown) => error);
+    caller.abort();
+    const error = await read;
+    expect(error).toBeInstanceOf(DOMException);
+    expect(timedOut(error)).toBe(false);
+  });
+
+  it("makes a write with no answer in time a lost answer: it may have been done", async () => {
+    auth.session = { access_token: "jwt" };
+    hangingFetch();
+    const end = limitEndedByHand();
+    const { sendStep } = await import("./send-json");
+    const { AnswerLost } = await import("./answer-lost");
+    const write = sendStep("/api/leads/l1", { title: "Call back" }, "PATCH", "Check the lead.").catch((error: unknown) => error);
+    await vi.waitFor(() => expect(AbortSignal.timeout).toHaveBeenCalled());
+    end();
+    const error = await write;
+    expect(error).toBeInstanceOf(AnswerLost);
+    expect(error instanceof Error && error.message).toBe("Check the lead.");
+  });
+});
+
 describe("adminFetch", () => {
   it("checks the session after a 401, and only then", async () => {
     auth.session = null;

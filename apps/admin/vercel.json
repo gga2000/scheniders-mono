@@ -4,6 +4,11 @@
     "fra1"
   ],
   "outputDirectory": ".next",
+  "functions": {
+    "app/api/**/*.ts": {
+      "maxDuration": 30
+    }
+  },
   "git": {
     "deploymentEnabled": {
       "main": true,
