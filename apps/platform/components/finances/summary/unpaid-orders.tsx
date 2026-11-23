@@ -21,6 +21,8 @@ interface UnpaidOrdersProps {
 
 /** The server lists at most this many: past it, the rest are only counted. */
 export const UNPAID_LIST_CAP = 20;
+/** The list's anchor, so a note elsewhere on the page can point at these orders. */
+export const UNPAID_ORDERS_ID = "unpaid-orders";
 /** Up to this many rows show at once; a longer list shows the oldest few and a button for the rest. */
 const SHOW_ALL_UP_TO = 7;
 const SHOWN_FOLDED = 5;
@@ -69,7 +71,7 @@ export function UnpaidOrders({ orders, total, totalPrime }: UnpaidOrdersProps) {
                 : t("fin.money.unpaid.restFree", { n: formatWhole(rest), count: rest });
 
     return (
-        <div className="mt-2.5" data-testid="money-unpaid-list">
+        <div id={UNPAID_ORDERS_ID} className="mt-2.5 scroll-mt-6" data-testid="money-unpaid-list">
             {orders.length > 0 && (
                 <ul aria-label={t("fin.money.unpaid.list")} className="divide-y divide-[var(--card-border)] border-s-2 border-[var(--card-border)] ps-3">
                     {visible.map((order) => {

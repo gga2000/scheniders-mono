@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useIsMutating, useMutation } from "@tanstack/react-query";
 import { Lock, ShoppingBag, Unlock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -11,11 +11,11 @@ import {
   type BillingLockSnapshot,
 } from "@/lib/billing-lock-tools";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
-import { createRequestIds } from "@/lib/request-ids";
+import { keptRequestIds, requestKey, shopKey } from "@/lib/request-ids";
 import { formatDay } from "@/lib/format";
-import { LOCK_REASON_WORDS, lockOpensWords } from "@/lib/billing-lock-label";
+import { LOCK_REASON_WORDS, lockOpensWords, RENEWAL_OFF_THEN_LOCKS } from "@/lib/billing-lock-label";
 import { shopActionKey } from "@/lib/shop-actions";
-import { postJson, useRereadShop, useWriteFailed } from "./action-ui";
+import { PanelFields, postJson, useRereadShop, useWriteFailed } from "./action-ui";
 
 interface BillingLockCardProps {
   merchantId: string;
@@ -52,7 +52,7 @@ export function BillingLockCard({ merchantId, lock, canForceUnlock, shopPaused }
   const [customOrders, setCustomOrders] = useState("");
   const [unlockDays, setUnlockDays] = useState(30);
   // One id per ask: a retry after a lost answer adds the orders or unlocks once.
-  const [requestIds] = useState(createRequestIds);
+  const [requestIds] = useState(() => keptRequestIds("lock"));
   const reasonOk = isStaffReason(reason);
 
   const mutation = useMutation({
@@ -64,7 +64,7 @@ export function BillingLockCard({ merchantId, lock, canForceUnlock, shopPaused }
           ? `/api/merchants/${merchantId}/lock-orders`
           : `/api/merchants/${merchantId}/force-unlock`;
       const amount = action.kind === "orders" ? action.orders : action.days;
-      const request_id = requestIds.idFor(`${merchantId}:${action.kind}:${amount}`);
+      const request_id = requestIds.idFor(requestKey(shopKey(merchantId), action.kind, amount));
       const body =
         action.kind === "orders"
           ? { orders: action.orders, reason: reason.trim(), request_id }
@@ -79,9 +79,12 @@ export function BillingLockCard({ merchantId, lock, canForceUnlock, shopPaused }
     },
     onError: failed,
   });
+  // Any write on this shop, this card's or another panel's: the tools wait
+  // for it, so two writes never run at once (round 21, UX new 3).
+  const writing = useIsMutating({ mutationKey: shopActionKey(merchantId) }) > 0;
 
   const run = (action: Action) => {
-    if (mutation.isPending || !reasonOk) return;
+    if (writing || !reasonOk) return;
     mutation.mutate(action);
   };
 
@@ -90,7 +93,7 @@ export function BillingLockCard({ merchantId, lock, canForceUnlock, shopPaused }
     Number.isInteger(customOrdersN) && customOrdersN >= 1 && customOrdersN <= MAX_LOCK_ORDERS_GRANT;
   const ordersLeft = lock.orders_left ?? 0;
   const paused = ordersLeft <= 0;
-  const disabled = mutation.isPending || !reasonOk;
+  const disabled = writing || !reasonOk;
   const canGiveOrders = lock.reason !== "unpaid" || canForceUnlock;
 
   const chip = (selected: boolean) =>
@@ -112,7 +115,7 @@ export function BillingLockCard({ merchantId, lock, canForceUnlock, shopPaused }
           </p>
           <p className="mt-1 text-[13px] text-foreground/70">
             {lock.since && <>Since {formatDay(lock.since)} · </>}
-            {lockOpensWords(lock.price_iqd, shopPaused, lock.renewal_off)}
+            {lockOpensWords(lock.price_iqd, shopPaused, lock.renewal_off, canForceUnlock)}
           </p>
         </div>
         <div className="shrink-0 text-right">
@@ -140,7 +143,7 @@ export function BillingLockCard({ merchantId, lock, canForceUnlock, shopPaused }
       </p>
 
       {canGiveOrders ? (
-        <>
+        <PanelFields busy={writing}>
           <StaffReasonInput
             value={reason}
             onChange={setReason}
@@ -217,12 +220,13 @@ export function BillingLockCard({ merchantId, lock, canForceUnlock, shopPaused }
                   </button>
                 </div>
                 <p className="mt-1.5 text-[13px] text-foreground/70">
-                  Opens free time with no wallet charge. When it ends, renewal charges the wallet as usual.
+                  Opens free time with no wallet charge.{" "}
+                  {lock.renewal_off ? RENEWAL_OFF_THEN_LOCKS : "When it ends, renewal charges the wallet as usual."}
                 </p>
               </div>
             )}
           </div>
-        </>
+        </PanelFields>
       ) : (
         <p className="text-[13px] font-medium text-[var(--ink-red)]" data-testid="billing-lock-super-admin-only">
           A store locked for an unpaid month gets more orders or a free unlock from a super admin.

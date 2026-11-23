@@ -4,6 +4,7 @@ import { requireAdminFromRequest, requireAdminPermission } from "@/lib/api-auth"
 import { hasPermission } from "@/lib/admin-permissions";
 import { readBillingLock } from "@/lib/billing-lock-tools";
 import { logActor } from "@/lib/shop-timeline";
+import { readStaffProfiles, staffNames } from "@/lib/staff-names";
 import { updateShop } from "@/lib/shop-update";
 import { z } from "zod";
 import { PLAN_TIERS } from "@/types/admin";
@@ -28,6 +29,12 @@ const patchSchema = z
   // Stopping renewal ends the shop's paid months; only the shop page sends it.
   .refine((d) => d.auto_renew !== false || d.reason, {
     message: "Say why renewal stops.",
+    path: ["reason"],
+  })
+  // Turning it back on charges a shop that renewal off locked, within the
+  // hour when its wallet holds the month (round 21, UX new 2).
+  .refine((d) => d.auto_renew !== true || d.reason, {
+    message: "Say why renewal turns on.",
     path: ["reason"],
   })
   // A plan decides what the shop pays each month. Every form that moves one
@@ -99,17 +106,7 @@ async function readStoppedBy(
     (entry) => entry.action !== "status_change" || (entry.details as { status?: unknown } | null)?.status === "suspended",
   );
   if (!row) return null;
-  const names = new Map<string, string>();
-  if (row.admin_user_id) {
-    const { data: profile, error: profileError } = await supabase
-      .from("user_profiles")
-      .select("id, display_name, email")
-      .eq("id", row.admin_user_id)
-      .maybeSingle();
-    if (profileError) throw profileError;
-    const name = profile?.display_name?.trim() || profile?.email;
-    if (profile && name) names.set(profile.id, name);
-  }
+  const names = staffNames(await readStaffProfiles(supabase, [row.admin_user_id]));
   return { who: logActor(row, names), at: row.created_at };
 }
 

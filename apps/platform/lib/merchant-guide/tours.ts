@@ -44,8 +44,6 @@ export interface TourPhase {
     minutes: number;
     /** Offered on the first visit to this page (pathname prefix). */
     offerOn: string;
-    /** A page under `offerOn` that has none of this tour's stops, so the tour is not offered there. */
-    skipOn?: string;
     when?: (facts: GuideShopFacts) => boolean;
     stops: readonly TourStop[];
 }
@@ -103,13 +101,12 @@ export const TOUR_PHASES: readonly TourPhase[] = [
         id: "money",
         labelKey: "guide.tour.money",
         minutes: 3,
-        offerOn: "/finances",
-        // The new Finances page (in preview) has its own layout; this tour walks the current one.
-        skipOn: "/finances/new",
+        // This tour walks the advanced Finances page; the main Finances page has its own layout.
+        offerOn: "/finances/advanced",
         stops: [
-            { id: "numbers", path: "/finances", href: "/finances", selector: '[data-guide="money-numbers"]', line: "money.numbers", labelKey: "guide.tour.stop.moneyNumbers" },
-            { id: "cash", path: "/finances", href: "/finances", selector: '[data-guide="money-cash"]', line: "money.cash", labelKey: "guide.tour.stop.moneyCash" },
-            { id: "expense", path: "/finances", href: "/finances?tab=expenses", selector: '[data-guide="add-expense"]', line: "money.expense", labelKey: "guide.tour.stop.addExpense" },
+            { id: "numbers", path: "/finances/advanced", href: "/finances/advanced", selector: '[data-guide="money-numbers"]', line: "money.numbers", labelKey: "guide.tour.stop.moneyNumbers" },
+            { id: "cash", path: "/finances/advanced", href: "/finances/advanced", selector: '[data-guide="money-cash"]', line: "money.cash", labelKey: "guide.tour.stop.moneyCash" },
+            { id: "expense", path: "/finances/advanced", href: "/finances/advanced?tab=expenses", selector: '[data-guide="add-expense"]', line: "money.expense", labelKey: "guide.tour.stop.addExpense" },
         ],
     },
     {
@@ -238,8 +235,7 @@ export function tourOfferFor(
     return (
         TOUR_PHASES.find((p) => {
             const r = records[p.id];
-            const here = pathname.startsWith(p.offerOn) && !(p.skipOn !== undefined && pathname.startsWith(p.skipOn));
-            return here && phaseAvailable(p, facts) && !r?.started_at && !r?.later_at && !r?.done_at;
+            return pathname.startsWith(p.offerOn) && phaseAvailable(p, facts) && !r?.started_at && !r?.later_at && !r?.done_at;
         }) ?? null
     );
 }

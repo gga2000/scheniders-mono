@@ -28,7 +28,10 @@ export async function POST(request: NextRequest) {
     },
     { onConflict: "endpoint" },
   );
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("Support phone alerts on error:", error);
+    return NextResponse.json({ error: "Failed to turn on phone alerts for this device" }, { status: 500 });
+  }
   return NextResponse.json({ success: true });
 }
 
@@ -46,6 +49,9 @@ export async function DELETE(request: NextRequest) {
     .delete()
     .eq("endpoint", parsed.data.endpoint)
     .eq("admin_user_id", admin.user.id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("Support phone alerts off error:", error);
+    return NextResponse.json({ error: "Failed to turn off phone alerts for this device" }, { status: 500 });
+  }
   return NextResponse.json({ success: true });
 }

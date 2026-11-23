@@ -29,6 +29,8 @@ import { MerchantCardGridSkeleton } from "@/components/merchants/merchant-card-s
 import { KeyboardShortcutsOverlay } from "@/components/merchants/keyboard-shortcuts-overlay";
 import { ErrorBoundary } from "@/components/shared/error-boundary";
 import { LoadError } from "@/components/shared/load-error";
+import { LoadFailedLine } from "@/components/shared/load-failed-line";
+import { StaleLine } from "@/components/shared/stale-line";
 import { downloadSelectedShops } from "@/lib/download-export";
 import {
   EASE_CROSSFADE,
@@ -64,22 +66,24 @@ export default function MerchantsPage() {
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
 
+  const pageRead = useInfiniteMerchants(50);
   const {
+    data,
     merchants,
     total,
     isLoading,
     isError,
+    error,
     isFetching,
     refetch,
     hasNextPage,
     isFetchingNextPage,
     isFetchNextPageError,
     fetchNextPage,
-  } = useInfiniteMerchants(50);
+    pageIds,
+  } = pageRead;
 
-  const visibleTenantIds = merchants.map((m) => m.id);
-  const { data: lastActorsData } = useLastActors(visibleTenantIds);
-  const lastActorsMap = lastActorsData?.actors ?? {};
+  const lastActors = useLastActors(pageIds);
 
   const {
     viewMode,
@@ -188,6 +192,7 @@ export default function MerchantsPage() {
     merchants,
     onOpenDetail: handleOpenDetail,
     onToggleShortcuts: handleToggleShortcuts,
+    paused: bulkAction !== null,
   });
 
   return (
@@ -229,7 +234,7 @@ export default function MerchantsPage() {
             <div className="flex flex-col leading-none">
               <div className="flex items-baseline gap-1.5">
                 <span className="text-2xl font-black text-foreground dark:text-white">
-                  {isLoading || isError ? "—" : total}
+                  {data ? total : "—"}
                 </span>
                 <span className="text-xs font-semibold text-foreground-muted">
                   {total === 1 ? "Merchant" : "Merchants"}
@@ -318,6 +323,17 @@ export default function MerchantsPage() {
         />
       </div>
 
+      <StaleLine read={pageRead} what="the merchants" kept="list" />
+
+      {lastActors.failed && viewMode === "cards" && merchants.length > 0 && (
+        <LoadFailedLine
+          what="who last acted on some shops"
+          error={lastActors.error}
+          onRetry={lastActors.retry}
+          retrying={lastActors.retrying}
+        />
+      )}
+
       {/* ── Content ─────────────────────────────────────────────────── */}
       <ErrorBoundary name="Merchant List">
       <AnimatePresence mode="wait">
@@ -331,8 +347,8 @@ export default function MerchantsPage() {
           >
             <MerchantCardGridSkeleton count={8} />
           </motion.div>
-        ) : isError && merchants.length === 0 ? (
-          <LoadError what="the merchants" onRetry={() => refetch()} retrying={isFetching} />
+        ) : isError && !data ? (
+          <LoadError what="the merchants" shows="list" error={error} onRetry={() => refetch()} retrying={isFetching} />
         ) : merchants.length === 0 ? (
           <MerchantEmptyState
             hasFilters={hasActiveFilters}
@@ -367,7 +383,7 @@ export default function MerchantsPage() {
                   isSelected={selectedMerchants.has(merchant.id)}
                   isStarred={starredMerchants.includes(merchant.id)}
                   index={idx}
-                  lastActor={lastActorsMap[merchant.id] ?? null}
+                  lastActor={lastActors.actors[merchant.id] ?? null}
                   onToggleSelect={toggleMerchantSelection}
                   onSelectWithShift={handleSelectWithShift}
                   onOpenDetail={handleOpenDetail}
@@ -450,7 +466,7 @@ export default function MerchantsPage() {
       {/* ── Infinite scroll sentinel ────────────────────────────────── */}
       <div ref={sentinelRef} className="h-4" />
       {isFetchNextPageError && viewMode !== "map" && (
-        <LoadError compact what="more merchants" onRetry={() => fetchNextPage()} retrying={isFetchingNextPage} />
+        <LoadError compact what="more merchants" shows="list" onRetry={() => fetchNextPage()} retrying={isFetchingNextPage} />
       )}
       {isFetchingNextPage && (
         <div className="flex items-center justify-center py-4">

@@ -8,6 +8,7 @@ import { TeamCommissionDashboard } from "@/components/team/team-commission-dashb
 import { TeamAchievementWall } from "@/components/team/team-achievement-wall";
 import { AddEmployeeDialog } from "@/components/team/add-employee-dialog";
 import { LoadError } from "@/components/shared/load-error";
+import { StaleLine } from "@/components/shared/stale-line";
 import { cn } from "@/lib/utils";
 import { Loader2, UserPlus } from "lucide-react";
 
@@ -15,7 +16,8 @@ const tabs = ["Leaderboard", "Commissions", "Achievements"] as const;
 type Tab = (typeof tabs)[number];
 
 export default function TeamPage() {
-  const { data: employees, isLoading, isError, error, refetch, isFetching } = useAdminTeam();
+  const pageRead = useAdminTeam();
+  const { data: employees, isLoading, isError, error, refetch, isFetching } = pageRead;
   const { role } = useAdminAuth();
   const [activeTab, setActiveTab] = useState<Tab>("Leaderboard");
   const [addOpen, setAddOpen] = useState(false);
@@ -29,7 +31,7 @@ export default function TeamPage() {
   }
 
   if (isError && !employees) {
-    return <LoadError what="the team" error={error} onRetry={() => refetch()} retrying={isFetching} />;
+    return <LoadError what="the team" shows="list" error={error} onRetry={() => refetch()} retrying={isFetching} />;
   }
 
   const team = employees ?? [];
@@ -43,6 +45,7 @@ export default function TeamPage() {
           <p className="text-[13px] text-foreground/70">
             {team.length} employee{team.length !== 1 ? "s" : ""}
           </p>
+          <StaleLine read={pageRead} what="the team" kept="list" className="mt-2" />
         </div>
         {role === "super_admin" && (
           <button

@@ -10,7 +10,16 @@ import { LoadFailure } from "@/lib/load-failure";
  * page offers Add money, Give free days and More: only what the login may do.
  */
 
-let query: { data: unknown; isLoading: boolean; isError: boolean; error: unknown; isFetching: boolean; refetch: () => void };
+let query: {
+  data: unknown;
+  dataUpdatedAt: number;
+  isLoading: boolean;
+  isError: boolean;
+  isRefetchError: boolean;
+  error: unknown;
+  isFetching: boolean;
+  refetch: () => void;
+};
 vi.mock("@/hooks/use-merchant-detail", () => ({
   useMerchantDetail: () => query,
   useMerchantRecentOrders: () => ({ data: { orders: [] }, isLoading: false }),
@@ -37,7 +46,16 @@ const render = (client = new QueryClient()) =>
 beforeEach(() => {
   role = "super_admin";
   search = new URLSearchParams();
-  query = { data: undefined, isLoading: false, isError: false, error: null, isFetching: false, refetch: () => {} };
+  query = {
+    data: undefined,
+    dataUpdatedAt: 0,
+    isLoading: false,
+    isError: false,
+    isRefetchError: false,
+    error: null,
+    isFetching: false,
+    refetch: () => {},
+  };
 });
 
 describe("the shop page, when the shop cannot be read", () => {
@@ -122,6 +140,23 @@ describe("the shop page, loaded", () => {
     expect(html).toContain('data-testid="shop-status"');
     expect(html).toContain("Paying");
   });
+
+  // Round 23 (UX new 2): a failed read again kept the shop's last wallet and
+  // status with nothing to say they may be old.
+  it("keeps the shop after a failed read again and says how old the page is", () => {
+    // Read at 20:00 in Baghdad.
+    query = { ...query, isError: true, isRefetchError: true, error: new TypeError("Failed to fetch"), dataUpdatedAt: Date.parse("2026-11-22T17:00:00Z") };
+    const html = render();
+    expect(html).toMatch(/Could not refresh this shop\. This page is from (Sun 22 Nov, )?20:00\./);
+    expect(html).toContain("43,800");
+  });
+
+  it("says a shop deleted since it was read is gone, with nothing to retry", () => {
+    query = { ...query, isError: true, isRefetchError: true, error: new LoadFailure(404, "this shop"), dataUpdatedAt: Date.parse("2026-11-22T17:00:00Z") };
+    const html = render();
+    expect(html).toMatch(/This shop is no longer there\. This page is from (Sun 22 Nov, )?20:00\./);
+    expect(html).not.toContain("Try again");
+  });
 });
 
 describe("the shop page header (board m6)", () => {
@@ -141,6 +176,14 @@ describe("the shop page header (board m6)", () => {
     expect(render()).toContain("View as merchant");
     role = null;
     expect(render()).not.toContain("View as merchant");
+  });
+
+  it("links the setup team to the shop's product import, and no one else", () => {
+    expect(render()).toContain('href="/merchants/t1/import"');
+    role = "support_staff";
+    expect(render()).toContain("Import products<");
+    role = null;
+    expect(render()).not.toContain("Import products");
   });
 });
 

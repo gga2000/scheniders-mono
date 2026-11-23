@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { formatCount, formatIQD } from "@/lib/format";
-import type { RequestIds } from "@/lib/request-ids";
+import { requestKey, shopKey, type RequestIds } from "@/lib/request-ids";
 import { shopActionKey, typedAmount } from "@/lib/shop-actions";
 import { isStaffReason } from "@/lib/billing-lock-tools";
 import { TOPUP_MAX_IQD } from "@/lib/topup-queue";
@@ -47,7 +47,7 @@ export function AddMoneyForm({ shopId, shopName, balance, requestIds, onDone }: 
         description: how.trim(),
         // The same amount sent again before a success (a double press, a retry,
         // a reopened panel with the words typed anew) credits once.
-        request_id: requestIds.idFor(`${shopId}:${value}`),
+        request_id: requestIds.idFor(requestKey(shopKey(shopId), value)),
       }),
     onSuccess: (answer, value) => {
       requestIds.done();

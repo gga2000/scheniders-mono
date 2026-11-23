@@ -21,23 +21,32 @@ import {
   X,
   Plus,
   UserPlus,
-  AlertTriangle,
   Loader2,
 } from "lucide-react";
+import { LoadError } from "@/components/shared/load-error";
+import { LoadFailedLine } from "@/components/shared/load-failed-line";
+import { StaleLine } from "@/components/shared/stale-line";
 
 export function LeadsMobileView() {
   const [registerOpen, setRegisterOpen] = useState(false);
   const [stageLead, setStageLead] = useState<Lead | null>(null);
 
+  const leadsRead = useInfiniteLeads();
   const {
     data,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
+    isFetchNextPageError,
     isLoading,
     isError,
+    error,
     refetch,
-  } = useInfiniteLeads();
+    isFetching,
+  } = leadsRead;
+  // A failed re-read or "Load more" keeps the leads on screen; only a list
+  // never read shows the error (round 24 structure new 2).
+  const neverRead = isError && !data;
 
   const leads = data?.pages.flatMap((p) => p.leads) ?? [];
   const resumed = useResumedDraft(leads);
@@ -89,7 +98,7 @@ export function LeadsMobileView() {
       <div>
         <h1 className="text-[22px] font-semibold text-foreground">Leads</h1>
         <p className="text-[13px] text-foreground/70">
-          {leadsCountLine({ count: data?.pages[0]?.total, isError })}
+          {leadsCountLine({ count: data?.pages[0]?.total, neverRead })}
         </p>
       </div>
 
@@ -167,21 +176,11 @@ export function LeadsMobileView() {
         )}
       </div>
 
+      <StaleLine read={leadsRead} what="the leads" kept="list" />
+
       {/* List area */}
-      {isError ? (
-        <div className="flex flex-col items-center justify-center py-12 text-center gap-3">
-          <AlertTriangle className="h-8 w-8 text-[var(--ink-red)]" />
-          <p className="text-sm font-semibold text-[var(--foreground)]">
-            Failed to load leads
-          </p>
-          <button
-            type="button"
-            onClick={() => void refetch()}
-            className="rounded-xl border border-[var(--card-border)] px-5 py-2 text-sm font-semibold hover:bg-[var(--card-bg)] transition-colors"
-          >
-            Retry
-          </button>
-        </div>
+      {neverRead ? (
+        <LoadError compact what="the leads" shows="list" error={error} onRetry={() => void refetch()} retrying={isFetching} />
       ) : isLoading ? (
         <div className="space-y-2.5">
           {Array.from({ length: 6 }).map((_, i) => (
@@ -221,8 +220,12 @@ export function LeadsMobileView() {
         </div>
       )}
 
+      {isFetchNextPageError && (
+        <LoadFailedLine what="more leads" onRetry={() => void fetchNextPage()} retrying={isFetchingNextPage} />
+      )}
+
       {/* Load more */}
-      {hasNextPage && (
+      {hasNextPage && !isFetchNextPageError && (
         <button
           type="button"
           onClick={() => fetchNextPage()}

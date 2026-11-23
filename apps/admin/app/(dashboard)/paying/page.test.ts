@@ -61,12 +61,20 @@ const STAFF_PAY = {
   ],
 };
 
-/** `paying` null: the shops' read has not landed yet. */
-function render(as: AdminRole, paying: unknown = PAYING): string {
+/** `paying` null: the shops' read has not landed yet. `failedAgain`: these reads failed after a good one. */
+function render(as: AdminRole, paying: unknown = PAYING, failedAgain: string[][] = []): string {
   role = as;
   const client = new QueryClient();
   if (paying !== null) client.setQueryData(["admin", "paying-merchants"], paying);
   client.setQueryData(["admin", "staff-bonus"], STAFF_PAY);
+  for (const queryKey of failedAgain) {
+    // Read at 20:00 in Baghdad, then the next read failed.
+    client.getQueryCache().find({ queryKey })?.setState({
+      status: "error",
+      error: new TypeError("Failed to fetch"),
+      dataUpdatedAt: Date.parse("2026-11-22T17:00:00Z"),
+    });
+  }
   return renderToStaticMarkup(createElement(QueryClientProvider, { client }, createElement(PayingShopsPage)));
 }
 
@@ -154,5 +162,16 @@ describe("Paying shops", () => {
     expect(html).toContain("No shop is paying yet");
     expect(html).not.toContain('data-testid="paying-shops"');
     expect(html).toContain("0 of 15");
+  });
+
+  // Round 23 (UX new 2): both reads re-run every 5 minutes, and a failed one
+  // kept the last count and pay with nothing to say they may be old.
+  it("keeps the shops and the staff pay after a failed re-read, and says how old each is", () => {
+    const html = render("super_admin", PAYING, [["admin", "paying-merchants"], ["admin", "staff-bonus"]]);
+    expect(html).toMatch(/Could not refresh the paying shops\. These numbers are from (Sun 22 Nov, )?20:00\./);
+    expect(html).toMatch(/Could not refresh the staff pay\. These numbers are from (Sun 22 Nov, )?20:00\./);
+    expect(html).toContain("2 of 15");
+    expect(html).toContain("252,000 IQD");
+    expect(render("super_admin")).not.toContain("Could not refresh");
   });
 });

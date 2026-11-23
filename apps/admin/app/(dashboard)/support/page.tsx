@@ -15,6 +15,8 @@ import { SupportNeedsUs } from "@/components/support/support-needs-us";
 import { SupportToday } from "@/components/support/support-today";
 import { SupportNoticeBar } from "@/components/support/support-notice-bar";
 import { SupportTabCount } from "@/components/support/support-tab-count";
+import { LoadError } from "@/components/shared/load-error";
+import { StaleLine } from "@/components/shared/stale-line";
 import { waitingOnUsLine, type ScoreboardDays } from "@/lib/support";
 
 type View = "open" | "solved" | "needs" | "today" | "scoreboard";
@@ -56,16 +58,18 @@ function SupportInbox() {
   const inbox = view === "open" || view === "solved";
   const activeId = inbox ? (selectedId ?? cases[0]?.id ?? null) : null;
   const detail = useSupportCase(activeId);
-  // A failed read shows "?" on its tab, not no count: no count reads as nothing waiting.
+  // A read that never landed shows "?" on its tab, not no count: no count
+  // reads as nothing waiting. A failed re-read keeps the last count, as the
+  // list under it keeps its rows (round 25 structure new 2).
   const needsUsRead = useSupportNeedsUs();
   const needsUs = waitingBadge(
-    { data: needsUsRead.data?.length, isError: needsUsRead.isError },
+    { data: needsUsRead.data?.length, isError: needsUsRead.isError && needsUsRead.data === undefined },
     "to look at",
     "the shops that need us",
   );
   const tasks = useSupportTasks();
   const myCalls = waitingBadge(
-    { data: tasks.data?.tasks.filter((t) => t.owner_id === tasks.data?.me).length, isError: tasks.isError },
+    { data: tasks.data?.tasks.filter((t) => t.owner_id === tasks.data?.me).length, isError: tasks.isError && tasks.data === undefined },
     "to call today",
     "today's calls",
   );
@@ -76,7 +80,7 @@ function SupportInbox() {
         <div>
           <h1 className="text-[22px] font-semibold text-foreground">Support</h1>
           <p className="text-[13px] text-foreground/70">
-            {waitingOnUsLine({ count: list.data?.waitingOnUs, isError: list.isError })}
+            {waitingOnUsLine({ count: list.data?.waitingOnUs, isError: list.isError && list.data === undefined })}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -117,13 +121,20 @@ function SupportInbox() {
             setSelectedId(caseId);
           }}
         />
-      ) : list.isError ? (
-        <div className={cn(PANE, "p-6 text-sm text-[var(--ink-red)]")}>
-          Could not load support conversations. {list.error.message}
+      ) : list.isError && !list.data ? (
+        <div className={PANE}>
+          <LoadError what="the conversations" shows="list" onRetry={() => void list.refetch()} retrying={list.isFetching} error={list.error} />
         </div>
       ) : (
         <div className="grid h-[calc(100vh-16.5rem)] min-h-[520px] grid-cols-1 gap-4 lg:grid-cols-[320px_minmax(0,1fr)_300px]">
           <div className={cn(PANE, "overflow-y-auto")}>
+            {/* A failed 10 s re-read keeps the list it had and says how old it is. */}
+            <StaleLine
+              read={list}
+              what="the conversations"
+              kept="list"
+              className="border-b border-[var(--card-border)] px-4 py-2"
+            />
             <SupportCaseList
               cases={cases}
               selectedId={activeId}
@@ -141,15 +152,35 @@ function SupportInbox() {
                   When a merchant presses Help in their app, the conversation shows up here.
                 </p>
               </div>
-            ) : detail.isError ? (
-              <div className="p-6 text-sm text-[var(--ink-red)]">{detail.error.message}</div>
-            ) : detail.data ? (
-              <SupportConversation
-                key={detail.data.case.id}
-                supportCase={detail.data.case}
-                messages={detail.data.messages}
-                notes={detail.data.notes}
+            ) : detail.isError && !detail.data ? (
+              <LoadError
+                what="this conversation"
+                shows="page"
+                onRetry={() => void detail.refetch()}
+                retrying={detail.isFetching}
+                error={detail.error}
+                compact
               />
+            ) : detail.data ? (
+              // A failed 5 s re-read keeps the conversation drawn, so the reply
+              // or note being typed (and its send's id) stays; a line says so.
+              <div className="flex h-full flex-col">
+                <StaleLine
+                  read={detail}
+                  what="this conversation"
+                  kept="page"
+                  gone="This conversation is no longer there."
+                  className="border-b border-[var(--card-border)] px-4 py-2"
+                />
+                <div className="min-h-0 flex-1">
+                  <SupportConversation
+                    key={detail.data.case.id}
+                    supportCase={detail.data.case}
+                    messages={detail.data.messages}
+                    notes={detail.data.notes}
+                  />
+                </div>
+              </div>
             ) : (
               <div className="flex h-full items-center justify-center">
                 <Loader2 className="h-6 w-6 animate-spin text-foreground/70" />

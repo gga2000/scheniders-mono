@@ -388,7 +388,7 @@ function APInvoicesCard({
             accent="amber"
             action={
                 <Link
-                    href="/finances?tab=expenses"
+                    href="/finances/advanced?tab=expenses"
                     className="text-[12px] text-amber-600 dark:text-amber-400 hover:text-amber-500 font-medium"
                 >
                     {t("finances.invoices.ap.manage")}

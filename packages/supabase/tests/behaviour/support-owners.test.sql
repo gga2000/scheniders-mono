@@ -61,7 +61,7 @@ BEGIN
         PERFORM pg_temp.check('authenticated reads ' || t, NOT has_table_privilege('authenticated', 'public.' || t, 'SELECT'));
     END LOOP;
     PERFORM pg_temp.check('access: anon onboard', NOT has_function_privilege('anon', 'public.support_onboard_shops(timestamptz)', 'EXECUTE'));
-    PERFORM pg_temp.check('access: authenticated log', NOT has_function_privilege('authenticated', 'public.support_task_log(uuid,uuid,text,text,text,text)', 'EXECUTE'));
+    PERFORM pg_temp.check('access: authenticated log', NOT has_function_privilege('authenticated', 'public.support_task_log(uuid,uuid,text,text,text,text,uuid)', 'EXECUTE'));
     PERFORM pg_temp.check('access: anon due', NOT has_function_privilege('anon', 'public.support_tasks_due(timestamptz)', 'EXECUTE'));
     PERFORM pg_temp.check('access: service due', has_function_privilege('service_role', 'public.support_tasks_due(timestamptz)', 'EXECUTE'));
     PERFORM pg_temp.check('cron: every 5 minutes',
@@ -381,9 +381,9 @@ DECLARE
     tasks_before text := (SELECT string_agg(id::text || coalesce(done_at::text, '') || due_at::text || attempts, ',' ORDER BY id)
                           FROM public.support_tasks WHERE tenant_id = '30000000-0000-4000-8000-000000000003');
 BEGIN
-    PERFORM pg_temp.check('shop call: anon cannot run', NOT has_function_privilege('anon', 'public.support_log_shop_call(uuid,uuid,text,text,text,text)', 'EXECUTE'));
-    PERFORM pg_temp.check('shop call: authenticated cannot run', NOT has_function_privilege('authenticated', 'public.support_log_shop_call(uuid,uuid,text,text,text,text)', 'EXECUTE'));
-    PERFORM pg_temp.check('shop call: service role runs', has_function_privilege('service_role', 'public.support_log_shop_call(uuid,uuid,text,text,text,text)', 'EXECUTE'));
+    PERFORM pg_temp.check('shop call: anon cannot run', NOT has_function_privilege('anon', 'public.support_log_shop_call(uuid,uuid,text,text,text,text,uuid)', 'EXECUTE'));
+    PERFORM pg_temp.check('shop call: authenticated cannot run', NOT has_function_privilege('authenticated', 'public.support_log_shop_call(uuid,uuid,text,text,text,text,uuid)', 'EXECUTE'));
+    PERFORM pg_temp.check('shop call: service role runs', has_function_privilege('service_role', 'public.support_log_shop_call(uuid,uuid,text,text,text,text,uuid)', 'EXECUTE'));
 
     r := public.support_log_shop_call(shop, 'a2000000-0000-4000-8000-000000000002', ' Noor ', 'no_answer', '  trial ends soon ', 'noor@example.com');
     PERFORM pg_temp.check('shop call: activity row in the same write',
@@ -422,6 +422,28 @@ BEGIN
     PERFORM pg_temp.check('shop call refuse: unknown shop ' || v_msg, v_msg = 'support_shop_not_found');
     PERFORM pg_temp.check('shop call refuse: refusals write no activity row',
         (SELECT count(*) FROM public.admin_activity_logs WHERE details ? 'call_id') = 1);
+END $$;
+
+-- A request id (round 22, N8): a repeated call or task outcome is logged once.
+DO $$
+DECLARE
+    shop uuid := '30000000-0000-4000-8000-000000000003';
+    rid uuid := gen_random_uuid();
+    tid uuid := gen_random_uuid();
+    task_ uuid := (SELECT id FROM public.support_tasks WHERE tenant_id = '30000000-0000-4000-8000-000000000003' AND done_at IS NULL ORDER BY id LIMIT 1);
+    tries int := (SELECT attempts FROM public.support_tasks WHERE id = (SELECT id FROM public.support_tasks WHERE tenant_id = '30000000-0000-4000-8000-000000000003' AND done_at IS NULL ORDER BY id LIMIT 1));
+    first_ jsonb;
+    again jsonb;
+BEGIN
+    first_ := public.support_log_shop_call(shop, 'a2000000-0000-4000-8000-000000000002', 'Noor', 'done', 'repeat check', NULL, rid);
+    again := public.support_log_shop_call(shop, 'a2000000-0000-4000-8000-000000000002', 'Noor', 'done', 'repeat check', NULL, rid);
+    PERFORM pg_temp.check('request id: one call row', (SELECT count(*) FROM public.support_calls WHERE note = 'repeat check') = 1);
+    PERFORM pg_temp.check('request id: same call back', again ->> 'call_id' = first_ ->> 'call_id' AND (again ->> 'repeat')::boolean);
+    PERFORM pg_temp.check('request id: there is an open task', task_ IS NOT NULL);
+    PERFORM public.support_task_log(task_, 'a2000000-0000-4000-8000-000000000002', 'Noor', 'no_answer', 'repeat task', NULL, tid);
+    PERFORM public.support_task_log(task_, 'a2000000-0000-4000-8000-000000000002', 'Noor', 'no_answer', 'repeat task', NULL, tid);
+    PERFORM pg_temp.check('request id: one task try', (SELECT attempts FROM public.support_tasks WHERE id = task_) = tries + 1);
+    PERFORM pg_temp.check('request id: one task line', (SELECT count(*) FROM public.support_calls WHERE note = 'repeat task') = 1);
 END $$;
 
 DO $$

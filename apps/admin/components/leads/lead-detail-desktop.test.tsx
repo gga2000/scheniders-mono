@@ -48,7 +48,16 @@ const lead = {
 const failed = Object.assign(new Error("Failed to load lead"), { status: 500 });
 
 function show(state: Record<string, unknown>) {
-  read.current = { isLoading: false, isError: false, error: null, refetch: vi.fn(), isFetching: false, ...state };
+  // Read at 20:00 in Baghdad (round 23: a failed read again says how old the page is).
+  read.current = {
+    isLoading: false,
+    isError: false,
+    error: null,
+    refetch: vi.fn(),
+    isFetching: false,
+    dataUpdatedAt: Date.parse("2026-11-22T17:00:00Z"),
+    ...state,
+  };
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(createElement(QueryClientProvider, { client }, createElement(LeadDetailDesktop)));
 }
@@ -57,12 +66,12 @@ afterEach(cleanup);
 
 describe("the lead page after a failed read again", () => {
   it("keeps the lead on screen and says the read failed, with Try again", () => {
-    show({ data: { lead, activities: [], follow_ups: [], social_links: [], competitors: [] }, isError: true, error: failed });
+    show({ data: { lead, activities: [], follow_ups: [], social_links: [], competitors: [] }, isError: true, isRefetchError: true, error: failed });
 
     expect(screen.getByRole("heading", { name: "Kawkab" })).toBeTruthy();
-    expect(screen.getByRole("alert").textContent).toContain("Could not load this lead again.");
+    expect(screen.getByRole("alert").textContent).toMatch(/^Could not refresh this lead\. This page is from (Sun 22 Nov, )?20:00\./);
     expect(screen.getByRole("button", { name: "Try again" })).toBeTruthy();
-    expect(screen.queryByText("Failed to load lead")).toBeNull();
+    expect(screen.queryByText(/Could not load this lead/)).toBeNull();
   });
 
   // Round 14 (reliability new 2): a colleague deleted the lead while it was
@@ -71,25 +80,32 @@ describe("the lead page after a failed read again", () => {
     show({
       data: { lead, activities: [], follow_ups: [], social_links: [], competitors: [] },
       isError: true,
+      isRefetchError: true,
       error: new LoadFailure(404, "lead"),
     });
 
     expect(screen.getByRole("heading", { name: "Kawkab" })).toBeTruthy();
-    expect(screen.getByRole("alert").textContent).toBe("This lead was deleted. Changes here can no longer be saved.");
+    expect(screen.getByRole("alert").textContent).toMatch(
+      /^This lead was deleted\. Changes here can no longer be saved\. This page is from (Sun 22 Nov, )?20:00\.$/,
+    );
     expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
     expect(screen.getByRole("link", { name: /Back to Leads/ })).toBeTruthy();
   });
 
-  it("shows the error page only for a lead that was never read", () => {
+  // Round 23: the never-read page said "Something went wrong. Please try
+  // again later." with nothing to press; it is the console's load error now.
+  it("shows the error page, with Try again, only for a lead that was never read", () => {
     show({ data: undefined, isError: true, error: failed });
 
-    expect(screen.getByText("Failed to load lead")).toBeTruthy();
+    expect(screen.getByText(/Could not load this lead/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Try again" })).toBeTruthy();
+    expect(screen.queryByText(/Please try again later/)).toBeNull();
   });
 
   it("says nothing extra while the lead reads fine", () => {
     show({ data: { lead, activities: [], follow_ups: [], social_links: [], competitors: [] } });
 
-    expect(screen.queryByText(/Could not load this lead again/)).toBeNull();
+    expect(screen.queryByText(/Could not refresh/)).toBeNull();
   });
 });
 

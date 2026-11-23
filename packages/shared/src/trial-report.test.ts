@@ -5,7 +5,9 @@ import {
     expectedCostText,
     expectedMonthlyCost,
     trialReportFactsSchema,
+    trialReportLead,
     trialReportLines,
+    trialReportNoOrders,
     trialReportPeriod,
     trialReportText,
     type TrialReportFacts,
@@ -103,7 +105,12 @@ describe("the expected monthly cost", () => {
     it("leaves out the parts that are 0, and is unknown without prices", () => {
         const quiet = expectedMonthlyCost(facts({ delivered: 0, whatsapp_utility: 0, whatsapp_marketing: 0 }));
         expect(quiet?.totalIqd).toBe(9_000);
-        expect(quiet && expectedCostText(quiet)).toEqual({ headline: "كلفتك الشهرية المتوقعة بهالحجم: تقريباً 9,000 د.ع", parts: "الباقة 9,000" });
+        expect(quiet && expectedCostText(quiet)).toEqual({
+            headline: "كلفتك الشهرية المتوقعة بهالحجم: تقريباً 9,000 د.ع",
+            label: "كلفتك الشهرية المتوقعة بهالحجم",
+            amount: "تقريباً 9,000 د.ع",
+            parts: "الباقة 9,000",
+        });
         expect(expectedMonthlyCost(facts({ prices: null }))).toBeNull();
     });
 });
@@ -133,5 +140,51 @@ describe("the WhatsApp copy", () => {
         const withoutElapsed: Record<string, unknown> = { ...facts() };
         delete withoutElapsed.elapsed_days;
         expect(trialReportFactsSchema.safeParse(withoutElapsed).success).toBe(false);
+    });
+});
+
+// The merchant app shows the report in the merchant's language; the team's
+// WhatsApp copy stays Arabic.
+describe("the report in English, for a merchant who reads the app in English", () => {
+    it("says the same lines in the same order, and still hides the zero ones", () => {
+        expect(trialReportLines(facts(), "en").map((l) => `${l.label} ${l.value}`)).toEqual([
+            "Your orders 23",
+            "Delivered 14",
+            "Shield warned on 3",
+            "Your money with the courier 210,000 IQD",
+            "Your profit, roughly 96,000 IQD",
+        ]);
+        expect(trialReportLines(facts({ orders: 0, delivered: 0, shield_flagged: 0, with_courier_iqd: 0, profit_iqd: -5_000 }), "en")).toMatchObject([
+            { key: "profit", label: "Your loss, roughly", value: "5,000 IQD" },
+        ]);
+    });
+
+    it("names the days, the lead, the cost and the empty report", () => {
+        expect(trialReportPeriod(facts(), "en")).toBe("From 12 Nov to today (5 days)");
+        expect(trialReportPeriod(facts({ ended: true, to_day: "2026-11-19", days: 7, elapsed_days: 7 }), "en")).toBe("From 12 Nov to 19 Nov (7 days)");
+        expect(trialReportLead(facts(), "en")).toBe("This week");
+        expect(trialReportLead(facts({ days: 9, elapsed_days: 9 }), "en")).toBe("During the trial");
+        const cost = expectedMonthlyCost(facts());
+        expect(cost && expectedCostText(cost, "en")).toEqual({
+            headline: "Your expected monthly cost at this size: about 23,220 IQD",
+            label: "Your expected monthly cost at this size",
+            amount: "about 23,220 IQD",
+            parts: "Plan 9,000 + 55 × 84 delivered orders + messages 9,600",
+        });
+        expect(trialReportNoOrders("en")).toBe("No orders yet.");
+        expect(trialReportText(facts())).not.toMatch(/IQD|Your /);
+    });
+});
+
+describe("the money lines' amounts", () => {
+    it("carry the dinars, so the app can hide them until the merchant shows them; count lines carry none", () => {
+        const lines = trialReportLines(facts({ profit_iqd: -5_400.4 }));
+        expect(Object.fromEntries(lines.map((l) => [l.key, l.amountIqd]))).toEqual({
+            orders: undefined,
+            delivered: undefined,
+            shield: undefined,
+            with_courier: 210_000,
+            profit: 5_400,
+        });
     });
 });

@@ -1,6 +1,8 @@
+import { answerLostWords } from "@/lib/answer-lost";
 import { z } from "zod";
 import { countLine } from "@/lib/load-failure";
 import { lockReasonWords } from "@/lib/billing-lock-label";
+import { staffRequestIdSchema } from "@/lib/staff-reason";
 
 /**
  * Merchant support cases as the staff console sees them. The tables
@@ -18,6 +20,7 @@ export const SUPPORT_REASONS = [
   "account_login",
   "bug",
   "how_to",
+  "change_request",
   "other",
 ] as const;
 
@@ -33,6 +36,7 @@ export const SUPPORT_REASON_LABELS: Record<SupportReason, string> = {
   account_login: "Account and login",
   bug: "Something is broken",
   how_to: "How do I",
+  change_request: "Change request",
   other: "Other",
 };
 
@@ -73,6 +77,58 @@ export const CaseActionSchema = z.discriminatedUnion("action", [
 
 export type CaseAction = z.infer<typeof CaseActionSchema>;
 
+/**
+ * The id one send carries (a reply, a note, a call, a task outcome, a notice,
+ * a first message), made in the browser per ask. Pressing again after a lost
+ * answer sends the same id, and the database writes once: the merchant never
+ * gets the same message twice (round 22, N8).
+ */
+export const SupportRequestIdSchema = z.object({ request_id: staffRequestIdSchema });
+
+/** The steps that write something a retry would write twice. */
+export function writesOnce(action: CaseAction): boolean {
+  return action.action === "reply" || action.action === "note";
+}
+
+/**
+ * What staff read when a send's answer was lost: the browser lost the
+ * connection, a gateway answered with no words, or the route lost the
+ * database's answer. It may have been done. Pressing again sends the same id,
+ * so the same words are written once at most; changed words are a new send
+ * (round 23).
+ */
+export const SUPPORT_SEND_UNSURE =
+  "No answer came back, so this may have been done. Pressing again with the same words does it once at most.";
+
+/**
+ * Ending a notice whose answer was lost: pressing again could end a notice a
+ * teammate posted since, so look first. The route and the console say the same.
+ */
+export const SUPPORT_NOTICE_END_UNSURE = answerLostWords("the notice bar");
+
+/**
+ * Opening a merchant view whose answer was lost: the link never arrived, so a
+ * new press is the only way in; it ends the first look, and the merchant sees
+ * both visits.
+ */
+export const SUPPORT_VIEW_UNSURE =
+  "No answer came back, so a look may have opened. Pressing again opens a new one, and the merchant sees each visit.";
+
+/**
+ * Taking a shop whose answer was lost: a teammate may have taken it since, so
+ * pressing again could take it from them. The shop card names who has it.
+ */
+export const SUPPORT_TAKE_SHOP_UNSURE = answerLostWords("who looks after the shop");
+
+/** Ending a merchant view whose answer was lost: ending twice closes nothing more, so pressing again is safe. */
+export const SUPPORT_VIEW_END_UNSURE =
+  "No answer came back, so the view may have ended. Pressing End again is safe; it ends on its own after 30 minutes.";
+
+/** The database's answer to an id it had already done: the first answer again, marked as a repeat. */
+export function wasRepeat(data: unknown): boolean {
+  return typeof data === "object" && data !== null && "repeat" in data && data.repeat === true;
+}
+
 /** The `support_cases` columns (plus the shop) every list and detail read selects. */
 export const SUPPORT_CASE_COLUMNS =
   "id, tenant_id, opened_by_name, status, owner_admin_id, owner_name, reason, first_reply_at, waiting_since, solved_at, rating, reopened_count, last_message_at, last_message_preview, last_sender_kind, started_by, no_reason, created_at, tenants(business_name, display_id, plan, status)";
@@ -108,8 +164,43 @@ export interface SupportCaseRow {
   tenants: SupportCaseShop | null;
 }
 
+/** A row of the inbox list. */
+export interface SupportInboxRow extends SupportCaseRow {
+  /**
+   * When the merchant first asked for a change ("Need a change?" in the
+   * merchant header) in this conversation, or null when they did not. We
+   * promise it within CHANGE_REQUEST_HOURS.
+   */
+  change_requested_at: string | null;
+}
+
+/** "Need a change?" promises the change inside the app within 24 hours. */
+export const CHANGE_REQUEST_HOURS = 24;
+
+/** When a change request asked at `requestedAt` is due. */
+export function changeRequestDueAt(requestedAt: string): string {
+  return new Date(Date.parse(requestedAt) + CHANGE_REQUEST_HOURS * 3_600_000).toISOString();
+}
+
+/**
+ * The change request countdown, short enough to sit beside a shop's name in
+ * the inbox (round 23): whole hours ("23 h", "2 h late"), minutes only in the
+ * last hour ("40 min", "15 min late").
+ */
+export function changeRequestClock(requestedAt: string, now: number): { label: string; late: boolean } {
+  const minutes = (Date.parse(changeRequestDueAt(requestedAt)) - now) / 60_000;
+  const late = minutes <= 0;
+  const left = Math.abs(minutes);
+  // Whole units, rounded down both ways, as formatUntil counts: "1 h" is 1 to
+  // 2 hours, so "1 h" left never means 59 minutes and "60 min" never shows.
+  const amount = left < 60 ? `${Math.max(1, Math.floor(left))} min` : `${Math.floor(left / 60)} h`;
+  return { label: late ? `${amount} late` : amount, late };
+}
+
 /** What the merchant was looking at when they wrote (apps/platform lib/support/context). */
 export interface SupportMessageContext {
+  /** Sent from "Need a change?" in the merchant header: a change or feature they want built. */
+  kind?: "change_request";
   path?: string;
   orderNumber?: string;
   errorCode?: string;
@@ -191,9 +282,12 @@ export interface SupportShopCard {
     contact_phone: string | null;
     trial_ends_at: string | null;
     created_at: string;
+    /** The demo store renews at no charge whatever its switch says (B13). */
+    is_demo: boolean;
   };
   walletBalanceIqd: number | null;
-  subscriptionEndsAt: string | null;
+  /** The shop's one subscription, to say whether its month renews (round 21, data new 2). */
+  subscription: { status: string; plan: string; auto_renew: boolean; current_period_end: string | null } | null;
   ordersLast7Days: number;
   ordersTotal: number;
   teamSize: number;
@@ -206,7 +300,7 @@ export interface SupportShopCard {
 }
 
 export interface SupportCasesResponse {
-  cases: SupportCaseRow[];
+  cases: SupportInboxRow[];
   waitingOnUs: number;
 }
 
@@ -255,7 +349,7 @@ export function supportRefusal(error: { code?: string; message?: string } | null
 }
 
 /** Open cases: the merchant waiting longest first, then the ones waiting on the merchant. */
-export function sortInbox(cases: SupportCaseRow[]): SupportCaseRow[] {
+export function sortInbox<T extends SupportCaseRow>(cases: T[]): T[] {
   const rank = (c: SupportCaseRow) => (c.status === "waiting_us" ? 0 : c.status === "waiting_merchant" ? 1 : 2);
   return [...cases].sort((a, b) => {
     const byStatus = rank(a) - rank(b);

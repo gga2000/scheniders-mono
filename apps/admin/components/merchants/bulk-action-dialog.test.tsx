@@ -21,6 +21,8 @@ const { toast } = await import("sonner");
 const IDS = ["5b0c9a52-7f3e-4c1a-9d2e-1a2b3c4d5e6f", "6c1d0b63-8f4f-4d2b-8e3f-2b3c4d5e6f70"];
 
 const client = new QueryClient();
+/** The Merchants page's "clear the picked shops", which the dialog calls once a step ran. */
+const picksCleared = vi.fn();
 
 function tree(action: string | null, ids = IDS, planOf?: ReadonlyMap<string, string>) {
   return createElement(
@@ -32,7 +34,7 @@ function tree(action: string | null, ids = IDS, planOf?: ReadonlyMap<string, str
       selectedIds: ids,
       planOf,
       onClose: () => {},
-      onSuccess: () => {},
+      onSuccess: picksCleared,
     }),
   );
 }
@@ -53,12 +55,26 @@ const confirmWaits = () => screen.getByRole("button", { name: "Confirm" }).match
 
 afterEach(() => {
   cleanup();
+  localStorage.clear();
   send.mockReset();
+  picksCleared.mockReset();
   vi.mocked(toast.error).mockReset();
   vi.mocked(toast.success).mockReset();
 });
 
 describe("bulk Change Plan", () => {
+  // Round 22 (UX new 8): the picked plan's border was a fixed near-black, darker
+  // than the unpicked ones in dark. It now uses the theme's foreground.
+  it("marks the picked plan, in theme colours", () => {
+    dialog();
+    const internal = screen.getByRole("button", { name: "Internal (no billing)" });
+    fireEvent.click(internal);
+    expect(internal.getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByRole("button", { name: "Start" }).getAttribute("aria-pressed")).toBe("false");
+    expect(internal.className).toContain("border-foreground");
+    expect(internal.className).not.toMatch(/#1E1E1E/i);
+  });
+
   it("says what will happen before the press, in the merchant's plan words", () => {
     dialog();
     fireEvent.click(screen.getByRole("button", { name: "Internal (no billing)" }));
@@ -138,6 +154,9 @@ describe("a bulk write", () => {
         description: "Not done for Basra Shoes: Wallet not found",
       }),
     );
+    // Round 22 (round 21 UX new 1, the part left): the shops stayed picked on
+    // Merchants, so the next step picked up the shop already done.
+    expect(picksCleared).toHaveBeenCalledTimes(1);
   });
 
   it("says a refusal in a toast when staff left the page", async () => {
@@ -167,6 +186,65 @@ describe("a bulk write", () => {
 
     expect(sentBody(0).params.request_id).toMatch(/^[0-9a-f-]{36}$/);
     expect(sentBody(1).params.request_id).toBe(sentBody(0).params.request_id);
+  });
+});
+
+/*
+ * Round 21 (structure new 1, UX new 1): a bulk top-up whose answer was lost
+ * (a dropped connection, a gateway's 502 with no words) said "Failed to fetch"
+ * in the dialog and "Top Up Wallets was not done." once staff had left. The
+ * wallets may have been credited, and the natural retry credited them again.
+ */
+describe("a bulk write whose answer is lost", () => {
+  const ANSWER_LOST_SHOPS = "No answer came back, so this may have been done. Check the shops before trying again.";
+
+  it("says it may have been done when the connection drops", async () => {
+    send.mockRejectedValue(new TypeError("Failed to fetch"));
+    dialog(IDS, "top-up");
+    topUp("Cash at the office");
+    expect((await screen.findByText(ANSWER_LOST_SHOPS)).textContent).toBe(ANSWER_LOST_SHOPS);
+    expect(screen.queryByText(/Failed to fetch/)).toBeNull();
+  });
+
+  it("says it may have been done when a gateway answers 502 with no words", async () => {
+    send.mockResolvedValue(new Response("An error occurred with your deployment", { status: 502 }));
+    dialog(IDS, "top-up");
+    topUp("Cash at the office");
+    expect(await screen.findByText(ANSWER_LOST_SHOPS)).toBeTruthy();
+    expect(screen.queryByText("Failed to execute bulk action")).toBeNull();
+  });
+
+  it("never says not done in the toast after staff left the page", async () => {
+    let answer: (res: Response) => void = () => {};
+    send.mockReturnValue(new Promise<Response>((resolve) => (answer = resolve)));
+    const view = dialog(IDS, "top-up");
+    topUp("Cash at the office");
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(1));
+
+    view.unmount();
+    answer(new Response("upstream timed out", { status: 504 }));
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith(`Top Up Wallets: ${ANSWER_LOST_SHOPS}`));
+    expect(vi.mocked(toast.error).mock.calls.flat().join(" ")).not.toMatch(/not done/);
+  });
+
+  it("sends the same top-up with the same id after Merchants was left and opened again", async () => {
+    send.mockRejectedValue(new TypeError("Failed to fetch"));
+    const first = dialog(IDS, "top-up");
+    topUp("Cash at the office");
+    await screen.findByText(ANSWER_LOST_SHOPS);
+    first.unmount();
+
+    dialog(IDS, "top-up");
+    topUp("Cash, office");
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(2));
+    expect(sentBody(1).params.request_id).toBe(sentBody(0).params.request_id);
+  });
+
+  it("still says the server's own refusal as not done", async () => {
+    send.mockResolvedValue(new Response(JSON.stringify({ error: "Made-up refusal." }), { status: 500 }));
+    dialog(IDS, "top-up");
+    topUp("Cash at the office");
+    expect(await screen.findByText("Made-up refusal.")).toBeTruthy();
   });
 });
 
@@ -246,5 +324,50 @@ describe("bulk reasons and outcomes", () => {
     expect(planMoveWords(5, 2, "Pro")).toBe(
       "3 shops move to Pro now. 2 are on Pro already and stay as they are. Nothing is charged and nothing is refunded.",
     );
+  });
+});
+
+/*
+ * Round 21 (UX new 4 and 8): during a held write a click on Start changed the
+ * sentence while Internal was written; Confirm was ready at 500 IQD and then
+ * refused it; and with the picked shops emptied under the dialog, Confirm sent
+ * an empty list.
+ */
+describe("the bulk dialog waits for what it sends", () => {
+  it("holds the choices while the step is written", async () => {
+    send.mockReturnValue(new Promise<never>(() => {}));
+    dialog();
+    fireEvent.click(screen.getByRole("button", { name: "Internal (no billing)" }));
+    fireEvent.change(screen.getByLabelText("Reason"), { target: { value: "Our own test shops" } });
+    fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Start" }).matches(":disabled")).toBe(true));
+    expect(screen.getByLabelText("Reason").matches(":disabled")).toBe(true);
+    expect(screen.getByText(/2 shops move to Internal \(no billing\) now\./)).toBeTruthy();
+  });
+
+  it("keeps Confirm grey for an amount the server refuses, and says the rule", async () => {
+    send.mockReturnValue(new Promise<never>(() => {}));
+    dialog(IDS, "top-up");
+    fireEvent.change(screen.getByPlaceholderText("e.g. Monthly credit bonus"), { target: { value: "Cash at the office" } });
+    expect(confirmWaits()).toBe(false);
+    const custom = screen.getByPlaceholderText("e.g. 100,000");
+    for (const refused of ["500", "1500.5", "10000001"]) {
+      fireEvent.change(custom, { target: { value: refused } });
+      expect(confirmWaits()).toBe(true);
+      expect(screen.getByText("A whole number from 1,000 IQD to 10,000,000 IQD.")).toBeTruthy();
+    }
+    fireEvent.change(custom, { target: { value: "1000" } });
+    expect(confirmWaits()).toBe(false);
+    expect(screen.queryByText(/A whole number from/)).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(1));
+    expect(sentBody().params.amount_iqd).toBe(1000);
+  });
+
+  it("keeps Confirm grey with no shops picked", () => {
+    dialog([], "suspend");
+    expect(confirmWaits()).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
+    expect(send).not.toHaveBeenCalled();
   });
 });

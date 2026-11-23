@@ -13,8 +13,12 @@ import { dayOf } from "@/lib/baghdad-day";
 import { groupOrderFees, type TimelineEntry, type TimelineKind } from "@/lib/shop-timeline";
 import { Choice, ErrorLine, postJson } from "./action-ui";
 import { adminFetch } from "@/lib/admin-fetch";
+import { okOrLoadFailure } from "@/lib/load-failure";
+import { oldestRead, stampRead, type ReadAt } from "@/lib/page-read-at";
+import { LoadFailedLine } from "@/components/shared/load-failed-line";
+import { StaleLine } from "@/components/shared/stale-line";
 
-interface TimelinePage {
+interface TimelinePage extends ReadAt {
   entries: TimelineEntry[];
   nextBefore: string | null;
 }
@@ -43,12 +47,15 @@ export function TimelineTab({ merchantId, focusNote = false }: { merchantId: str
     initialPageParam: null as string | null,
     queryFn: async ({ pageParam }) => {
       const query = typeof pageParam === "string" ? `?before=${encodeURIComponent(pageParam)}` : "";
-      const res = await adminFetch(`/api/merchants/${merchantId}/timeline${query}`);
-      if (!res.ok) throw new Error("Could not load the timeline.");
-      return res.json();
+      const res = okOrLoadFailure(await adminFetch(`/api/merchants/${merchantId}/timeline${query}`), "the timeline");
+      return stampRead((await res.json()) as Omit<TimelinePage, "readAt">);
     },
     getNextPageParam: (last) => last.nextBefore,
   });
+  // A failed re-read (after every step on this shop) or "Show older" keeps the
+  // entries on screen; only a timeline never read shows the error, and the
+  // timeline is as old as its oldest page (round 24 structure new 2).
+  const timelineRead = { ...timeline, dataUpdatedAt: oldestRead(timeline.data?.pages, timeline.dataUpdatedAt) };
 
   const addNote = useMutation({
     mutationFn: (content: string) => postJson(`/api/merchants/${merchantId}/notes`, { content }),
@@ -119,18 +126,21 @@ export function TimelineTab({ merchantId, focusNote = false }: { merchantId: str
         ))}
       </div>
 
+      <StaleLine read={timelineRead} what="the timeline" kept="list" className="mb-3" />
+
       {timeline.isLoading ? (
         <p className="flex items-center gap-2 py-6 text-[13px] text-foreground/70">
           <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
           Loading the timeline...
         </p>
-      ) : timeline.isError ? (
-        <p role="alert" className="py-6 text-[13px] font-medium text-[var(--ink-red)]">
-          {timeline.error.message}{" "}
-          <button type="button" onClick={() => timeline.refetch()} className="underline">
-            Try again
-          </button>
-        </p>
+      ) : timeline.isError && !timeline.data ? (
+        <LoadFailedLine
+          className="py-6"
+          what="the timeline"
+          error={timeline.error}
+          onRetry={() => void timeline.refetch()}
+          retrying={timeline.isFetching}
+        />
       ) : days.length === 0 ? (
         <p className="py-6 text-[13px] text-foreground/70">
           {filter === "all"
@@ -152,7 +162,15 @@ export function TimelineTab({ merchantId, focusNote = false }: { merchantId: str
         </ol>
       )}
 
-      {timeline.hasNextPage && (
+      {timeline.isFetchNextPageError && (
+        <LoadFailedLine
+          className="mt-4"
+          what="older entries"
+          onRetry={() => void timeline.fetchNextPage()}
+          retrying={timeline.isFetchingNextPage}
+        />
+      )}
+      {timeline.hasNextPage && !timeline.isFetchNextPageError && (
         <button
           type="button"
           onClick={() => timeline.fetchNextPage()}

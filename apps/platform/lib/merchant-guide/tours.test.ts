@@ -62,9 +62,9 @@ describe("first-visit offers", () => {
         expect(tourOfferFor("/dashboard", {}, plain)).toBeNull();
     });
 
-    it("offers the money tour on the Finances page it walks, not on the new page in preview", () => {
-        expect(tourOfferFor("/finances", {}, plain)?.id).toBe("money");
-        expect(tourOfferFor("/finances/new", {}, plain)).toBeNull();
+    it("offers the money tour on the advanced Finances page it walks, not on the main Finances page", () => {
+        expect(tourOfferFor("/finances/advanced", {}, plain)?.id).toBe("money");
+        expect(tourOfferFor("/finances", {}, plain)).toBeNull();
     });
 });
 

@@ -41,17 +41,23 @@ describe("AdminTopbar merchant search", () => {
 
     search("Kawkab");
 
-    expect((await screen.findByRole("alert")).textContent).toBe("The search did not load. Try again.");
+    expect((await screen.findByRole("alert")).textContent).toBe("Could not load the search results.Try again");
     expect(screen.queryByText("No results")).toBeNull();
   });
 
-  it("says the search did not load when the connection drops", async () => {
+  it("says the search did not load when the connection drops, and Try again asks again", async () => {
     fetchMock.mockImplementation(() => Promise.reject(new TypeError("Failed to fetch")));
     render(<AdminTopbar user={null} />);
 
     search("Kawkab");
 
-    expect(await screen.findByText("The search did not load. Try again.")).toBeTruthy();
+    expect(await screen.findByText(/^Could not load the search results\./)).toBeTruthy();
+
+    // Round 25 (structure new 4): the line said "Try again" with nothing to press.
+    fetchMock.mockImplementation(() => answer(200, { merchants: [shop("a", "Kawkab")] }));
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    expect(await screen.findByText("Kawkab")).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 
   it("says 'No results' only when the search answered with none", async () => {

@@ -59,9 +59,9 @@ FROM (VALUES
     ('waiting_us',       NULL,     NULL,       NULL,                 now() - interval '30 minutes', NULL,               NULL,  0)
 ) AS v(status, owner, reason, reply, waiting, solve, rating, reopened);
 
--- Real shop, 10 days ago: only in the 30-day board.
+-- Real shop, 10 days ago: only in the 30-day board. A change request ("Need a change?").
 INSERT INTO public.support_cases (tenant_id, status, owner_name, reason, first_reply_at, solved_at, created_at)
-VALUES ('00000000-0000-4000-8000-000000000001', 'solved', 'Noor', 'wallet_billing',
+VALUES ('00000000-0000-4000-8000-000000000001', 'solved', 'Noor', 'change_request',
         pg_temp.noon_2d() - interval '8 days' + interval '1 minute', pg_temp.noon_2d() - interval '8 days' + interval '1 hour',
         pg_temp.noon_2d() - interval '8 days');
 
@@ -110,7 +110,7 @@ BEGIN
 
     PERFORM pg_temp.check('30d: opened 6, got ' || (m->>'opened'), (m->>'opened')::int = 6);
     PERFORM pg_temp.check('30d: solved 4', (m->>'solved')::int = 4);
-    PERFORM pg_temp.check('30d: wallet reason counted', m->'reasons' @> '[{"reason":"wallet_billing","count":1}]'::jsonb);
+    PERFORM pg_temp.check('30d: change request reason counted', m->'reasons' @> '[{"reason":"change_request","count":1}]'::jsonb);
     PERFORM pg_temp.check('30d: no bug reason (demo)', NOT (m->'reasons' @> '[{"reason":"bug"}]'::jsonb));
 
     PERFORM pg_temp.check('window: 0 becomes 1', (public.support_scoreboard(0)->>'days')::int = 1);

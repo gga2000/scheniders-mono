@@ -8,6 +8,11 @@ import { useAdminStore } from "@/store/use-admin-store";
 import { useWatchlist } from "@/hooks/use-watchlist";
 import { formatWhen } from "@/lib/format";
 import { adminFetch } from "@/lib/admin-fetch";
+import { StaleLine } from "@/components/shared/stale-line";
+import { LoadFailedLine } from "@/components/shared/load-failed-line";
+
+/** One empty list for every render before the first read. */
+const NO_MERCHANTS: WatchlistMerchant[] = [];
 
 function healthDotColor(status: string): string {
   switch (status) {
@@ -39,7 +44,7 @@ export function MerchantWatchlistWidget() {
   const stars = useWatchlist();
   const starsUnread = starredMerchants.length === 0 && !stars.data;
 
-  const { data: merchants = [], isLoading, isError } = useQuery<WatchlistMerchant[]>({
+  const watchRead = useQuery<WatchlistMerchant[]>({
     queryKey: ["admin", "watchlist", starredMerchants],
     queryFn: async () => {
       if (starredMerchants.length === 0) return [];
@@ -51,6 +56,8 @@ export function MerchantWatchlistWidget() {
     },
     enabled: starredMerchants.length > 0,
   });
+  const { data: read, isLoading, isError } = watchRead;
+  const merchants = read ?? NO_MERCHANTS;
 
   return (
     <div className="pastel-card p-5">
@@ -59,22 +66,35 @@ export function MerchantWatchlistWidget() {
         <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
         <h3 className="text-sm font-bold text-foreground">Watchlist</h3>
       </div>
+      <StaleLine read={watchRead} what="the watchlist" kept="list" className="mb-3" />
 
       {/* Content */}
-      {starsUnread && stars.isError ? (
+      {stars.isError && starsUnread ? (
         <div className="flex flex-col items-center justify-center py-8 text-center">
           <AlertTriangle className="w-6 h-6 text-red-400/60 mb-2" />
-          <p className="text-xs text-foreground/70">Your stars could not be loaded</p>
+          <LoadFailedLine
+            className="justify-center text-xs"
+            what="your stars"
+            error={stars.error}
+            onRetry={() => void stars.refetch()}
+            retrying={stars.isFetching}
+          />
         </div>
       ) : starredMerchants.length === 0 && !starsUnread ? (
         <div className="flex flex-col items-center justify-center py-8 text-center">
           <Star className="w-8 h-8 text-foreground/15 mb-2" />
           <p className="text-xs text-foreground/70">No starred merchants</p>
         </div>
-      ) : isError ? (
+      ) : isError && !read ? (
         <div className="flex flex-col items-center justify-center py-8 text-center">
           <AlertTriangle className="w-6 h-6 text-red-400/60 mb-2" />
-          <p className="text-xs text-foreground/70">Failed to load watchlist</p>
+          <LoadFailedLine
+            className="justify-center text-xs"
+            what="the watchlist"
+            error={watchRead.error}
+            onRetry={() => void watchRead.refetch()}
+            retrying={watchRead.isFetching}
+          />
         </div>
       ) : isLoading || starsUnread ? (
         <div className="space-y-3">

@@ -1,8 +1,9 @@
 import { useEffect, useRef, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { AnswerLost } from "@/lib/answer-lost";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { adminFetch } from "@/lib/admin-fetch";
+import type { MerchantDetail } from "@/hooks/use-merchant-detail";
 
 /*
  * The parts every shop action panel shares: a title, a row of choices, the
@@ -102,14 +103,22 @@ export function useRereadShop(shopId: string): () => void {
  * ("Wallet now" says whether the money came, round 20). While the form is
  * drawn its ErrorLine says the refusal. Once it is gone (staff left the page
  * during the write), a toast says it, starting with what did not happen, so
- * the refusal is never said nowhere.
+ * the refusal is never said nowhere. A lost answer is not a refusal: its toast
+ * names the shop and never says the step was not done (round 21).
  */
 export function useWriteFailed(shopId: string, notDone: string): (error: Error) => void {
+  const queryClient = useQueryClient();
   const rereadShop = useRereadShop(shopId);
   const stillDrawn = useStillDrawn();
   return (error) => {
     rereadShop();
-    if (!stillDrawn()) toast.error(`${notDone} ${error.message}`);
+    if (stillDrawn()) return;
+    if (error instanceof AnswerLost) {
+      const shop = queryClient.getQueryData<MerchantDetail>(["admin", "merchant", shopId])?.tenant.business_name;
+      toast.error(shop ? `${shop}: ${error.message}` : error.message);
+    } else {
+      toast.error(`${notDone} ${error.message}`);
+    }
   };
 }
 
@@ -135,41 +144,5 @@ export function ErrorLine({ error }: { error: Error | null }) {
   );
 }
 
-/** The server's answer to a request id it had already done: it did nothing again. */
-export function wasAlreadyDone(answer: unknown): boolean {
-  return typeof answer === "object" && answer !== null && "duplicate" in answer && answer.duplicate === true;
-}
-
-/**
- * What staff read when no answer came back: the request reached the network
- * but the server's words did not come back (the connection dropped, or a
- * gateway answered 502 or 504 with no words). The step may have been done, so
- * "Something went wrong." would invite a second one (round 20).
- */
-export const ANSWER_LOST = "No answer came back, so this may have been done. Check the shop before trying again.";
-
-/** The API's own words for a refusal, if its answer has them. */
-function refusalWords(data: unknown): string | null {
-  return typeof data === "object" && data !== null && "error" in data && typeof data.error === "string"
-    ? data.error
-    : null;
-}
-
-/** Posts JSON and throws the API's own error message when it refuses. */
-export async function postJson(url: string, body: unknown, method: "POST" | "PATCH" = "POST"): Promise<unknown> {
-  const res = await adminFetch(url, {
-    method,
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  }).catch((error: unknown) => {
-    // fetch rejects with a TypeError when the network fails: the request may
-    // have reached the server before the answer was lost.
-    if (error instanceof TypeError) throw new Error(ANSWER_LOST);
-    throw error;
-  });
-  const data: unknown = await res.json().catch(() => null);
-  if (!res.ok) {
-    throw new Error(refusalWords(data) ?? (res.status >= 500 ? ANSWER_LOST : "Something went wrong."));
-  }
-  return data;
-}
+export { ANSWER_LOST, ANSWER_LOST_SHOPS, AnswerLost } from "@/lib/answer-lost";
+export { failureOf, postJson, sendJson, wasAlreadyDone } from "@/lib/send-json";

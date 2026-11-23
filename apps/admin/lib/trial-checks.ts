@@ -8,9 +8,13 @@ import { MAX_TRIAL_EXTENSION_DAYS } from "./trial-extension";
 /**
  * The one-trial check (Fermi B5), staff side. The database
  * (20261116103536_trial_one_per_merchant.sql) keeps one trial_checks row per
- * store that matched an earlier store that is not paying: "review" for one
- * phone or email match, "no_trial" for a Prime match or two medium matches
- * (that one has already ended the trial). Staff read the rows here and decide
+ * store that matched an earlier store that is not paying. Medium signs: an
+ * owner phone, an email, or customers shared with earlier stores (one sign
+ * however many: 30% of the customers of the first 30 delivered orders, at
+ * least 5, also had a delivered order there; 20261122163224, delivered only
+ * since 20261122190918, medium since 20261123074223). "review" for one medium
+ * sign; "no_trial" for a Prime match or two medium signs (that one has already
+ * ended the trial, unless it had ended before). Staff read the rows here and decide
  * them through admin_trial_check_decide_once, which writes the staff log and
  * makes each request's change once.
  */
@@ -23,15 +27,29 @@ export const DECIDED_SHOWN = 50;
 
 const ID_CHUNK = 100;
 
-const familySchema = z.enum(["phone", "email", "prime"]);
-const sourceSchema = z.enum(["owner_phone", "contact_email", "member_email", "prime_account"]);
+const identifierSourceSchema = z.enum(["owner_phone", "contact_email", "member_email", "prime_account"]);
 const decisionSchema = z.enum(["allow_trial", "end_trial", "checked"]);
 
-export type TrialCheckFamily = z.infer<typeof familySchema>;
-export type TrialCheckSource = z.infer<typeof sourceSchema>;
-export type TrialCheckDecision = z.infer<typeof decisionSchema>;
+/** The same phone, mailbox or Prime account as an earlier store. */
+const identifierSignalSchema = z.object({
+  family: z.enum(["phone", "email", "prime"]),
+  source: identifierSourceSchema,
+  tenant_id: z.string().uuid(),
+});
+/** Customers shared with an earlier store: how many of the customers of the first 30 delivered orders also had a delivered order there. */
+const customerSignalSchema = z.object({
+  family: z.literal("customers"),
+  source: z.literal("customer_overlap"),
+  tenant_id: z.string().uuid(),
+  matched: z.number().int().positive(),
+  customers: z.number().int().positive(),
+});
+const signalSchema = z.union([identifierSignalSchema, customerSignalSchema]);
 
-const signalSchema = z.object({ family: familySchema, source: sourceSchema, tenant_id: z.string().uuid() });
+type IdentifierSource = z.infer<typeof identifierSourceSchema>;
+export type TrialCheckFamily = z.infer<typeof signalSchema>["family"];
+export type TrialCheckSource = z.infer<typeof signalSchema>["source"];
+export type TrialCheckDecision = z.infer<typeof decisionSchema>;
 
 const checkRowSchema = z.object({
   tenant_id: z.string().uuid(),
@@ -65,15 +83,25 @@ const STORE_COLUMNS = "id, business_name, display_id, status, restrictions, tria
 /** An earlier store, without its phone: staff open its page for more. */
 export type TrialCheckStore = Omit<z.infer<typeof storeRowSchema>, "contact_phone">;
 
-export type TrialCheckMatch = {
+type MatchedStore = {
   /** The earlier store's id, kept when that store has been deleted. */
   tenant_id: string;
-  family: TrialCheckFamily;
-  /** Where this store has the identifier (its owner phone, a team member's email…). */
-  source: TrialCheckSource;
   /** Null when the earlier store has since been deleted. */
   store: TrialCheckStore | null;
 };
+
+export type TrialCheckMatch =
+  | (MatchedStore & {
+      family: z.infer<typeof identifierSignalSchema>["family"];
+      /** Where this store has the identifier (its owner phone, a team member's email…). */
+      source: IdentifierSource;
+    })
+  | (MatchedStore & {
+      family: "customers";
+      source: "customer_overlap";
+      /** How many of the customers of the first 30 delivered orders, of how many, also had a delivered order there. */
+      shared: { matched: number; customers: number };
+    });
 
 export type TrialCheck = Omit<z.infer<typeof checkRowSchema>, "signals"> & {
   /** The flagged store, with the owner's phone for a WhatsApp message. */
@@ -158,14 +186,18 @@ export async function readTrialChecks(supabase: ReturnType<typeof createAdminCli
     ...row,
     store: stores.get(row.tenant_id) ?? null,
     // Two old phone numbers matching the same store read as one line.
-    matches: uniqueBy(signals, (signal) => `${signal.source}:${signal.tenant_id}`).map((signal) => {
+    matches: uniqueBy(signals, (signal) => `${signal.source}:${signal.tenant_id}`).map((signal): TrialCheckMatch => {
       const found = stores.get(signal.tenant_id);
-      return {
-        tenant_id: signal.tenant_id,
-        family: signal.family,
-        source: signal.source,
-        store: found ? withoutPhone(found) : null,
-      };
+      const store = found ? withoutPhone(found) : null;
+      return signal.source === "customer_overlap"
+        ? {
+            tenant_id: signal.tenant_id,
+            family: signal.family,
+            source: signal.source,
+            store,
+            shared: { matched: signal.matched, customers: signal.customers },
+          }
+        : { tenant_id: signal.tenant_id, family: signal.family, source: signal.source, store };
     }),
     needs_look: needsLook(row),
   }));
@@ -281,7 +313,7 @@ export async function decideTrialCheck(
   return { ok: true, tenantId: answer.tenant_id, decision: answer.decision, repeat: answer.repeat === true };
 }
 
-const MATCH_WHAT: Record<TrialCheckSource, string> = {
+const MATCH_WHAT: Record<IdentifierSource, string> = {
   owner_phone: "Owner phone",
   contact_email: "Store email",
   member_email: "Team member email",
@@ -300,8 +332,15 @@ export function storeName(store: Pick<TrialCheckStore, "business_name" | "displa
   return store.display_id ? `#${store.display_id} ${store.business_name}` : store.business_name;
 }
 
-/** "Team member email matches #100123 Al Noor (cancelled)". */
+/**
+ * "Team member email matches #100123 Al Noor (cancelled)", or for shared
+ * customers "9 of the first 30 delivered customers also got deliveries from #100123 Al Noor (trial)".
+ */
 export function matchLine(match: TrialCheckMatch): string {
   const status = match.store ? ` (${match.store.status === "limited" ? "paused" : match.store.status})` : "";
+  if (match.source === "customer_overlap") {
+    const { matched, customers } = match.shared;
+    return `${matched} of the first ${customers} delivered customers also got deliveries from ${storeName(match.store)}${status}`;
+  }
   return `${MATCH_WHAT[match.source]} matches ${storeName(match.store)}${status}`;
 }

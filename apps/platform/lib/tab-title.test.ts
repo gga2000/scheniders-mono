@@ -25,10 +25,11 @@ describe("tab title", () => {
     });
 
     it("names a page by its sidebar label, and leaves pages without one unnamed", () => {
-        const labels: Record<string, string> = { "nav.orders": "الطلبات", "nav.finances": "المالية" };
+        const labels: Record<string, string> = { "nav.orders": "الطلبات", "nav.finances": "المالية", "finances.header.title": "المالية المتقدّمة" };
         const t = (key: string) => labels[key] ?? key;
         expect(pageTabTitle("/orders", t)).toBe("الطلبات");
-        expect(pageTabTitle("/finances/new", t)).toBe("المالية");
+        expect(pageTabTitle("/finances/advanced", t)).toBe("المالية المتقدّمة");
+        expect(pageTabTitle("/finances", t)).toBe("المالية");
         expect(pageTabTitle("/login", t)).toBe("");
         expect(pageTabTitle("/", t)).toBe("");
         expect(pageTabTitle(null, t)).toBe("");

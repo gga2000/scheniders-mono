@@ -4,14 +4,14 @@ import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { PLAN_LABELS, PLAN_TIERS, type PlanTier } from "@/types/admin";
 import { X, Loader2, AlertTriangle, CheckCircle } from "lucide-react";
-import { createRequestIds } from "@/lib/request-ids";
+import { keptRequestIds, requestKey, shopsKey } from "@/lib/request-ids";
 import { isStaffReason } from "@/lib/billing-lock-tools";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
 import { isBulkFailureList, notDoneLines, tooManyShops, type BulkFailure } from "@/lib/bulk-not-done";
-import { adminFetch } from "@/lib/admin-fetch";
 import { toast } from "sonner";
 import { formatIQD } from "@/lib/format";
-import { useStillDrawn, WillHappen } from "./detail/action-ui";
+import { ANSWER_LOST_SHOPS, AnswerLost, failureOf, PanelFields, sendJson, useStillDrawn, WillHappen } from "./detail/action-ui";
+import { bulkTopupAmountSchema, TOPUP_MAX_IQD, TOPUP_MIN_IQD } from "@/lib/topup-queue";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -33,6 +33,12 @@ interface BulkActionDialogProps {
  * id was seen), so they were not credited again.
  */
 type BulkOutcome = { done: number; failed: BulkFailure[]; repeats: number };
+
+/**
+ * A picked plan, amount or day count. Theme colours, so it shows in dark too:
+ * a fixed near-black border was darker than the unpicked ones there (round 22).
+ */
+const PICKED = "border-foreground bg-foreground/5 text-foreground";
 
 const shops = (n: number) => (n === 1 ? "1 shop" : `${n} shops`);
 
@@ -144,7 +150,7 @@ export function BulkActionDialog({
   const [error, setError] = useState<string | null>(null);
   // Set when the server did the action for some shops and not for others.
   const [partial, setPartial] = useState<BulkOutcome | null>(null);
-  const [requestIds] = useState(createRequestIds);
+  const [requestIds] = useState(() => keptRequestIds("bulk"));
   const stillDrawn = useStillDrawn();
   const title = action ? (ACTION_TITLES[action] ?? action) : "";
 
@@ -167,31 +173,32 @@ export function BulkActionDialog({
       tenant_ids: string[];
       params?: Record<string, unknown>;
     }) => {
-      const res = await adminFetch("/api/bulk", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data: unknown = await res.json().catch(() => null);
-      const body = typeof data === "object" && data !== null ? (data as Record<string, unknown>) : {};
-      if (!res.ok) {
+      // A dropped connection, or a gateway's 5xx with no words, throws
+      // AnswerLost: the step may have been done for every shop (round 21).
+      const answer = await sendJson("/api/bulk", payload);
+      const body =
+        typeof answer.data === "object" && answer.data !== null ? (answer.data as Record<string, unknown>) : {};
+      if (!answer.ok) {
         // Done for some shops, not for others: report it, do not offer a blind retry.
         if (Array.isArray(body.succeeded) && isBulkFailureList(body.failed)) {
           return { ...doneFrom(body, payload.tenant_ids.length), failed: body.failed } satisfies BulkOutcome;
         }
-        throw new Error(typeof body.error === "string" ? body.error : "Failed to execute bulk action");
+        throw failureOf(answer.status, answer.data, "Failed to execute bulk action");
       }
       return { ...doneFrom(body, payload.tenant_ids.length), failed: [] } satisfies BulkOutcome;
     },
     onSuccess: (outcome, payload) => {
       queryClient.invalidateQueries({ queryKey: ["admin", "merchants"] });
       if (outcome.failed.length > 0) {
-        // Staff left Merchants during the write: say it where they are now.
+        // Staff left Merchants during the write: say it where they are now, and
+        // drop the picked shops as Close does, so the next step does not pick
+        // up the shops already done (round 22).
         if (!stillDrawn()) {
           const total = outcome.done + outcome.failed.length;
           toast.error(`${title}: done for ${outcome.done} of ${total} ${total === 1 ? "merchant" : "merchants"}.`, {
             description: notDoneLines(outcome.failed).join(" "),
           });
+          onSuccess();
         }
         setPartial(outcome);
         return;
@@ -202,8 +209,12 @@ export function BulkActionDialog({
       onClose();
     },
     onError: (err: Error) => {
-      if (!stillDrawn()) toast.error(`${title} was not done. ${err.message}`);
-      setError(err.message);
+      // A lost answer may hide a step that was done: read the list again, and
+      // never call it "not done" (round 21).
+      const lost = err instanceof AnswerLost;
+      if (lost) queryClient.invalidateQueries({ queryKey: ["admin", "merchants"] });
+      if (!stillDrawn()) toast.error(lost ? `${title}: ${ANSWER_LOST_SHOPS}` : `${title} was not done. ${err.message}`);
+      setError(lost ? ANSWER_LOST_SHOPS : err.message);
     },
   });
 
@@ -220,6 +231,13 @@ export function BulkActionDialog({
           ? topUpDescription
           : null;
   const waitsForReason = reason !== null && !isStaffReason(reason);
+  // A top-up waits for an amount the server takes, as it waits for a reason:
+  // Confirm used to be ready at 500 IQD and then refuse it (round 21, UX new 4).
+  const topUpValue = topUpCustom ? Number(topUpCustom) : topUpAmount;
+  const topUpOk = bulkTopupAmountSchema.safeParse(topUpValue).success;
+  const waitsForAmount = action === "top-up" && !topUpOk;
+  // No shops left picked (the page cleared them): nothing to confirm.
+  const noShops = selectedIds.length === 0;
   const alreadyOn = selectedIds.filter((id) => planOf?.get(id) === selectedPlan).length;
 
   function close() {
@@ -230,6 +248,7 @@ export function BulkActionDialog({
   }
 
   function handleConfirm() {
+    if (selectedIds.length === 0) return;
     setError(null);
     const tooMany = tooManyShops(selectedIds.length);
     if (tooMany) {
@@ -250,26 +269,20 @@ export function BulkActionDialog({
           reason: extensionReason.trim(),
           // The same days for the same shops again (a retry, the reason typed
           // anew) reuse the id, so no shop is extended twice.
-          request_id: requestIds.idFor(`extend:${extensionDays}:${[...selectedIds].sort().join(",")}`),
+          request_id: requestIds.idFor(requestKey("extend", extensionDays, shopsKey([...selectedIds]))),
         };
         break;
       case "top-up": {
-        const amount = topUpCustom ? Number(topUpCustom) : topUpAmount;
-        if (!Number.isFinite(amount) || amount < 1000) {
-          setError("Amount must be at least 1,000 IQD");
-          return;
-        }
-        if (amount > 10_000_000) {
-          setError("Amount cannot exceed 10,000,000 IQD");
-          return;
-        }
+        // Confirm waits for an amount the server takes; this only guards a stray press.
+        if (!topUpOk) return;
+        const amount = topUpValue;
         const description = topUpDescription.trim();
         params = {
           amount_iqd: amount,
           description,
           // The same amount for the same shops again (a retry, the note typed
           // anew) reuses the id, so a wallet already credited is not credited twice.
-          request_id: requestIds.idFor(`top-up:${amount}:${[...selectedIds].sort().join(",")}`),
+          request_id: requestIds.idFor(requestKey("top-up", amount, shopsKey([...selectedIds]))),
         };
         break;
       }
@@ -314,159 +327,169 @@ export function BulkActionDialog({
           </button>
         </div>
 
-        {/* Content */}
-        <div className="mb-6">
-          {/* ---- Change Plan ---- */}
-          {action === "change-plan" && (
-            <div className="space-y-3">
-              <label className="text-sm font-semibold text-foreground/70">
-                New Plan
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                {PLAN_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.value}
-                    onClick={() => setSelectedPlan(opt.value)}
-                    className={`px-4 py-3 rounded-xl border cursor-pointer transition-all text-sm font-semibold text-left ${
-                      selectedPlan === opt.value
-                        ? "border-[#1E1E1E] bg-[#1E1E1E]/5 text-foreground"
-                        : "border-[var(--card-border)] text-foreground/70 hover:border-foreground/30"
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-              <label className="block text-sm font-semibold text-foreground/70">
-                Reason
-              </label>
-              <StaffReasonInput
-                value={planReason}
-                onChange={setPlanReason}
-                placeholder="Why? (each shop's timeline shows it)"
-              />
-              <WillHappen>{planMoveWords(selectedCount, alreadyOn, PLAN_LABELS[selectedPlan])}</WillHappen>
-            </div>
-          )}
-
-          {/* ---- Top Up ---- */}
-          {action === "top-up" && (
-            <div className="space-y-4">
-              <div className="space-y-2">
+        {/* Content: the choices wait while the step is written, so the sentence names what is sent (round 21, UX new 4). */}
+        <PanelFields busy={mutation.isPending}>
+          <div className="mb-6">
+            {/* ---- Change Plan ---- */}
+            {action === "change-plan" && (
+              <div className="space-y-3">
                 <label className="text-sm font-semibold text-foreground/70">
-                  Amount (IQD)
+                  New Plan
                 </label>
-                <div className="flex items-center gap-2 flex-wrap">
-                  {TOPUP_PRESETS.map((amt) => (
+                <div className="grid grid-cols-2 gap-2">
+                  {PLAN_OPTIONS.map((opt) => (
                     <button
-                      key={amt}
-                      onClick={() => { setTopUpAmount(amt); setTopUpCustom(""); }}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${
-                        !topUpCustom && topUpAmount === amt
-                          ? "border-[#1E1E1E] bg-[#1E1E1E]/5 text-foreground"
-                          : "border-[var(--card-border)] bg-foreground/5 text-foreground/70 hover:bg-foreground/10 hover:text-foreground"
+                      key={opt.value}
+                      onClick={() => setSelectedPlan(opt.value)}
+                      aria-pressed={selectedPlan === opt.value}
+                      className={`px-4 py-3 rounded-xl border cursor-pointer transition-all text-sm font-semibold text-left ${
+                        selectedPlan === opt.value
+                          ? PICKED
+                          : "border-[var(--card-border)] text-foreground/70 hover:border-foreground/30"
                       }`}
                     >
-                      {new Intl.NumberFormat("en-IQ").format(amt)}
+                      {opt.label}
                     </button>
                   ))}
                 </div>
-                <div className="flex items-center gap-2 mt-2">
-                  <span className="text-xs text-foreground/70">Custom:</span>
-                  <input
-                    type="number"
-                    value={topUpCustom}
-                    onChange={(e) => setTopUpCustom(e.target.value)}
-                    placeholder="e.g. 100,000"
-                    min={1000}
-                    max={10_000_000}
-                    className="flex-1 px-3 py-1.5 rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] text-sm text-foreground placeholder:text-foreground/30 focus:outline-none focus:ring-2 focus:ring-[#1E1E1E]/20 transition-all"
-                  />
-                  <span className="text-xs text-foreground/70">IQD</span>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-foreground/70">
-                  Reason <span className="font-normal text-foreground/70">(saved in the log)</span>
+                <label className="block text-sm font-semibold text-foreground/70">
+                  Reason
                 </label>
                 <StaffReasonInput
-                  value={topUpDescription}
-                  onChange={setTopUpDescription}
-                  placeholder="e.g. Monthly credit bonus"
+                  value={planReason}
+                  onChange={setPlanReason}
+                  placeholder="Why? (each shop's timeline shows it)"
+                />
+                <WillHappen>{planMoveWords(selectedCount, alreadyOn, PLAN_LABELS[selectedPlan])}</WillHappen>
+              </div>
+            )}
+
+            {/* ---- Top Up ---- */}
+            {action === "top-up" && (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-foreground/70">
+                    Amount (IQD)
+                  </label>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {TOPUP_PRESETS.map((amt) => (
+                      <button
+                        key={amt}
+                        onClick={() => { setTopUpAmount(amt); setTopUpCustom(""); }}
+                        aria-pressed={!topUpCustom && topUpAmount === amt}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${
+                          !topUpCustom && topUpAmount === amt
+                            ? PICKED
+                            : "border-[var(--card-border)] bg-foreground/5 text-foreground/70 hover:bg-foreground/10 hover:text-foreground"
+                        }`}
+                      >
+                        {new Intl.NumberFormat("en-IQ").format(amt)}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="text-xs text-foreground/70">Custom:</span>
+                    <input
+                      type="number"
+                      value={topUpCustom}
+                      onChange={(e) => setTopUpCustom(e.target.value)}
+                      placeholder="e.g. 100,000"
+                      min={TOPUP_MIN_IQD}
+                      max={TOPUP_MAX_IQD}
+                      className="flex-1 px-3 py-1.5 rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] text-sm text-foreground placeholder:text-foreground/30 focus:outline-none focus:ring-2 focus:ring-[#1E1E1E]/20 transition-all"
+                    />
+                    <span className="text-xs text-foreground/70">IQD</span>
+                  </div>
+                  {topUpCustom && !topUpOk && (
+                    <p className="text-[13px] text-[var(--ink-red)]">
+                      A whole number from {formatIQD(TOPUP_MIN_IQD)} to {formatIQD(TOPUP_MAX_IQD)}.
+                    </p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-foreground/70">
+                    Reason <span className="font-normal text-foreground/70">(saved in the log)</span>
+                  </label>
+                  <StaffReasonInput
+                    value={topUpDescription}
+                    onChange={setTopUpDescription}
+                    placeholder="e.g. Monthly credit bonus"
+                  />
+                </div>
+                <div className="px-3 py-2 rounded-xl bg-green-50 dark:bg-green-400/10 border border-green-200 dark:border-green-400/20 text-xs text-green-700 dark:text-green-400">
+                  Total: <strong>{new Intl.NumberFormat("en-IQ").format((Number.isFinite(topUpValue) ? topUpValue : 0) * selectedCount)} IQD</strong> across {selectedCount} merchant{selectedCount !== 1 ? "s" : ""}
+                </div>
+              </div>
+            )}
+
+            {/* ---- Suspend ---- */}
+            {action === "suspend" && (
+              <div className="px-4 py-3 rounded-xl bg-red-50 border border-red-200 flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold text-red-800">
+                    Warning: Suspension
+                  </p>
+                  <p className="text-sm text-red-700 mt-1">
+                    This will suspend {selectedCount} merchant
+                    {selectedCount !== 1 ? "s" : ""}. They will lose access to
+                    their dashboard.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* ---- Reactivate ---- */}
+            {action === "reactivate" && (
+              <div className="px-4 py-3 rounded-xl bg-green-50 border border-green-200 flex items-start gap-3">
+                <CheckCircle className="w-5 h-5 text-green-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold text-green-800">
+                    Reactivation
+                  </p>
+                  <p className="text-sm text-green-700 mt-1">
+                    This will reactivate {selectedCount} merchant
+                    {selectedCount !== 1 ? "s" : ""}.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* ---- Extend Trial ---- */}
+            {action === "extend-trial" && (
+              <div className="space-y-3">
+                <label className="text-sm font-semibold text-foreground/70">
+                  Extension Days
+                </label>
+                <div className="flex items-center gap-2">
+                  {DAY_PRESETS.map((d) => (
+                    <button
+                      key={d}
+                      onClick={() => setExtensionDays(d)}
+                      aria-pressed={extensionDays === d}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all border ${
+                        extensionDays === d
+                          ? PICKED
+                          : "border-[var(--card-border)] bg-foreground/5 text-foreground/70 hover:bg-foreground/10 hover:text-foreground"
+                      }`}
+                    >
+                      +{d} days
+                    </button>
+                  ))}
+                </div>
+                <label className="block text-sm font-semibold text-foreground/70">
+                  Reason
+                </label>
+                <StaffReasonInput
+                  value={extensionReason}
+                  onChange={setExtensionReason}
+                  placeholder="Why? (saved in each store's log)"
                 />
               </div>
-              <div className="px-3 py-2 rounded-xl bg-green-50 dark:bg-green-400/10 border border-green-200 dark:border-green-400/20 text-xs text-green-700 dark:text-green-400">
-                Total: <strong>{new Intl.NumberFormat("en-IQ").format((topUpCustom ? (Number.isFinite(Number(topUpCustom)) ? Number(topUpCustom) : 0) : topUpAmount) * selectedCount)} IQD</strong> across {selectedCount} merchant{selectedCount !== 1 ? "s" : ""}
-              </div>
-            </div>
-          )}
+            )}
 
-          {/* ---- Suspend ---- */}
-          {action === "suspend" && (
-            <div className="px-4 py-3 rounded-xl bg-red-50 border border-red-200 flex items-start gap-3">
-              <AlertTriangle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-semibold text-red-800">
-                  Warning: Suspension
-                </p>
-                <p className="text-sm text-red-700 mt-1">
-                  This will suspend {selectedCount} merchant
-                  {selectedCount !== 1 ? "s" : ""}. They will lose access to
-                  their dashboard.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* ---- Reactivate ---- */}
-          {action === "reactivate" && (
-            <div className="px-4 py-3 rounded-xl bg-green-50 border border-green-200 flex items-start gap-3">
-              <CheckCircle className="w-5 h-5 text-green-600 shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-semibold text-green-800">
-                  Reactivation
-                </p>
-                <p className="text-sm text-green-700 mt-1">
-                  This will reactivate {selectedCount} merchant
-                  {selectedCount !== 1 ? "s" : ""}.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* ---- Extend Trial ---- */}
-          {action === "extend-trial" && (
-            <div className="space-y-3">
-              <label className="text-sm font-semibold text-foreground/70">
-                Extension Days
-              </label>
-              <div className="flex items-center gap-2">
-                {DAY_PRESETS.map((d) => (
-                  <button
-                    key={d}
-                    onClick={() => setExtensionDays(d)}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all border ${
-                      extensionDays === d
-                        ? "border-[#1E1E1E] bg-[#1E1E1E]/5 text-foreground"
-                        : "border-[var(--card-border)] bg-foreground/5 text-foreground/70 hover:bg-foreground/10 hover:text-foreground"
-                    }`}
-                  >
-                    +{d} days
-                  </button>
-                ))}
-              </div>
-              <label className="block text-sm font-semibold text-foreground/70">
-                Reason
-              </label>
-              <StaffReasonInput
-                value={extensionReason}
-                onChange={setExtensionReason}
-                placeholder="Why? (saved in each store's log)"
-              />
-            </div>
-          )}
-
-        </div>
+          </div>
+        </PanelFields>
 
         {/* Partly done: say what happened, per reason */}
         {partial && (
@@ -505,7 +528,7 @@ export function BulkActionDialog({
           {!partial && (
             <button
               onClick={handleConfirm}
-              disabled={mutation.isPending || waitsForReason}
+              disabled={mutation.isPending || waitsForReason || waitsForAmount || noShops}
               className="px-4 py-2 rounded-xl text-sm font-semibold bg-[#1E1E1E] text-white hover:bg-[#2D2D2D] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               {mutation.isPending && (

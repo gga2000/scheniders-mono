@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { z } from "zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import {
@@ -13,18 +14,23 @@ import {
 import { ExportButton } from "@/components/shared/export-button";
 import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
 import { LoadError } from "@/components/shared/load-error";
-import { okOrLoadFailure } from "@/lib/load-failure";
-import { createRequestIds } from "@/lib/request-ids";
+import { StaleLine } from "@/components/shared/stale-line";
+import { okOrLoadFailure, pollEvery } from "@/lib/load-failure";
+import { keptRequestIds, requestKey, shopKey } from "@/lib/request-ids";
 import { STAFF_REASON_MAX } from "@/lib/billing-lock-tools";
 import { quickTopUpPlan } from "@/lib/quick-top-up";
 import { formatCount, formatIQD, formatWhen } from "@/lib/format";
 import { useAdminAuth, useCan } from "@/hooks/use-admin-auth";
 import { adminFetch } from "@/lib/admin-fetch";
+import { postJson } from "@/components/merchants/detail/action-ui";
 import { planLabel } from "@/types/admin";
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
+
+/** The top-up route's answer: a repeat of a done request moved no money. */
+const topupAnswerSchema = z.object({ newBalance: z.number(), duplicate: z.boolean().default(false) });
 
 interface WalletRow {
   tenant_id: string;
@@ -93,18 +99,20 @@ export default function BillingPage() {
   // so the tables below hold still for the super admins who use it; support
   // staff, who would only get a refusal, see it leave.
   const showTopUp = roleLoading || can("top_up_wallet");
-  const { data, isLoading, isError, error, refetch, isFetching } = useQuery<BillingData>({
+  const pageRead = useQuery<BillingData>({
     queryKey: ["admin", "billing"],
     queryFn: fetchBilling,
     staleTime: 30_000,
-    refetchInterval: 60_000,
+    refetchInterval: pollEvery(60_000),
   });
+  const { data, isLoading, isError, error, refetch, isFetching } = pageRead;
 
   // Top-up form state
   const [topupTenantId, setTopupTenantId] = useState("");
   const [topupAmount, setTopupAmount] = useState<number | "">("");
   const [topupDescription, setTopupDescription] = useState("");
-  const [requestIds] = useState(createRequestIds);
+  // Shared with the shop page's Add money: one id for one shop and amount.
+  const [requestIds] = useState(() => keptRequestIds("topup"));
 
   const topupMutation = useMutation({
     mutationFn: async (payload: {
@@ -112,18 +120,10 @@ export default function BillingPage() {
       amount: number;
       description: string;
       request_id: string;
-    }) => {
-      const res = await adminFetch("/api/billing/topup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "Top-up failed");
-      }
-      return res.json();
-    },
+    }) =>
+      // A lost answer says so and never shows a parser's words; a top-up the
+      // server had done already comes back as a repeat (round 21).
+      topupAnswerSchema.parse(await postJson("/api/billing/topup", payload)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "billing"] });
       requestIds.done();
@@ -150,7 +150,7 @@ export default function BillingPage() {
       amount: topupPlan.amount,
       description,
       // Same shop and amount asked again (a retry, the reason reworded) reuses the id.
-      request_id: requestIds.idFor(`${topupTenantId}:${topupPlan.amount}`),
+      request_id: requestIds.idFor(requestKey(shopKey(topupTenantId), topupPlan.amount)),
     });
   }
 
@@ -180,6 +180,7 @@ export default function BillingPage() {
           <p className="text-[13px] text-foreground/70">
             Every shop&apos;s wallet, its top-ups and its charges.
           </p>
+          <StaleLine read={pageRead} what="the wallets" className="mt-2" />
         </div>
         {/* The transactions file needs adjust_balance (api/export). */}
         {can("adjust_balance") && <ExportButton type="transactions" label="Export Transactions" />}
@@ -307,9 +308,11 @@ export default function BillingPage() {
           )}
           {topupMutation.isSuccess && (
             <p className="text-xs text-[var(--ink-green)] mt-2">
-              Added {formatIQD(topupMutation.variables?.amount ?? 0)}
-              {toppedUpShop ? ` to ${toppedUpShop.business_name}` : ""}. Wallet now{" "}
-              {formatIQD(topupMutation.data?.newBalance ?? 0)}.
+              {/* A repeat's balance is the one right after the first credit, not
+                  today's: the wallet list below, read again, shows today's. */}
+              {topupMutation.data.duplicate
+                ? `${formatIQD(topupMutation.variables.amount)} was already added${toppedUpShop ? ` to ${toppedUpShop.business_name}` : ""}, so it was not added again.`
+                : `Added ${formatIQD(topupMutation.variables.amount)}${toppedUpShop ? ` to ${toppedUpShop.business_name}` : ""}. Wallet now ${formatIQD(topupMutation.data.newBalance)}.`}
             </p>
           )}
         </div>

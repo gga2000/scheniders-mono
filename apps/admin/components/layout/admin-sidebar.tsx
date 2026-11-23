@@ -45,7 +45,11 @@ function useWaiting(): Waiting {
   return {
     leads: waitingBadge(leads, "leads with no owner", "the leads with no owner"),
     support: waitingBadge(support, "waiting on us", "the support inbox"),
-    payments: waitingBadge({ data: payments.data?.length, isError: payments.isError }, "receipts to check", "the receipts"),
+    payments: waitingBadge(
+      { data: payments.data?.length, isError: payments.isError, errorUpdateCount: payments.errorUpdateCount },
+      "receipts to check",
+      "the receipts",
+    ),
   };
 }
 

@@ -8,6 +8,8 @@ import { PLATFORM_WHATSAPP_TEMPLATES } from "@scheniders/shared/whatsapp-templat
 import { SIGNUP_WHATSAPP_OFF, signupWhatsAppSettingsSchema, type SignupWhatsAppSettings } from "@scheniders/shared/signup-whatsapp";
 import { adminFetch } from "@/lib/admin-fetch";
 import { okOrLoadFailure } from "@/lib/load-failure";
+import { LoadFailedLine } from "@/components/shared/load-failed-line";
+import { StaleLine } from "@/components/shared/stale-line";
 import { cn } from "@/lib/utils";
 
 const responseSchema = z.object({ settings: signupWhatsAppSettingsSchema, updated_at: z.string().nullable() });
@@ -27,7 +29,8 @@ export const signupWhatsAppQuery = queryOptions({
  */
 export function SignupWhatsAppCard({ canEdit }: { canEdit: boolean }) {
   const queryClient = useQueryClient();
-  const { data, isLoading, isError } = useQuery(signupWhatsAppQuery);
+  const read = useQuery(signupWhatsAppQuery);
+  const { data, isLoading } = read;
 
   const save = useMutation({
     mutationFn: async (settings: SignupWhatsAppSettings) => {
@@ -60,10 +63,19 @@ export function SignupWhatsAppCard({ canEdit }: { canEdit: boolean }) {
       {isLoading ? (
         // The form, greyed and switched off, holds the card's height until the settings arrive.
         <SignupWhatsAppForm saved={SIGNUP_WHATSAPP_OFF} canEdit={canEdit} save={save} loading />
-      ) : isError || !data ? (
-        <p className="text-xs text-[var(--ink-red)]">Could not load the signup WhatsApp settings. Reload the page.</p>
+      ) : !data ? (
+        <LoadFailedLine
+          what="the signup WhatsApp settings"
+          error={read.error}
+          onRetry={() => void read.refetch()}
+          retrying={read.isFetching}
+        />
       ) : (
-        <SignupWhatsAppForm key={data.updated_at ?? "unsaved"} saved={data.settings} canEdit={canEdit} save={save} />
+        // A failed refresh keeps the form and what was typed in it.
+        <>
+          <StaleLine read={read} what="the signup WhatsApp settings" kept="settings" className="mb-3" />
+          <SignupWhatsAppForm key={data.updated_at ?? "unsaved"} saved={data.settings} canEdit={canEdit} save={save} />
+        </>
       )}
     </div>
   );

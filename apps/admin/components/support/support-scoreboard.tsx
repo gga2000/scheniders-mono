@@ -4,6 +4,7 @@ import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSupportScoreboard } from "@/hooks/use-support-cases";
 import { LoadError } from "@/components/shared/load-error";
+import { StaleLine } from "@/components/shared/stale-line";
 import {
   SCOREBOARD_DAYS,
   SUPPORT_NO_REASON_LABELS,
@@ -171,10 +172,18 @@ export function SupportScoreboardView({
           </button>
         ))}
       </div>
-      {board.isError ? (
-        <LoadError what="the support scoreboard" onRetry={() => board.refetch()} retrying={board.isFetching} error={board.error} />
+      {board.isError && !board.data ? (
+        <LoadError
+          what="the support scoreboard"
+          onRetry={() => void board.refetch()}
+          retrying={board.isFetching}
+          error={board.error}
+        />
       ) : board.data ? (
-        <Board board={board.data} />
+        <>
+          <StaleLine read={board} what="the support scoreboard" />
+          <Board board={board.data} />
+        </>
       ) : (
         <div className="flex justify-center py-16">
           <Loader2 className="h-6 w-6 animate-spin text-foreground/70" />

@@ -82,6 +82,32 @@ describe("links each login may open", () => {
   });
 });
 
+// Fermi B12 items 5 and 6 (Ali's pick A, 22 Nov): two new pages, nothing existing moves.
+describe("the weekly numbers and the delivered rate", () => {
+  const place = (label: string) => {
+    const section = MENU.find((s) => s.label === label);
+    if (!section) throw new Error(`no ${label} place`);
+    return section;
+  };
+
+  it("puts Weekly numbers last under Numbers, for every login", () => {
+    expect(linksFor(place("Numbers"), "support_staff").map((l) => l.label)).toEqual(["Our fees", "Orders by hour", "Weekly numbers"]);
+    expect(pageTitle("/weekly-numbers")).toBe("Weekly numbers");
+  });
+
+  it("puts Delivered rate last under Merchants for admins only, as its read", () => {
+    expect(linksFor(place("Merchants"), "super_admin").map((l) => l.label)).toEqual([
+      "All merchants",
+      "Trials",
+      "Paying shops",
+      "Shops at risk",
+      "Delivered rate",
+    ]);
+    expect(linksFor(place("Merchants"), "support_staff").map((l) => l.label)).not.toContain("Delivered rate");
+    expect(pageTitle("/delivered-rate")).toBe("Delivered rate");
+  });
+});
+
 describe("the count beside a place", () => {
   it("counts what waits, and a 0 hides the badge", () => {
     expect(waitingBadge({ data: 3, isError: false }, "receipts to check", "the receipts")).toEqual({
@@ -101,5 +127,17 @@ describe("the count beside a place", () => {
       count: null,
       label: "Could not check the support inbox",
     });
+  });
+
+  it("keeps its ? while a count that never answered is asked again", () => {
+    // Round 25 UX new 1: pending again with no error for each try, so the badge read 0.
+    expect(waitingBadge({ data: undefined, isError: false, errorUpdateCount: 1 }, "receipts to check", "the receipts")).toEqual({
+      count: null,
+      label: "Could not check the receipts",
+    });
+    // The first read, still running: no failure yet.
+    expect(waitingBadge({ data: undefined, isError: false, errorUpdateCount: 0 }, "receipts to check", "the receipts").count).toBe(0);
+    // A count it holds after an earlier failure is shown.
+    expect(waitingBadge({ data: 2, isError: false, errorUpdateCount: 1 }, "receipts to check", "the receipts").count).toBe(2);
   });
 });

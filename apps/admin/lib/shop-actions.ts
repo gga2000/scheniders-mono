@@ -7,6 +7,8 @@
  * the rest under More. The API routes check the same permissions again.
  */
 import type { AdminAction } from "@/types/admin";
+import { formatDay, formatIQD } from "@/lib/format";
+import { RENEWAL_STOP_WORDS, renewalOffOpens } from "@/lib/billing-lock-label";
 
 export interface ShopFacts {
   /** The tenant's status as the record read returns it: trial, active, limited, suspended, cancelled. */
@@ -112,7 +114,7 @@ export function reactivateWords(comeback: Comeback, trialEndsAt: string | null, 
     case "active_renewal_off":
       return "The shop is active again now. Renewal is off, so when its month ends it is not charged and the shop locks.";
     case "active_unpaid_renewal_off":
-      return "The shop is active again now, but its last month is not paid and renewal is off, so it stays locked until it pays on its lock screen or staff turn renewal on.";
+      return `The shop is active again now, but its last month is not paid and renewal is off, so it stays locked until ${renewalOffOpens()}.`;
     case "trial": {
       const ended = trialEndsAt !== null && Date.parse(trialEndsAt) <= now.getTime();
       return ended
@@ -123,26 +125,125 @@ export function reactivateWords(comeback: Comeback, trialEndsAt: string | null, 
 }
 
 /**
+ * A shop that no job charges and whose lock screen opens nothing until it is
+ * back: renew_subscription_core and settle_billing_lock answer on_hold for
+ * every status but trial and active. The renewal row and both renewal
+ * sentences read this one table, so they say the same about one shop (round
+ * 24 structure new 4, round 25 data new 1).
+ */
+const AWAY: Readonly<Record<string, { shop: string; until: string; while: string }>> = {
+  limited: { shop: "The shop is paused", until: "until the pause lifts", while: "paused" },
+  suspended: { shop: "The shop is on hold", until: "until it comes back", while: "on hold" },
+  cancelled: { shop: "The shop is cancelled", until: "until it is made active again", while: "cancelled" },
+};
+
+/**
  * The renewal line on the shop page. renew_subscription_core charges only a
  * shop on trial or active: one paused, on hold or cancelled answers on_hold
  * and is not charged, so "charges the wallet each month" would say otherwise.
  * The demo store renews each month at no charge.
+ *
+ * `lockedFor` is why the shop is locked now (billing_lock_snapshot's reason),
+ * or null when it is not: a shop renewal off has already locked is told what
+ * happened, not what will (round 24 UX new 8).
  */
-export function renewalWords(autoRenew: boolean, demo: boolean, status: string): string {
+export function renewalWords(
+  autoRenew: boolean,
+  demo: boolean,
+  status: string,
+  lockedFor: "trial_ended" | "unpaid" | null,
+): string {
   // The demo store renews at no charge whatever the switch says (B13).
   if (demo) return autoRenew ? "On: renews each month, never charged (demo store)" : "Off, but the demo store renews each month at no charge";
+  const away = AWAY[status];
   // Renewal off: the month's end is not charged, and the shop locks like an unpaid month (20261119073654).
-  if (!autoRenew) return "Off: when the month ends it is not charged, and the shop locks";
-  switch (status) {
-    case "limited":
-      return "On: not charged while paused, then charges the wallet each month";
-    case "suspended":
-      return "On: not charged while on hold, then charges the wallet each month";
-    case "cancelled":
-      return "On: not charged while cancelled";
-    default:
-      return "On: charges the wallet each month";
+  if (!autoRenew) {
+    if (lockedFor === "trial_ended") return "Off: the trial ended unpaid, so the shop is locked";
+    if (lockedFor === "unpaid") return "Off: the month ended unpaid, so the shop is locked";
+    // Away, nothing charges or locks it: its month's end counts once it is
+    // back, and may have passed already (round 25 data new 1).
+    if (away) return `Off: not charged while ${away.while}, then the shop locks once its month is over`;
+    return "Off: when the month ends it is not charged, and the shop locks";
   }
+  if (!away) return "On: charges the wallet each month";
+  return status === "cancelled"
+    ? "On: not charged while cancelled"
+    : `On: not charged while ${away.while}, then charges the wallet each month`;
+}
+
+/** What the Renewal switch knows when staff turn renewal back on. */
+export interface RenewalOnFacts {
+  demo: boolean;
+  /** The tenant's status as the record read returns it. */
+  status: string;
+  onTrial: boolean;
+  /** The end of this month or trial; null when there is none. */
+  periodEnd: string | null;
+  /** The billing lock, when the shop is locked: the month's price opens it. */
+  lock: { price_iqd: number } | null;
+  walletIqd: number;
+}
+
+/** Why no job charges the shop right now, or undefined when one may. */
+function notChargedWhile(status: string): string | undefined {
+  const away = AWAY[status];
+  return away && `${away.shop}, so nothing is charged ${away.until}.`;
+}
+
+/**
+ * What turning renewal back on does, said before it is done (round 21, UX
+ * new 2). For a shop locked with renewal off, it is a charge: the next hourly
+ * lock run takes the month from the wallet when it holds it, and the shop
+ * opens (20261119073654_renewal_off_stops_charge). A paused or held shop is
+ * not charged until it comes back. Otherwise the next month is charged when
+ * this one ends, as usual. The demo store is never charged (B13).
+ */
+export function renewalOnWords(facts: RenewalOnFacts, now: Date = new Date()): string {
+  const on = "Renewal turns on.";
+  if (facts.demo) return `${on} The demo store is never charged.`;
+  const notCharged = notChargedWhile(facts.status);
+  if (facts.lock) {
+    const price = formatIQD(facts.lock.price_iqd);
+    if (notCharged) return `${on} ${notCharged} Then the wallet pays ${price} for the month and the shop opens.`;
+    const wallet = formatIQD(facts.walletIqd);
+    return facts.walletIqd >= facts.lock.price_iqd
+      ? `${on} Within the hour the wallet pays ${price} for the month and the shop opens. The wallet holds ${wallet} now.`
+      : `${on} The wallet holds ${wallet}, short of the month's ${price}. Once it holds the month, it pays and the shop opens.`;
+  }
+  if (notCharged) return `${on} ${notCharged}`;
+  if (facts.onTrial) return `${on} When the trial ends, the first month is charged from the wallet as usual.`;
+  if (facts.periodEnd && Date.parse(facts.periodEnd) <= now.getTime()) {
+    return `${on} This month ended ${formatDay(facts.periodEnd, now)}, so the next renewal run charges a new month from the wallet.`;
+  }
+  const after = facts.periodEnd ? ` after ${formatDay(facts.periodEnd, now)}` : "";
+  return `${on} The month${after} is charged from the wallet as usual.`;
+}
+
+/**
+ * What stopping renewal does, said before it is done, from the same facts as
+ * renewalOnWords (round 22). The demo store renews at no charge whatever the
+ * switch says (renew_subscription_core skips renewal off for it). A shop that
+ * is locked already stays locked, and no hourly run charges it any more. A
+ * trial's end is not charged; otherwise this month runs to its end. A paused,
+ * held or cancelled shop is said first: nothing is charged and its lock screen opens
+ * nothing until it comes back (settle_billing_lock answers on_hold), and only
+ * then does the rest happen (round 23 data new 2).
+ */
+export function renewalOffWords(facts: RenewalOnFacts, now: Date = new Date()): string {
+  if (facts.demo) return "The demo store still renews each month at no charge: this switch changes nothing there.";
+  const away = AWAY[facts.status];
+  if (facts.lock) {
+    const opens = `It opens when ${renewalOffOpens(facts.lock.price_iqd)}.`;
+    return away
+      ? `${away.shop}, so nothing is charged and nothing opens the lock ${away.until}. Then it stays locked, and no job charges it. ${opens}`
+      : `The shop stays locked, and no job charges it. ${opens}`;
+  }
+  const first = away ? `${away.shop}, so nothing is charged ${away.until}. ` : "";
+  if (facts.onTrial) return `${first}When the trial ends it is not charged, and the shop locks until ${renewalOffOpens()}.`;
+  if (facts.periodEnd && Date.parse(facts.periodEnd) <= now.getTime()) {
+    return `${first}This month ended ${formatDay(facts.periodEnd, now)}. It is not charged, and the shop locks until ${renewalOffOpens()}.`;
+  }
+  return `${first}${RENEWAL_STOP_WORDS}`;
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;

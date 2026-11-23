@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useIsMutating, useMutation } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { useLiveTick } from "@/hooks/use-live-tick";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
@@ -10,14 +10,18 @@ import type { MerchantDetail } from "@/hooks/use-merchant-detail";
 import { formatDay, formatDayTime, formatUntilDay } from "@/lib/format";
 import { isStaffReason } from "@/lib/billing-lock-tools";
 import { effectiveStatus } from "@/lib/effective-status";
-import { renewalWords } from "@/lib/shop-actions";
+import { renewalOffWords, renewalOnWords, renewalWords, shopActionKey, type RenewalOnFacts } from "@/lib/shop-actions";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
-import { ConfirmButton, postJson } from "./action-ui";
+import { ConfirmButton, PanelFields, postJson, useRereadShop, useWriteFailed } from "./action-ui";
 
 interface SubscriptionCardProps {
   merchantId: string;
   tenant: MerchantDetail["tenant"];
   subscription: MerchantDetail["subscription"];
+  /** The billing lock: turning renewal on for a locked shop charges its month. */
+  billingLock: MerchantDetail["billingLock"];
+  /** What the wallet holds now, said before renewal turns on. */
+  walletIqd: number;
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -35,28 +39,44 @@ function periodDays(subscription: { current_period_start: string; current_period
  *
  * Only a super admin may turn renewal on or off (change_plan); everyone else
  * reads whether it is on, with no switch that would only answer "Forbidden".
- * Turning it off ends the shop's paid months, so the switch first asks why,
- * as a hold does; turning it back on needs no reason.
+ * Either way the switch first says what will happen and asks why, as a hold
+ * does: turning it off ends the shop's paid months, and turning it back on
+ * charges a shop that renewal off locked, within the hour (round 21, UX new
+ * 2). It waits while another write on this shop runs (UX new 3).
  */
-export function SubscriptionCard({ merchantId, tenant, subscription }: SubscriptionCardProps) {
-  const queryClient = useQueryClient();
+export function SubscriptionCard({ merchantId, tenant, subscription, billingLock, walletIqd }: SubscriptionCardProps) {
   const now = new Date(useLiveTick(60_000));
   const { role } = useAdminAuth();
   const canSwitch = role ? hasPermission(role, "change_plan") : false;
+  const rereadShop = useRereadShop(merchantId);
+  const failed = useWriteFailed(merchantId, "Renewal was not changed.");
 
   const autoRenew = subscription?.auto_renew ?? true;
-  const [stopping, setStopping] = useState(false);
+  // The step the open panel asks for: renewal on (true) or off (false), held
+  // as chosen. Worked out from the switch on each draw, a lost answer whose
+  // re-read showed the change made turned the open panel into the opposite
+  // step, reason still filled in, one press from undoing it (round 22).
+  const [asking, setAsking] = useState<boolean | null>(null);
   const [why, setWhy] = useState("");
+  const close = () => {
+    setAsking(null);
+    setWhy("");
+  };
+  // The shop, read again, already has the step asked for: nothing is left to ask.
+  if (asking !== null && asking === autoRenew) close();
   const renew = useMutation({
-    mutationFn: (change: { auto_renew: boolean; reason?: string }) =>
+    // A shop write: the page's other action buttons wait while it runs, and this switch waits for theirs.
+    mutationKey: shopActionKey(merchantId),
+    mutationFn: (change: { auto_renew: boolean; reason: string }) =>
       postJson(`/api/merchants/${merchantId}`, change, "PATCH"),
     onSuccess: () => {
-      setStopping(false);
-      setWhy("");
-      queryClient.invalidateQueries({ queryKey: ["admin", "merchant", merchantId] });
-      queryClient.invalidateQueries({ queryKey: ["admin", "merchants"] });
+      close();
+      rereadShop();
     },
+    onError: failed,
   });
+  const stopping = asking === false;
+  const writing = useIsMutating({ mutationKey: shopActionKey(merchantId) }) > 0;
 
   // A paused trial is still a trial: its end day stands, and it has no month yet.
   const onTrial = effectiveStatus(tenant.status, tenant.restrictions) === "trial";
@@ -75,6 +95,14 @@ export function SubscriptionCard({ merchantId, tenant, subscription }: Subscript
   }
 
   const soon = (end: string) => new Date(end).getTime() - now.getTime() < DAY_MS;
+  const facts: RenewalOnFacts = {
+    demo: tenant.is_demo,
+    status: tenant.status,
+    onTrial,
+    periodEnd: trialEnd ?? subscription?.current_period_end ?? null,
+    lock: billingLock?.locked ? { price_iqd: billingLock.price_iqd } : null,
+    walletIqd,
+  };
 
   return (
     <section className="pastel-card p-5" aria-label="Trial and month">
@@ -100,9 +128,15 @@ export function SubscriptionCard({ merchantId, tenant, subscription }: Subscript
                   type="button"
                   role="switch"
                   aria-checked={autoRenew}
+                  aria-expanded={asking !== null}
                   aria-label="Renew each month"
-                  onClick={() => (autoRenew ? setStopping((open) => !open) : renew.mutate({ auto_renew: true }))}
-                  disabled={renew.isPending}
+                  onClick={() => {
+                    if (asking !== null) return close();
+                    // A new ask starts clean: the last one's refusal is not this one's.
+                    renew.reset();
+                    setAsking(!autoRenew);
+                  }}
+                  disabled={writing}
                   className={cn(
                     "relative h-5 w-9 shrink-0 rounded-full transition-colors disabled:opacity-50",
                     autoRenew ? "bg-emerald-700" : "bg-foreground/20",
@@ -116,42 +150,45 @@ export function SubscriptionCard({ merchantId, tenant, subscription }: Subscript
                   />
                 </button>
               )}
-              {renewalWords(autoRenew, tenant.is_demo, tenant.status)}
+              {renewalWords(autoRenew, tenant.is_demo, tenant.status, billingLock?.locked ? billingLock.reason : null)}
             </span>
-            {stopping && autoRenew && (
+            {asking !== null && canSwitch && (
               <span className="mt-3 block max-w-sm font-normal">
-                <StaffReasonInput
-                  value={why}
-                  onChange={setWhy}
-                  placeholder="Why stop renewing? (the shop's timeline shows it)"
-                  className="mb-2"
-                />
+                <PanelFields busy={writing}>
+                  <StaffReasonInput
+                    value={why}
+                    onChange={setWhy}
+                    placeholder={
+                      stopping
+                        ? "Why stop renewing? (the shop's timeline shows it)"
+                        : "Why turn renewal on? (the shop's timeline shows it)"
+                    }
+                    className="mb-2"
+                  />
+                </PanelFields>
                 <span className="mb-2 block text-[13px] leading-snug text-foreground/75">
-                  This month runs to its end. Then it is not charged, and the shop locks until it pays on its lock screen or
-                  staff turn renewal back on.
+                  {stopping ? renewalOffWords(facts, now) : renewalOnWords(facts, now)}
                 </span>
                 <span className="flex gap-2">
                   <ConfirmButton
-                    tone="stop"
-                    disabled={!isStaffReason(why) || renew.isPending}
-                    onClick={() => renew.mutate({ auto_renew: false, reason: why.trim() })}
+                    tone={stopping ? "stop" : "go"}
+                    disabled={!isStaffReason(why) || writing}
+                    onClick={() => renew.mutate({ auto_renew: asking, reason: why.trim() })}
                   >
-                    {renew.isPending ? "Saving..." : "Stop renewing"}
+                    {renew.isPending ? "Saving..." : stopping ? "Stop renewing" : "Turn renewal on"}
                   </ConfirmButton>
                   <button
                     type="button"
-                    onClick={() => {
-                      setStopping(false);
-                      setWhy("");
-                    }}
-                    className="shrink-0 rounded-lg px-4 py-2.5 text-[13px] font-semibold text-foreground ring-1 ring-foreground/15 hover:bg-foreground/5"
+                    onClick={close}
+                    disabled={writing}
+                    className="shrink-0 rounded-lg px-4 py-2.5 text-[13px] font-semibold text-foreground ring-1 ring-foreground/15 hover:bg-foreground/5 disabled:opacity-50"
                   >
-                    Keep renewing
+                    {stopping ? "Keep renewing" : "Keep it off"}
                   </button>
                 </span>
               </span>
             )}
-            {renew.error && (
+            {asking !== null && renew.error && (
               <span role="alert" className="mt-1 block text-[13px] font-medium text-[var(--ink-red)]">
                 {renew.error.message}
               </span>

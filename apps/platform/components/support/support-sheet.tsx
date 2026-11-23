@@ -12,6 +12,7 @@ import {
     FileText,
     LifeBuoy,
     Loader2,
+    MessageCircle,
     Mic,
     Package,
     RotateCcw,
@@ -35,7 +36,7 @@ import { buildSupportContext } from "@/lib/support/context";
 import { captureScreen } from "@/lib/support/screenshot";
 import { takeSupportOpenLink } from "@/lib/support/open-link";
 import { formatVoiceLength } from "@/lib/support/voice";
-import { SUPPORT_NO_REASONS, type SupportMessage, type SupportNoReason, type SupportSeen } from "@/lib/support/schema";
+import { SUPPORT_MESSAGE_MAX, SUPPORT_NO_REASONS, type SupportMessage, type SupportNoReason, type SupportSeen } from "@/lib/support/schema";
 import { cn } from "@/lib/utils";
 
 // dir="auto" on sentences: an Arabic sentence ends with its own full stop,
@@ -275,6 +276,17 @@ export function SupportSheet() {
                                     </p>
                                 )}
                             </div>
+                            {thread?.whatsapp && (
+                                <a
+                                    href={thread.whatsapp}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-emerald-500/40 px-3 text-xs font-semibold text-emerald-700 transition-colors hover:bg-emerald-500/10 dark:text-emerald-400"
+                                >
+                                    <MessageCircle className="h-3.5 w-3.5" />
+                                    {t("support.whatsapp")}
+                                </a>
+                            )}
                             <button
                                 type="button"
                                 onClick={close}
@@ -438,7 +450,7 @@ export function SupportSheet() {
                                     value={draft}
                                     onChange={(event) => setDraft(event.target.value)}
                                     rows={2}
-                                    maxLength={4000}
+                                    maxLength={SUPPORT_MESSAGE_MAX}
                                     placeholder={t("support.placeholder")}
                                     aria-label={t("support.placeholder")}
                                     className="min-h-[52px] flex-1 resize-none rounded-xl border border-[var(--card-border)] bg-[var(--background)] px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-foreground/20"

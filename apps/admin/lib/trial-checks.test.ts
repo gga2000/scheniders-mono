@@ -109,6 +109,32 @@ describe("readTrialChecks", () => {
     ]);
   });
 
+  it("says how many customers a store shares with an earlier one, and never which", async () => {
+    stub.state.tables.trial_checks = [
+      check(NEW, {
+        verdict: "no_trial",
+        signals: [
+          { family: "phone", source: "owner_phone", tenant_id: OLD },
+          { family: "customers", source: "customer_overlap", tenant_id: OLD, matched: 9, customers: 30 },
+        ],
+      }),
+    ];
+    const { checks } = await readTrialChecks(client());
+
+    expect(checks[0]?.matches.map(matchLine)).toEqual([
+      "Owner phone matches #100100 Shop 100100 (cancelled)",
+      "9 of the first 30 delivered customers also got deliveries from #100100 Shop 100100 (cancelled)",
+    ]);
+    expect(checks[0]?.matches[1]).toMatchObject({ family: "customers", shared: { matched: 9, customers: 30 } });
+  });
+
+  it("refuses a shared-customers signal without its counts", async () => {
+    stub.state.tables.trial_checks = [
+      check(NEW, { signals: [{ family: "customers", source: "customer_overlap", tenant_id: OLD }] }),
+    ];
+    await expect(readTrialChecks(client())).rejects.toThrow();
+  });
+
   it("puts open rows first, newest change first, and keeps only the latest decided ones", async () => {
     const decided = Array.from({ length: DECIDED_SHOWN + 5 }, (_, i) =>
       check(`55555555-5555-4555-8555-${String(i).padStart(12, "0")}`, {

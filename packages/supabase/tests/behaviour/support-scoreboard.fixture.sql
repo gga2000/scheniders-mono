@@ -37,7 +37,7 @@ CREATE TABLE public.support_cases (
     owner_name text,
     reason text CHECK (reason IN (
         'orders', 'delivery', 'wallet_billing', 'products', 'store_design',
-        'whatsapp', 'account_login', 'bug', 'how_to', 'other')),
+        'whatsapp', 'account_login', 'bug', 'how_to', 'change_request', 'other')),
     first_reply_at timestamptz,
     waiting_since timestamptz,
     solved_at timestamptz,

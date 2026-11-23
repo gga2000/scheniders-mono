@@ -9,12 +9,14 @@ import type { BillingLock } from "@/hooks/use-billing-lock";
 import { ContactSupportButton } from "@/components/support/contact-support-button";
 import { BILLING_SETTINGS_PATH } from "@/lib/billing/lock-routes";
 import { BillingLockPay, billingLockMessage, billingLockTitleKey } from "./billing-lock-pay";
+import { TrialReportSlot } from "./trial-report-slot";
 
 /**
  * What a billing-locked shop sees on a page it cannot use (handoff A1). The
  * sidebar stays, so orders, shipping and paying are one click away, and the
  * support chat opens with the lock attached; nothing the shop owns is hidden
- * or deleted.
+ * or deleted. A trial that ended shows its trial report under it (Fermi B12
+ * item 2), so the shop sees what its trial did before it pays.
  */
 export function BillingLockScreen({ lock }: { lock: BillingLock }) {
     const { t, language } = useLanguage();
@@ -22,7 +24,7 @@ export function BillingLockScreen({ lock }: { lock: BillingLock }) {
     const amount = formatIQD(lock.price_iqd);
 
     return (
-        <div className="flex min-h-[70vh] items-center justify-center p-6" data-testid="billing-lock-screen">
+        <div className="flex min-h-[70vh] flex-col items-center justify-center gap-4 p-6" data-testid="billing-lock-screen">
             <div className="pastel-card w-full max-w-md p-8 text-center">
                 <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/40">
                     <Lock className="h-7 w-7 text-amber-700 dark:text-amber-300" />
@@ -65,6 +67,7 @@ export function BillingLockScreen({ lock }: { lock: BillingLock }) {
                 />
                 <p className="mt-4 text-xs text-muted-foreground">{t("billing.lock.stillOpen")}</p>
             </div>
+            <TrialReportSlot place="lock" lockReason={lock.reason} className="w-full max-w-md" />
         </div>
     );
 }

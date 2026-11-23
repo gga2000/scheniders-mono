@@ -81,5 +81,39 @@ describe("GET /api/activity", () => {
     expect(body.total).toBeNull();
     expect(body.logs).toHaveLength(2);
   });
-});
+  /*
+   * Round 25 data new 2: Activity named a staff step by its email (or
+   * "system"), while the Merchants badge and the shop's timeline named the
+   * same row by the person's name (or "Automatic").
+   */
+  it("names each step as the Merchants badge and the shop's timeline do", async () => {
+    stub.state.tables.admin_activity_logs = [
+      { id: "l1", action: "support_reached_out", created_at: "2026-11-16T10:00:00Z", tenant_id: "s1", admin_user_id: "u-ali", admin_label: null, actor_email: "ali@x.co", tenant: null },
+      { id: "l2", action: "status_change", created_at: "2026-11-16T09:00:00Z", tenant_id: "s1", admin_user_id: null, admin_label: "system", actor_email: null, tenant: null },
+      { id: "l3", action: "status_change", created_at: "2026-11-16T08:00:00Z", tenant_id: "s1", admin_user_id: "u-noor", admin_label: null, actor_email: "noor@x.co", tenant: null },
+    ];
+    stub.state.tables.user_profiles = [
+      { id: "u-ali", display_name: " Ali ", email: "ali@x.co", avatar_url: null },
+      { id: "u-noor", display_name: null, email: "noor@x.co", avatar_url: null },
+    ];
 
+    const { logs } = await (await call()).json();
+
+    expect(logs.map((log: { actor: string }) => log.actor)).toEqual(["Ali", "Automatic", "noor@x.co"]);
+    expect(stub.callsTo("user_profiles.in")).toEqual([["id", ["u-ali", "u-noor"]]]);
+  });
+
+  it("fails the page when the names cannot be read, rather than name every step by email", async () => {
+    stub.state.tables.admin_activity_logs = [
+      { id: "l1", action: "support_reached_out", created_at: "2026-11-16T10:00:00Z", tenant_id: "s1", admin_user_id: "u-ali", admin_label: null, actor_email: "ali@x.co", tenant: null },
+    ];
+    stub.state.failing.add("user_profiles");
+
+    expect((await call()).status).toBe(500);
+  });
+
+  it("reads no names for a page with no staff steps", async () => {
+    await call();
+    expect(stub.tablesRead()).not.toContain("user_profiles");
+  });
+});

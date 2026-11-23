@@ -1,9 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminPermission } from "@/lib/api-auth";
-import { logAdminActivity } from "@/lib/activity-logger";
+import { logAdminActionOnce } from "@/lib/activity-logger";
 import { adminDisplayName } from "@/lib/support-admin-name";
-import { NeedsUsSchema, StartConversationSchema, supportRefusal } from "@/lib/support";
+import {
+  NeedsUsSchema,
+  StartConversationSchema,
+  SUPPORT_SEND_UNSURE,
+  SupportRequestIdSchema,
+  supportRefusal,
+  wasRepeat,
+} from "@/lib/support";
+
+const StartRequestSchema = StartConversationSchema.extend(SupportRequestIdSchema.shape);
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +44,7 @@ export async function POST(request: NextRequest) {
   const admin = await requireAdminPermission(request, "handle_support");
   if (admin instanceof NextResponse) return admin;
 
-  const parsed = StartConversationSchema.safeParse(await request.json().catch(() => null));
+  const parsed = StartRequestSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid input", details: parsed.error.flatten() }, { status: 400 });
   }
@@ -47,6 +56,7 @@ export async function POST(request: NextRequest) {
       p_admin_id: admin.user.id,
       p_admin_name: await adminDisplayName(supabase, admin),
       p_body: parsed.data.body,
+      p_request_id: parsed.data.request_id,
     });
 
     const refusal = supportRefusal(error);
@@ -54,16 +64,17 @@ export async function POST(request: NextRequest) {
     if (error) throw error;
 
     const result = data as { case_id: string; started: boolean };
-    await logAdminActivity({
-      adminUserId: admin.user.id,
-      actorEmail: admin.user.email,
-      tenantId: parsed.data.tenantId,
-      action: "support_reached_out",
-      details: { case_id: result.case_id, started: result.started },
-    });
+    // One row per send: a repeat writes it only if the first send's row is missing.
+    await logAdminActionOnce(
+      admin,
+      "support_reached_out",
+      { requestId: parsed.data.request_id, repeat: wasRepeat(data) },
+      { tenantId: parsed.data.tenantId, details: { case_id: result.case_id, started: result.started } },
+    );
     return NextResponse.json({ caseId: result.case_id, started: result.started });
   } catch (error) {
     console.error("Support write-first error:", error);
-    return NextResponse.json({ error: "Failed to send the message" }, { status: 500 });
+    // The message may have been written before its answer was lost; its id makes a retry safe.
+    return NextResponse.json({ error: SUPPORT_SEND_UNSURE }, { status: 502 });
   }
 }

@@ -24,8 +24,13 @@ export const SUPPORT_VOICE_MAX_BYTES = 2_097_152;
 /** The recorder stops itself here. */
 export const SUPPORT_VOICE_MAX_SECONDS = 120;
 
+/** The longest message the chat takes. */
+export const SUPPORT_MESSAGE_MAX = 4000;
+
 /** What the merchant was looking at when they wrote. Staff see it under the message. */
 export const supportContextSchema = z.object({
+    /** Sent from "Need a change?" in the header: a change or feature the shop wants built. */
+    kind: z.literal("change_request").optional(),
     /** Page path in the app, without the query string. */
     path: z.string().max(300).optional(),
     /** The order open on screen, if any. */
@@ -55,7 +60,7 @@ export type SupportNoReason = (typeof SUPPORT_NO_REASONS)[number];
 export const supportPostSchema = z.discriminatedUnion("action", [
     z.object({
         action: z.literal("send"),
-        body: z.string().trim().min(1).max(4000),
+        body: z.string().trim().min(1).max(SUPPORT_MESSAGE_MAX),
         context: supportContextSchema.default({}),
     }),
     z.object({ action: z.literal("rate"), caseId: z.string().uuid(), rating: z.enum(["yes", "no"]) }),
@@ -122,6 +127,8 @@ export interface SupportThread {
     contactPhone: string | null;
     /** What support has told every merchant right now ("Prime is slow today"), if anything. */
     notice: SupportNotice | null;
+    /** A wa.me link to our support WhatsApp that names the shop, or null while no number is set. */
+    whatsapp: string | null;
     /** A staff member opened the conversation after the merchant's last message, before replying. */
     seen: SupportSeen | null;
     /** The merchant just said No on the latest case and has not said why yet. */

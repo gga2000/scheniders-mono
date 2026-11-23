@@ -12,11 +12,13 @@ import { formatIQD } from "@/lib/format";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { hasPermission } from "@/lib/admin-permissions";
 import { LoadError } from "@/components/shared/load-error";
+import { StaleLine } from "@/components/shared/stale-line";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
-import { okOrLoadFailure } from "@/lib/load-failure";
+import { isStaffReason } from "@/lib/billing-lock-tools";
+import { okOrLoadFailure, pollEvery } from "@/lib/load-failure";
+import { failureOf, sendJson } from "@/components/merchants/detail/action-ui";
 import {
   REJECT_REASON_MAX,
-  REJECT_REASON_MIN,
   TOPUP_QUEUE_KEY,
   TOPUP_MAX_IQD,
   TOPUP_MIN_IQD,
@@ -89,18 +91,14 @@ function Decision({ row, canDecide, canAddMore }: { row: TopupQueueItem; canDeci
   const [confirming, setConfirming] = useState<"approve" | "refuse" | null>(null);
   const decide = useMutation({
     mutationFn: async (decision: TopupDecision) => {
-      const res = await adminFetch(`/api/wallet-topup-requests/${row.id}`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(decision),
-      });
+      // A dropped connection or a gateway's 502/504 says the decision may have
+      // been saved, as every other money screen does: "Decision failed: 504"
+      // invited a second press (round 22). A second press is safe: it answers 409.
+      const answer = await sendJson(`/api/wallet-topup-requests/${row.id}`, decision);
       // 409: it was decided first and nothing changed; say so, and the
       // refreshed list shows how it was decided.
-      if (res.status === 409) return alreadyDecidedText(await res.json().catch(() => null));
-      if (!res.ok) {
-        const body = await res.json().catch(() => null);
-        throw new Error(typeof body?.error === "string" ? body.error : `Decision failed: ${res.status}`);
-      }
+      if (answer.status === 409) return alreadyDecidedText(answer.data);
+      if (!answer.ok) throw failureOf(answer.status, answer.data, "The decision was not saved.");
       return null;
     },
     onSuccess: (alreadyDecided) => {
@@ -115,7 +113,8 @@ function Decision({ row, canDecide, canAddMore }: { row: TopupQueueItem; canDeci
   if (!canDecide) return <p className="text-xs text-foreground/70">Your login can see receipts but not decide them.</p>;
 
   const amountOk = Number.isInteger(amount) && amount >= TOPUP_MIN_IQD && amount <= TOPUP_MAX_IQD;
-  const reasonOk = reason.trim().length >= REJECT_REASON_MIN && reason.trim().length <= REJECT_REASON_MAX;
+  // The rule line under the box counts letters; so does the button (round 21, UX new 7).
+  const reasonOk = isStaffReason(reason) && reason.trim().length <= REJECT_REASON_MAX;
   const differs = amountOk && amount !== row.amount_iqd;
   const overAsked = amountOk && amount > row.amount_iqd && !canAddMore;
 
@@ -254,24 +253,26 @@ function PaymentRow({ row, canDecide, canAddMore }: { row: TopupQueueItem; canDe
  * «Payments to check» (Fermi B3): shops pay us by Qi or Zain Cash transfer
  * and upload the receipt. Staff check the money arrived, then add what came
  * in to the shop's wallet (a payment that covers the plan opens a locked shop
- * at once, a paused one once its pause lifts), or refuse and say why; the shop reads the reason and can send
- * again.
+ * at once, a paused one once its pause lifts, unless its renewal is off: then
+ * no money opens it, and its row says so), or refuse and say why; the shop
+ * reads the reason and can send again.
  */
 export default function PaymentsPage() {
   const { role } = useAdminAuth();
   const canDecide = role ? hasPermission(role, "check_payments") : false;
   const canAddMore = role ? hasPermission(role, "top_up_wallet") : false;
-  const { data, error, isLoading, isError, isFetching, refetch } = useQuery({
+  const pageRead = useQuery({
     queryKey: TOPUP_QUEUE_KEY,
     queryFn: async () => {
       const res = okOrLoadFailure(await adminFetch("/api/wallet-topup-requests"), "the payments");
       return responseSchema.parse(await res.json()).requests;
     },
-    refetchInterval: 60_000,
+    refetchInterval: pollEvery(60_000),
   });
+  const { data, error, isLoading, isError, isFetching, refetch } = pageRead;
 
   if (isError && !data) {
-    return <LoadError what="the payments" onRetry={() => refetch()} retrying={isFetching} error={error} />;
+    return <LoadError what="the payments" shows="list" onRetry={() => refetch()} retrying={isFetching} error={error} />;
   }
 
   return (
@@ -280,8 +281,10 @@ export default function PaymentsPage() {
         <h1 className="text-[22px] font-semibold text-foreground">Payments to check</h1>
         <p className="text-[13px] text-foreground/70 max-w-2xl">
           Shops paid us by transfer and sent the receipt. Check the money arrived, then add what came in. A payment that
-          covers the plan opens a locked shop at once, or a paused one once its pause lifts. Refuse with a reason and the shop can send again.
+          covers the plan opens a locked shop at once, or a paused one once its pause lifts, unless its renewal is off (its
+          row says so). Refuse with a reason and the shop can send again.
         </p>
+        <StaleLine read={pageRead} what="the payments" kept="list" className="mt-2" />
       </div>
 
       {isLoading ? (

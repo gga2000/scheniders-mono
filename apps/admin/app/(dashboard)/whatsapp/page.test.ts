@@ -36,7 +36,7 @@ const SHOP = {
   paused_at: null,
 };
 
-function render(): string {
+function render(refreshFailed = false): string {
   const month = monthOf(new Date());
   const client = new QueryClient();
   client.setQueryData(["admin", "whatsapp", month], {
@@ -46,6 +46,14 @@ function render(): string {
     shops: [SHOP],
     totals: { messages: 3, shopPaidIqd: 140, trialMessages: 0, trialCostIqd: 0, unpaid: 0, pausedShops: 0 },
   });
+  if (refreshFailed) {
+    // Read at 20:00 in Baghdad, then the 2-minute re-read failed.
+    client.getQueryCache().find({ queryKey: ["admin", "whatsapp", month] })?.setState({
+      status: "error",
+      error: new TypeError("Failed to fetch"),
+      dataUpdatedAt: Date.parse("2026-11-22T17:00:00Z"),
+    });
+  }
   return renderToStaticMarkup(createElement(QueryClientProvider, { client }, createElement(WhatsAppPage)));
 }
 
@@ -61,5 +69,14 @@ describe("WhatsApp shops", () => {
     expect(html).toContain(">Team<");
     expect(html).toContain(" · Paused<");
     expect(html).not.toMatch(/>(growth|limited)<| · limited</);
+  });
+
+  // Round 23 (UX new 2): a failed 2-minute re-read kept the last numbers with
+  // nothing to say they may be old.
+  it("keeps the numbers after a failed re-read and says how old they are", () => {
+    const html = render(true);
+    expect(html).toMatch(/Could not refresh the WhatsApp numbers\. These numbers are from (\w{3} \d{1,2} \w{3}, )?20:00\./);
+    expect(html).toContain(SHOP.name);
+    expect(render()).not.toContain("Could not refresh");
   });
 });

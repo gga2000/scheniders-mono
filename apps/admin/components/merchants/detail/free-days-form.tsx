@@ -5,7 +5,8 @@ import { useMutation } from "@tanstack/react-query";
 import { formatDayTime } from "@/lib/format";
 import { endAfterDays, shopActionKey, type FreeDaysKind } from "@/lib/shop-actions";
 import { isStaffReason } from "@/lib/billing-lock-tools";
-import type { RequestIds } from "@/lib/request-ids";
+import { RENEWAL_OFF_THEN_LOCKS } from "@/lib/billing-lock-label";
+import { requestKey, shopKey, type RequestIds } from "@/lib/request-ids";
 import { MAX_TRIAL_EXTENSION_DAYS } from "@/lib/trial-extension";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
 import { Choice, ConfirmButton, ErrorLine, FieldInput, PanelFields, PanelTitle, postJson, useWriteFailed, WillHappen } from "./action-ui";
@@ -20,6 +21,8 @@ interface FreeDaysFormProps {
   /** When the trial or the month ends today. */
   endsAt: string | null;
   locked: boolean;
+  /** Staff turned monthly renewal off: free days this month end in a lock, not a charge. */
+  renewalOff: boolean;
   /** Held by the page: one id per ask, so a retry after a lost answer, even from a reopened form, gives the days once. */
   requestIds: RequestIds;
   onDone: () => void;
@@ -30,7 +33,7 @@ interface FreeDaysFormProps {
  * a paying shop. The line above the button gives the new end, counted the way
  * the database counts it (from the end, or from now when the end has passed).
  */
-export function FreeDaysForm({ shopId, shopName, kind, endsAt, locked, requestIds, onDone }: FreeDaysFormProps) {
+export function FreeDaysForm({ shopId, shopName, kind, endsAt, locked, renewalOff, requestIds, onDone }: FreeDaysFormProps) {
   const [preset, setPreset] = useState<number | null>(PRESETS[kind][1] ?? null);
   const [typed, setTyped] = useState("");
   const [why, setWhy] = useState("");
@@ -48,7 +51,7 @@ export function FreeDaysForm({ shopId, shopName, kind, endsAt, locked, requestId
     mutationFn: (value: number) => {
       // Keyed by what is given, not the words: a reopened panel with the reason
       // typed anew sends the same ask with the same id, so the days come once.
-      const request_id = requestIds.idFor(`${shopId}:${kind}:${value}`);
+      const request_id = requestIds.idFor(requestKey(shopKey(shopId), kind, value));
       const url = kind === "trial" ? "extend-trial" : "extend-subscription";
       return postJson(`/api/merchants/${shopId}/${url}`, { days: value, reason: why.trim(), request_id });
     },
@@ -102,7 +105,7 @@ export function FreeDaysForm({ shopId, shopName, kind, endsAt, locked, requestId
             ? locked
               ? "The shop opens again and stays on trial."
               : "The shop stays on trial."
-            : "Nothing is charged; the next charge moves to that day."}
+            : monthWords(locked, renewalOff)}
         </WillHappen>
       )}
       <ErrorLine error={give.error} />
@@ -111,4 +114,15 @@ export function FreeDaysForm({ shopId, shopName, kind, endsAt, locked, requestId
       </ConfirmButton>
     </PanelFields>
   );
+}
+
+/**
+ * What free days this month do to the charge. admin_extend_subscription makes
+ * an unpaid month active again, so a locked shop opens now, with no charge.
+ * With renewal off no charge comes at the new end: the daily renewal after it
+ * locks the shop again (round 21, data new 1).
+ */
+function monthWords(locked: boolean, renewalOff: boolean): string {
+  const now = locked ? "The shop opens again now, with no charge" : "Nothing is charged";
+  return renewalOff ? `${now}. ${RENEWAL_OFF_THEN_LOCKS}` : `${now}; the next charge moves to that day.`;
 }

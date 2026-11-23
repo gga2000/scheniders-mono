@@ -8134,6 +8134,7 @@ export type Database = {
       tenant_public_stats: {
         Row: {
           completed_orders: number
+          counts_refreshed_at: string | null
           customers: number
           first_order_at: string | null
           governorates_served: number
@@ -8143,6 +8144,7 @@ export type Database = {
         }
         Insert: {
           completed_orders?: number
+          counts_refreshed_at?: string | null
           customers?: number
           first_order_at?: string | null
           governorates_served?: number
@@ -8152,6 +8154,7 @@ export type Database = {
         }
         Update: {
           completed_orders?: number
+          counts_refreshed_at?: string | null
           customers?: number
           first_order_at?: string | null
           governorates_served?: number

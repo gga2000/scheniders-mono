@@ -27,13 +27,19 @@ export interface MenuBadge {
  * "?" so a queue does not look empty exactly when its read is failing.
  * `counted` follows the number ("3 receipts to check"); `queue` names what
  * could not be read ("Could not check the receipts").
+ *
+ * With `errorUpdateCount` (how often the read failed), a count that never
+ * answered keeps its "?" while it is asked again: TanStack sets such a read
+ * back to pending, with no error, for every try, so the badge read 0 for each
+ * poll's try (round 25 UX new 1).
  */
 export function waitingBadge(
-  read: { data: number | undefined; isError: boolean },
+  read: { data: number | undefined; isError: boolean; errorUpdateCount?: number },
   counted: string,
   queue: string,
 ): MenuBadge {
-  if (read.isError) return { count: null, label: `Could not check ${queue}` };
+  const failedBefore = read.data === undefined && (read.errorUpdateCount ?? 0) > 0;
+  if (read.isError || failedBefore) return { count: null, label: `Could not check ${queue}` };
   const count = read.data ?? 0;
   return { count, label: `${count} ${counted}` };
 }
@@ -66,6 +72,8 @@ export const MENU: readonly MenuSection[] = [
       { label: "Trials", href: "/trials" },
       { label: "Paying shops", href: "/paying" },
       { label: "Shops at risk", href: "/health" },
+      // Fermi B12 item 6: about the fees we are owed, so admins only, as its read (api/delivered-rate-watch).
+      { label: "Delivered rate", href: "/delivered-rate", needs: "manage_subscription" },
     ],
   },
   {
@@ -98,6 +106,8 @@ export const MENU: readonly MenuSection[] = [
     links: [
       { label: "Our fees", href: "/revenue" },
       { label: "Orders by hour", href: "/usage" },
+      // Fermi B12 item 5: new shops, trials, first orders, paying and churn by Baghdad week.
+      { label: "Weekly numbers", href: "/weekly-numbers" },
     ],
   },
 ];

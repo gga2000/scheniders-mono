@@ -10,7 +10,7 @@
 import type { MerchantDetail } from "@/hooks/use-merchant-detail";
 import { formatDay, formatDayTime, formatIQD } from "@/lib/format";
 import { isSubscriptionRunning } from "@/lib/shop-actions";
-import { LOCK_REASON_WORDS, lockOpensWords } from "@/lib/billing-lock-label";
+import { LOCK_REASON_WORDS, lockOpensWords, renewalOffOpens } from "@/lib/billing-lock-label";
 
 export type ShopTone = "paying" | "trial" | "locked" | "paused" | "hold" | "ended" | "internal";
 
@@ -24,7 +24,10 @@ export interface ShopStatusLine {
   next: string | null;
 }
 
-type Detail = Pick<MerchantDetail, "tenant" | "wallet" | "subscription" | "billingLock" | "stoppedBy" | "paidPlan">;
+const HOUR_MS = 60 * 60 * 1000;
+
+type Detail = Pick<MerchantDetail, "tenant" | "wallet" | "subscription" | "billingLock" | "stoppedBy" | "paidPlan"> &
+  Partial<Pick<MerchantDetail, "canForceUnlock">>;
 
 /** "Wallet 4,000 IQD, short by 5,000 IQD." when the wallet cannot pay `price`. */
 function shortBy(balance: number, price: number): string {
@@ -65,7 +68,7 @@ export function shopStatusLine(detail: Detail, now: Date = new Date()): ShopStat
       sentence: `${reason}.${since}`,
       // A paused shop, or one whose renewal is off, does not open with money
       // alone; the shop pressing Pay still needs the month in its wallet.
-      next: `${lockOpensWords(billingLock.price_iqd, tenant.status === "limited", billingLock.renewal_off)}${shortBy(balance, billingLock.price_iqd)}`,
+      next: `${lockOpensWords(billingLock.price_iqd, tenant.status === "limited", billingLock.renewal_off, detail.canForceUnlock)}${shortBy(balance, billingLock.price_iqd)}`,
     };
   }
 
@@ -160,7 +163,7 @@ export function shopStatusLine(detail: Detail, now: Date = new Date()): ShopStat
       tone: "ended",
       label: "Not renewed",
       sentence: `${periodCharged ? "This month" : "Free time"} ended on ${formatDay(end, now)}. Renewal is off, so it is not charged.`,
-      next: `The shop locks with the next daily renewal, until it pays on its lock screen or staff turn renewal on.`,
+      next: `The shop locks with the next daily renewal, until ${renewalOffOpens(price > 0 ? price : null)}.`,
     };
   }
   if (ended && !periodCharged && subscription.status !== "past_due") {
@@ -174,8 +177,23 @@ export function shopStatusLine(detail: Detail, now: Date = new Date()): ShopStat
     };
   }
 
+  // Free days this month move the period's end past the paid month's own end
+  // (admin_extend_subscription moves only current_period_end): say the two
+  // apart, so "until when did I pay?" gets the paid month's end, as on the
+  // Paying page (round 21, data new 4).
+  // Free days are whole days; the renewal sets both ends the same way (start + 30 days).
+  const paidUntil =
+    paidPlan.month_end !== null && Date.parse(end) - Date.parse(paidPlan.month_end) >= HOUR_MS ? paidPlan.month_end : null;
+  const runs = paidUntil
+    ? `Paid until ${formatDay(paidUntil, now)}, then free days to ${formatDay(end, now)}.`
+    : `This month runs from ${formatDay(subscription.current_period_start, now)} to ${formatDay(end, now)}.`;
   if (renewalOff) {
-    return { tone: "paying", label: "Paying", sentence: "Paying. Renewal is off.", next: notRenewed(`The month ends on ${formatDay(end, now)}`) };
+    return {
+      tone: "paying",
+      label: "Paying",
+      sentence: paidUntil ? `Paying. Renewal is off. ${runs}` : "Paying. Renewal is off.",
+      next: notRenewed(`${paidUntil ? "This period" : "The month"} ends on ${formatDay(end, now)}`),
+    };
   }
   if (subscription.status === "past_due") {
     return {
@@ -198,7 +216,7 @@ export function shopStatusLine(detail: Detail, now: Date = new Date()): ShopStat
   return {
     tone: "paying",
     label: "Paying",
-    sentence: `Paying. This month runs from ${formatDay(subscription.current_period_start, now)} to ${formatDay(end, now)}.`,
+    sentence: `Paying. ${runs}`,
     next: price > 0 ? `Next charge ${formatIQD(price)} on ${formatDay(end, now)}.${shortByThen(balance, price)}` : null,
   };
 }

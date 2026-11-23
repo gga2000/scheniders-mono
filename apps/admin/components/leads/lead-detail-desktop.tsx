@@ -7,7 +7,8 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useLeadDetail } from "@/hooks/use-lead-detail";
 import { loadFailureKind } from "@/lib/load-failure";
-import { LoadFailedLine } from "@/components/shared/load-failed-line";
+import { LoadError } from "@/components/shared/load-error";
+import { StaleLine } from "@/components/shared/stale-line";
 import { LEAD_GONE } from "@/lib/lead-update";
 import {
   LEAD_STATUS_CONFIG,
@@ -28,8 +29,7 @@ import {
   Users,
   Target,
   Store,
-  AlertTriangle,
-} from "lucide-react";
+  } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { LeadActivityTimeline } from "@/components/leads/lead-activity-timeline";
 import { LeadFollowUpList } from "@/components/leads/lead-follow-up-list";
@@ -59,7 +59,8 @@ type Tab = (typeof tabs)[number];
 
 export function LeadDetailDesktop() {
   const { id } = useParams<{ id: string }>();
-  const { data, isLoading, isError, error, refetch, isFetching } = useLeadDetail(id);
+  const pageRead = useLeadDetail(id);
+  const { data, isLoading, isError, error, refetch, isFetching } = pageRead;
   const [activeTab, setActiveTab] = useState<Tab>("Overview");
   // "Add Note" in the ⋮ menu: opens Activity with its note box focused.
   const [noteRequest, setNoteRequest] = useState(0);
@@ -92,11 +93,7 @@ export function LeadDetailDesktop() {
           <ArrowLeft className="w-4 h-4" />
           Back to Leads
         </Link>
-        <div className="flex flex-col items-center justify-center py-20 text-[var(--ink-red)]">
-          <AlertTriangle className="w-12 h-12 mb-3" />
-          <p className="text-lg font-semibold">Failed to load lead</p>
-          <p className="text-sm text-[var(--muted)] mt-1">Something went wrong. Please try again later.</p>
-        </div>
+        <LoadError compact what="this lead" shows="page" error={error} onRetry={() => void refetch()} retrying={isFetching} />
       </div>
     );
   }
@@ -147,15 +144,7 @@ export function LeadDetailDesktop() {
         <ArrowLeft className="w-4 h-4" />
         Back to Leads
       </Link>
-      {isError && (
-        <LoadFailedLine
-          what="this lead again"
-          error={error}
-          gone={LEAD_GONE}
-          onRetry={() => void refetch()}
-          retrying={isFetching}
-        />
-      )}
+      <StaleLine read={pageRead} what="this lead" kept="page" gone={LEAD_GONE} />
 
       {/* ── Header Card ──────────────────────────────────────────── */}
       <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-5 md:p-6">

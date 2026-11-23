@@ -28,6 +28,20 @@ const renderBar = (props: Partial<Parameters<typeof StickyFilterBar>[0]> = {}) =
     return { setFilterDueToday };
 };
 
+describe("status row scroll snap", () => {
+    const row = () => document.querySelector<HTMLElement>('[data-guide="order-status-tabs"]');
+
+    it("does not snap on desktop, so a wheel step that sets scrollLeft stays where it lands", () => {
+        renderBar();
+        expect(row()?.className).not.toMatch(/\bsnap-x\b/);
+    });
+
+    it("still snaps on phones, where a finger swipes the row", () => {
+        renderBar({ isMobile: true });
+        expect(row()?.className).toMatch(/\bsnap-x\b/);
+    });
+});
+
 describe("counts hidden", () => {
     const products = Array.from({ length: 10 }, (_, i) => ({ name: `Product ${String.fromCharCode(65 + i)}`, count: 7 + i }));
 

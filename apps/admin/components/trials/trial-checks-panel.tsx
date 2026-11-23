@@ -9,6 +9,7 @@ import { okOrLoadFailure } from "@/lib/load-failure";
 import { toIntlIraqi } from "@/components/leads/lead-phone";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
 import { LoadError } from "@/components/shared/load-error";
+import { StaleLine } from "@/components/shared/stale-line";
 import {
   DECISION_LABEL,
   TRIAL_CHECKS_KEY,
@@ -20,8 +21,9 @@ import {
 } from "@/lib/trial-checks";
 import { isPausedTrial } from "@/lib/effective-status";
 import { formatDayTime } from "@/lib/format";
-import { createRequestIds } from "@/lib/request-ids";
+import { keptRequestIds, requestKey, shopKey } from "@/lib/request-ids";
 import { adminFetch } from "@/lib/admin-fetch";
+import { failureOf, sendJson } from "@/components/merchants/detail/action-ui";
 
 const GIVE_BACK_DAYS = [3, 7];
 
@@ -48,29 +50,23 @@ function DecideActions({ check }: { check: TrialCheck }) {
   const reasonOk = isStaffReason(reason);
   const queryClient = useQueryClient();
   const onTrial = check.store?.status === "trial";
-  // One id per ask: a retry after a lost answer or a double click gives the days once.
+  // One id per ask, kept in this browser: a retry after a lost answer, a
+  // double click or a reload gives the days once (round 21, structure new 7).
   // The decision the row showed goes too: if someone decided it since, the server refuses.
-  const [requestIds] = useState(createRequestIds);
+  const [requestIds] = useState(() => keptRequestIds("trial-check"));
 
   const mutation = useMutation({
     mutationFn: async (ask: DecisionAsk) => {
-      const days = ask.decision === "allow_trial" ? ask.days : "";
+      const days = ask.decision === "allow_trial" ? [ask.days] : [];
       const input: TrialCheckDecisionInput = {
         ...ask,
         reason: reason.trim(),
-        request_id: requestIds.idFor(`${check.tenant_id}:${ask.decision}:${days}`),
+        request_id: requestIds.idFor(requestKey(shopKey(check.tenant_id), ask.decision, ...days)),
         seen_decided_at: check.decided_at,
       };
-      const res = await adminFetch(`/api/trial-checks/${check.tenant_id}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(input),
-      });
-      if (!res.ok) {
-        const data: { error?: string } = await res.json();
-        throw new Error(data.error || "Failed to save the decision");
-      }
-      return res.json();
+      const answer = await sendJson(`/api/trial-checks/${check.tenant_id}`, input);
+      if (!answer.ok) throw failureOf(answer.status, answer.data, "Failed to save the decision");
+      return answer.data;
     },
     onSuccess: () => {
       requestIds.done();
@@ -214,7 +210,7 @@ function CheckRow({ check }: { check: TrialCheck }) {
  * mark it checked, each with a reason in the log. The merchant never sees why.
  */
 export function TrialChecksPanel() {
-  const { data, isLoading, isError, error, refetch, isFetching } = useQuery<TrialChecksResponse>({
+  const pageRead = useQuery<TrialChecksResponse>({
     queryKey: TRIAL_CHECKS_KEY,
     queryFn: async () => {
       const res = okOrLoadFailure(await adminFetch("/api/trial-checks"), "the trial checks");
@@ -222,17 +218,20 @@ export function TrialChecksPanel() {
     },
     staleTime: 30_000,
   });
+  const { data, isLoading, isError, error, refetch, isFetching } = pageRead;
 
   // A side card on the Trials page: its failure stays in the card, so the
   // trial list and "Ends today" below it, which did load, stay in view.
   if (isError && !data) {
     return (
       <section className="pastel-card">
-        <LoadError compact what="the one-trial checks" error={error} onRetry={() => refetch()} retrying={isFetching} />
+        <LoadError compact what="the one-trial checks" shows="list" error={error} onRetry={() => refetch()} retrying={isFetching} />
       </section>
     );
   }
-  if (isLoading || !data || data.checks.length === 0) return null;
+  // Kept from an earlier read, even an empty one: staff are told it may be
+  // out of date, since a store may have been flagged since.
+  if (isLoading || !data || (data.checks.length === 0 && !isError)) return null;
 
   const { summary } = data;
   return (
@@ -243,10 +242,13 @@ export function TrialChecksPanel() {
           One trial per merchant
         </h2>
         <p className="text-xs text-foreground-muted mt-1">
-          {summary.needs_look === 0
-            ? "Nothing new. Every flagged store has a decision."
-            : `${summary.needs_look} to look at: ${summary.no_trial} no trial, ${summary.review} to review`}
+          {data.checks.length === 0
+            ? "No store flagged."
+            : summary.needs_look === 0
+              ? "Nothing new. Every flagged store has a decision."
+              : `${summary.needs_look} to look at: ${summary.no_trial} no trial, ${summary.review} to review`}
         </p>
+        <StaleLine read={pageRead} what="the one-trial checks" kept="list" className="mt-2" />
       </div>
       <div className="divide-y divide-[var(--card-border)]">
         {data.checks.map((check) => (

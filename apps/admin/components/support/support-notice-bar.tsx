@@ -13,6 +13,7 @@ import {
   useSupportSpike,
 } from "@/hooks/use-support-cases";
 import { NOTICE_DURATIONS, formatDuration } from "@/lib/support";
+import { StaleLine } from "@/components/shared/stale-line";
 
 const MAX_LENGTH = 300;
 
@@ -119,6 +120,8 @@ export function SupportNoticeBar() {
   if (live) {
     const left = Math.max(0, (Date.parse(live.ends_at) - now) / 1000);
     return (
+      <div className="space-y-2">
+      <StaleLine read={notice} what="the merchant notice" kept="page" />
       <div className="flex items-start gap-3 rounded-2xl border border-amber-300/60 bg-amber-500/5 px-4 py-3 dark:border-amber-500/30 dark:bg-amber-500/10">
         <Megaphone className="mt-0.5 h-4 w-4 shrink-0 text-[var(--ink-amber)]" />
         <div className="min-w-0 flex-1">
@@ -151,6 +154,7 @@ export function SupportNoticeBar() {
           {end.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5" />}
           End now
         </button>
+      </div>
       </div>
     );
   }
@@ -191,11 +195,24 @@ export function SupportNoticeBar() {
 
   return (
     <div className="flex items-center justify-between gap-3 rounded-2xl border border-dashed border-[var(--card-border)] px-4 py-2.5">
-      <p className="text-sm text-foreground-muted">
-        {notice.isError
-          ? `Could not load the merchant notice. ${notice.error.message}`
-          : "Something affecting many shops? Tell every merchant at once in their Help chat."}
-      </p>
+      {/* With no notice read, the bar cannot say whether one is live; it never prints the error's own text. */}
+      {notice.isError && !notice.data ? (
+        <p className="text-sm text-[var(--ink-red)]">
+          Could not check for a live notice.{" "}
+          <button
+            type="button"
+            disabled={notice.isFetching}
+            onClick={() => void notice.refetch()}
+            className="font-semibold underline disabled:opacity-50"
+          >
+            Try again
+          </button>
+        </p>
+      ) : (
+        <p className="text-sm text-foreground-muted">
+          Something affecting many shops? Tell every merchant at once in their Help chat.
+        </p>
+      )}
       <button
         type="button"
         onClick={() => setWriting(true)}

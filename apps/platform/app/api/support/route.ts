@@ -3,6 +3,7 @@ import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { requireRequestCaller, type RequestCaller } from "@/lib/auth/require-request-caller";
 import { withFailureReport } from "@/lib/job-monitor";
 import { askWhy, seenMark } from "@/lib/support/seen";
+import { supportWhatsAppLink } from "@/lib/support/whatsapp";
 import { normalizeIraqiMobile } from "@scheniders/shared";
 import {
     SUPPORT_SHOT_BUCKET,
@@ -90,11 +91,22 @@ async function openCallBack(db: ServiceDb, tenantId: string): Promise<SupportCal
     return row?.phone ? { phone: row.phone, due_at: row.due_at, topic: row.topic === "setup" ? "setup" : null } : null;
 }
 
-/** The shop's contact mobile in 07XXXXXXXXX form, when it has a valid one. */
-async function shopPhone(db: ServiceDb, tenantId: string): Promise<string | null> {
-    const { data, error } = await db.from("tenants").select("contact_phone").eq("id", tenantId).maybeSingle();
-    if (error) throw new Error(`Shop phone read failed: ${error.message}`);
-    return normalizeIraqiMobile((data as { contact_phone: string | null } | null)?.contact_phone);
+type ShopRow = { contact_phone: string | null; business_name: string | null; display_id: number | null };
+
+/** The shop's name, number and contact mobile, as the chat shows them. */
+async function shopRow(db: ServiceDb, tenantId: string): Promise<ShopRow | null> {
+    const { data, error } = await db.from("tenants").select("contact_phone, business_name, display_id").eq("id", tenantId).maybeSingle();
+    if (error) throw new Error(`Shop read failed: ${error.message}`);
+    return (data as ShopRow | null) ?? null;
+}
+
+/** Our support WhatsApp number, as staff keep it in the console (Settings, "How shops pay us"). */
+async function supportWhatsAppNumber(db: ServiceDb): Promise<string | null> {
+    const { data, error } = await db.from("admin_settings").select("value").eq("key", "topup_payment").maybeSingle();
+    if (error) throw new Error(`Support WhatsApp read failed: ${error.message}`);
+    const value = (data as { value: unknown } | null)?.value;
+    if (typeof value !== "object" || value === null || !("support_whatsapp" in value)) return null;
+    return typeof value.support_whatsapp === "string" ? value.support_whatsapp : null;
 }
 
 /** The notice support posted for every merchant, while it runs (one at most). */
@@ -113,9 +125,13 @@ async function liveNotice(db: ServiceDb): Promise<SupportNotice | null> {
 async function shopSide(db: ServiceDb, tenantId: string) {
     const owner = await ownerName(db, tenantId);
     const callBack = await openCallBack(db, tenantId);
-    const contactPhone = await shopPhone(db, tenantId);
+    const shop = await shopRow(db, tenantId);
     const notice = await liveNotice(db);
-    return { owner, callBack, contactPhone, notice };
+    const whatsapp = supportWhatsAppLink(await supportWhatsAppNumber(db), {
+        name: shop?.business_name ?? null,
+        displayId: shop?.display_id ?? null,
+    });
+    return { owner, callBack, contactPhone: normalizeIraqiMobile(shop?.contact_phone), notice, whatsapp };
 }
 
 /**

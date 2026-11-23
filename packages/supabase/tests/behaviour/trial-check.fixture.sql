@@ -1,8 +1,9 @@
 -- Throwaway Postgres 16 database shaped like the live objects the one-trial
--- check touches (Fermi B5, 20261116103536_trial_one_per_merchant.sql):
--- tenants, subscriptions, tenant_members, admin_users, prime_connections,
--- admin_activity_logs, auth.users, and Supabase's Vault and pgcrypto
--- (extensions schema). Columns copied from the live project (2026-11-16);
+-- check touches (Fermi B5, 20261116103536_trial_one_per_merchant.sql and the
+-- customer overlap, 20261122163224): tenants, subscriptions, tenant_members,
+-- admin_users, prime_connections, admin_activity_logs, orders, auth.users,
+-- pg_cron's schedule, and Supabase's Vault and pgcrypto (extensions schema).
+-- Columns copied from the live project (2026-11-16, orders 2026-11-22);
 -- tables carry only what the functions read. vault.* is a plain-text stub of
 -- Supabase Vault. normalize_phone and tenant_billing_lock are created here so
 -- the migration's SQL functions compile; the newest definitions replace them.
@@ -105,6 +106,40 @@ CREATE TABLE public.admin_activity_logs (
     details jsonb NOT NULL DEFAULT '{}'::jsonb,
     created_at timestamptz NOT NULL DEFAULT now()
 );
+
+-- Only what the customer-overlap signal reads (20261122163224, and updated_at
+-- since only delivered orders count).
+CREATE TABLE public.orders (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id uuid NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
+    phone text NOT NULL,
+    status text NOT NULL DEFAULT 'new',
+    created_at timestamptz NOT NULL DEFAULT now(),
+    is_test boolean DEFAULT false,
+    guide_practice boolean NOT NULL DEFAULT false,
+    is_return boolean DEFAULT false,
+    is_replacement boolean DEFAULT false,
+    deleted_at timestamptz,
+    updated_at timestamptz DEFAULT now()
+);
+-- As live (trg_orders_updated_at): every change sets updated_at.
+CREATE FUNCTION public.set_orders_updated_at() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+    NEW.updated_at = now();
+    RETURN NEW;
+END;
+$$;
+CREATE TRIGGER trg_orders_updated_at BEFORE UPDATE ON public.orders
+    FOR EACH ROW EXECUTE FUNCTION public.set_orders_updated_at();
+
+-- pg_cron, as far as the migration's schedule call needs it.
+CREATE SCHEMA cron;
+CREATE TABLE cron.job (jobname text PRIMARY KEY, schedule text NOT NULL, command text NOT NULL);
+CREATE FUNCTION cron.schedule(job_name text, schedule text, command text) RETURNS bigint LANGUAGE sql AS $$
+    INSERT INTO cron.job VALUES (job_name, schedule, command)
+    ON CONFLICT (jobname) DO UPDATE SET schedule = excluded.schedule, command = excluded.command;
+    SELECT 1::bigint;
+$$;
 
 -- Replaced by the newest definitions (trial-check.functions).
 CREATE FUNCTION public.normalize_phone(input_phone text) RETURNS text LANGUAGE sql IMMUTABLE AS $$ SELECT input_phone $$;

@@ -22,6 +22,40 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
+const RUNNING = new Set(["trialing", "active"]);
+const SHOP_OPEN = new Set(["trial", "active"]);
+
+/**
+ * When the shop's month ends, and "Renews" only when it will (round 21, data
+ * new 2). The row said "Renews" for any end: an unpaid ended trial, the
+ * internal plan, a shop with renewal off (which locks instead). The renewal
+ * charges a trialing or active month with renewal on, on an open shop. A
+ * paused, held or cancelled shop is not charged while it is stopped
+ * (renew_subscription_core answers on_hold), so its end is only a date until
+ * it has passed. The internal plan never renews, and a subscription that
+ * ended has no month.
+ */
+function MonthEndRow({ shop, now }: { shop: ShopCard; now: number }) {
+  const sub = shop.subscription;
+  const end = sub?.current_period_end;
+  if (!sub || !end || sub.plan === "internal" || shop.tenant.plan === "internal") return null;
+  const running = RUNNING.has(sub.status);
+  if (!running && sub.status !== "past_due") return null;
+  // The demo store renews each month at no charge, whatever the switch says (B13).
+  if (running && shop.tenant.is_demo) return <Row label="Renews" value={`${formatDay(end)}, never charged (demo store)`} />;
+  const ended = Date.parse(end) <= now;
+  const stopped = !SHOP_OPEN.has(shop.tenant.status);
+  if (running && sub.auto_renew && !stopped) return <Row label="Renews" value={formatDay(end)} />;
+  if (running && sub.auto_renew && !ended) return <Row label="Ends" value={formatDay(end)} />;
+  const why =
+    sub.status === "past_due"
+      ? "unpaid"
+      : !sub.auto_renew
+        ? "not renewed (renewal off)"
+        : `not charged while ${statusLabel(shop.tenant.status).toLowerCase()}`;
+  return <Row label={ended ? "Ended" : "Ends"} value={`${formatDay(end)}, ${why}`} />;
+}
+
 /** Who is writing to us: the facts staff need before they answer. */
 export function SupportShopCard({ shop, caseId }: { shop: ShopCard; caseId: string }) {
   const { tenant } = shop;
@@ -63,7 +97,7 @@ export function SupportShopCard({ shop, caseId }: { shop: ShopCard; caseId: stri
         {effectiveStatus(tenant.status, tenant.restrictions) === "trial" && tenant.trial_ends_at && (
           <Row label="Trial ends" value={formatDay(tenant.trial_ends_at)} />
         )}
-        {shop.subscriptionEndsAt && <Row label="Renews" value={formatDay(shop.subscriptionEndsAt)} />}
+        <MonthEndRow shop={shop} now={now} />
         <Row
           label="Wallet"
           value={shop.walletBalanceIqd === null ? "No wallet" : formatIQD(shop.walletBalanceIqd)}

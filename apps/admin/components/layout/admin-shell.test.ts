@@ -1,6 +1,8 @@
+// @vitest-environment jsdom
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 /*
  * The page's room for the fixed menu started at 0 px and slid to 272 px for
@@ -8,15 +10,20 @@ import { describe, expect, it, vi } from "vitest";
  * shift 0.17 to 0.33 on every page). The server's page must already have it.
  */
 
-const { Nothing } = vi.hoisted(() => ({
+const { Nothing, signOut, push } = vi.hoisted(() => ({
   Nothing: () => null,
+  signOut: vi.fn(async () => undefined),
+  push: vi.fn(),
 }));
 
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }), usePathname: () => "/merchants" }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push }), usePathname: () => "/merchants" }));
 vi.mock("@/hooks/use-admin-auth", () => ({
-  useAdminAuth: () => ({ user: null, profile: null, role: null, signOut: vi.fn() }),
+  useAdminAuth: () => ({ user: null, profile: null, role: null, signOut }),
 }));
-vi.mock("./admin-sidebar", () => ({ AdminSidebar: Nothing }));
+// The menu's own Sign out button, so the shell's answer to it can be pressed.
+vi.mock("./admin-sidebar", () => ({
+  AdminSidebar: ({ onSignOut }: { onSignOut: () => void }) => createElement("button", { type: "button", onClick: onSignOut }, "Sign out"),
+}));
 vi.mock("./admin-topbar", () => ({ AdminTopbar: Nothing }));
 vi.mock("@/components/shared/command-palette", () => ({
   CommandPalette: Nothing,
@@ -25,6 +32,7 @@ vi.mock("@/components/shared/command-palette", () => ({
 vi.mock("@/components/merchants/watchlist-sync", () => ({ WatchlistSync: Nothing }));
 
 const { AdminShell } = await import("./admin-shell");
+const { holdLeaveGuard, SIGN_OUT_QUESTION } = await import("@/hooks/use-leave-guard");
 
 describe("AdminShell first paint", () => {
   const html = renderToStaticMarkup(createElement(AdminShell, null, "page"));
@@ -44,5 +52,43 @@ describe("AdminShell first paint", () => {
   it("shows the page at once, with no fade", () => {
     expect(html).toContain("page");
     expect(html).not.toMatch(/opacity:\s*0/);
+  });
+});
+
+/*
+ * Round 25 (structure new 6): Sign out asks first while a product import
+ * holds the tab (#1626), but only `mayStopHeldWork` was tested, so deleting
+ * the shell's call to it passed every suite.
+ */
+describe("AdminShell Sign out while an import runs in the tab", () => {
+  afterEach(() => {
+    cleanup();
+    signOut.mockClear();
+    push.mockClear();
+    vi.restoreAllMocks();
+  });
+
+  it("asks first, and Cancel signs nothing out", async () => {
+    const release = holdLeaveGuard();
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    render(createElement(AdminShell, null, "page"));
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Sign out" })));
+    expect(confirm).toHaveBeenCalledWith(SIGN_OUT_QUESTION);
+    expect(signOut).not.toHaveBeenCalled();
+    expect(push).not.toHaveBeenCalled();
+
+    confirm.mockReturnValue(true);
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Sign out" })));
+    expect(signOut).toHaveBeenCalledTimes(1);
+    expect(push).toHaveBeenCalledWith("/login");
+    release();
+  });
+
+  it("signs out at once when nothing holds the tab", async () => {
+    const confirm = vi.spyOn(window, "confirm");
+    render(createElement(AdminShell, null, "page"));
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Sign out" })));
+    expect(confirm).not.toHaveBeenCalled();
+    expect(signOut).toHaveBeenCalledTimes(1);
   });
 });

@@ -5,7 +5,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { getMerchantCode } from "@scheniders/shared";
 import { useMerchantDetail } from "@/hooks/use-merchant-detail";
-import { ArrowLeft, ExternalLink, UserCircle, Loader2 } from "lucide-react";
+import { ArrowLeft, ExternalLink, FileSpreadsheet, UserCircle, Loader2 } from "lucide-react";
 import { storeAddress } from "@scheniders/shared/store-address";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { hasPermission } from "@/lib/admin-permissions";
@@ -27,6 +27,7 @@ import { trialPayment } from "@/lib/shop-status-choice";
 import { planLabel, type TenantRestrictions } from "@/types/admin";
 import { CopyableText } from "@/components/shared/copyable-text";
 import { LoadError } from "@/components/shared/load-error";
+import { StaleLine } from "@/components/shared/stale-line";
 import { loadFailureKind } from "@/lib/load-failure";
 import { inkOn } from "@/lib/ink-on";
 import { usePageHeader } from "@/store/use-page-header";
@@ -52,7 +53,8 @@ export default function MerchantDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { data, isLoading, isError, error, refetch, isFetching } = useMerchantDetail(id);
+  const pageRead = useMerchantDetail(id);
+  const { data, isLoading, isError, error, refetch, isFetching } = pageRead;
   const [activeTab, setActiveTab] = useState<Tab>(() => tabFrom(searchParams.get("tab")));
   // "Top Up Wallet" or "Extend Trial" from a card's menu, or "Top Up" on Shops at risk.
   const [startForm] = useState(() => shopFormFrom(searchParams.get("action")));
@@ -61,6 +63,8 @@ export default function MerchantDetailPage() {
   // "View as merchant" opens the merchant's own app; the server only allows it with handle_support.
   const { role } = useAdminAuth();
   const canViewAsMerchant = role ? hasPermission(role, "handle_support") : false;
+  // The setup service adds a shop's products from the merchant's file (Fermi B12 item 7).
+  const canImportProducts = role ? hasPermission(role, "import_products") : false;
 
   // The browser tab names the shop, so ten open shops can be told apart.
   const setTab = usePageHeader((s) => s.setTab);
@@ -93,7 +97,7 @@ export default function MerchantDetailPage() {
   // "Not found" is one answer among several: a failed read or a login that may
   // not open the shop must not tell staff the shop does not exist.
   if (isError && !data && loadFailureKind(error) !== "missing") {
-    return <LoadError what="this shop" error={error} onRetry={() => refetch()} retrying={isFetching} />;
+    return <LoadError what="this shop" shows="page" error={error} onRetry={() => refetch()} retrying={isFetching} />;
   }
 
   if (!data) {
@@ -127,6 +131,8 @@ export default function MerchantDetailPage() {
         <ArrowLeft className="w-4 h-4" />
         Back to Merchants
       </Link>
+
+      <StaleLine read={pageRead} what="this shop" kept="page" gone="This shop is no longer there." />
 
       {/* Prospect Banner */}
       {tenant.is_prospect && (
@@ -188,6 +194,15 @@ export default function MerchantDetailPage() {
               Open store
             </a>
             {canViewAsMerchant && <SupportViewButton tenantId={tenant.id} />}
+            {canImportProducts && (
+              <Link
+                href={`/merchants/${tenant.id}/import`}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--card-border)] px-3 py-1.5 text-[13px] font-semibold text-foreground transition-colors hover:bg-foreground/[0.05]"
+              >
+                <FileSpreadsheet className="h-3.5 w-3.5" aria-hidden />
+                Import products
+              </Link>
+            )}
           </div>
         </div>
         <div className="mt-4 border-t border-[var(--card-border)] pt-4">
@@ -215,6 +230,7 @@ export default function MerchantDetailPage() {
           subscription?.auto_renew === false && !tenant.is_demo,
         )}
         trialEndsAt={tenant.trial_ends_at}
+        renewalOff={subscription?.auto_renew === false}
         onGiveOrders={() => {
           setActiveTab("Overview");
           // The tab switch has rendered by the next frame, so the lock card is there.
@@ -286,6 +302,7 @@ export default function MerchantDetailPage() {
           subscription={subscription}
           billingLock={data.billingLock}
           canForceUnlock={data.canForceUnlock}
+          walletIqd={wallet?.balance_iqd ?? 0}
         />
       )}
       {activeTab === "Overview" && <RecentOrdersSection merchantId={tenant.id} limit={5} />}

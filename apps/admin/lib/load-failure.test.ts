@@ -1,5 +1,15 @@
-import { describe, expect, it } from "vitest";
-import { LOAD_RETRIES, LoadFailure, countLine, loadFailureKind, okOrLoadFailure, shouldRetryLoad } from "./load-failure";
+// @vitest-environment jsdom
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { QueryClient, QueryObserver } from "@tanstack/react-query";
+import {
+  LOAD_RETRIES,
+  LoadFailure,
+  countLine,
+  loadFailureKind,
+  okOrLoadFailure,
+  pollEvery,
+  shouldRetryLoad,
+} from "./load-failure";
 
 /*
  * Round 1 of the staff console audit: a support login opening Billing got a
@@ -77,5 +87,69 @@ describe("countLine", () => {
   it("says the read failed, not the count left from an earlier read", () => {
     expect(countLine({ count: undefined, isError: true }, words)).toBe("failed");
     expect(countLine({ count: 7, isError: true }, words)).toBe("failed");
+  });
+});
+
+/*
+ * Round 25 UX new 1: TanStack sets a read that never answered back to
+ * pending, with no error, for every try. So a polled part that never loaded
+ * swapped its failure line and Try again for a spinner on every poll.
+ */
+describe("a polled read that never answered", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  /** Asks of one read over `ms`, its answers given by `answers` (true = it answers). */
+  async function asksOver(ms: number, interval: number | ReturnType<typeof pollEvery>, answers: boolean[]) {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    let asked = 0;
+    const observer = new QueryObserver(client, {
+      queryKey: ["polled"],
+      queryFn: async () => {
+        const ok = answers[Math.min(asked, answers.length - 1)];
+        asked += 1;
+        if (!ok) throw new LoadFailure(502, "the read");
+        return asked;
+      },
+      refetchInterval: interval,
+    });
+    const stop = observer.subscribe(() => undefined);
+    await vi.advanceTimersByTimeAsync(ms);
+    stop();
+    client.clear();
+    return { asked };
+  }
+
+  it("is not asked again on its own once it failed, so its failure line stays", async () => {
+    // A plain interval asked again every second: a spinner each time.
+    expect((await asksOver(5_500, 1_000, [false])).asked).toBe(6);
+    expect((await asksOver(5_500, pollEvery(1_000), [false])).asked).toBe(1);
+  });
+
+  it("keeps polling once it holds an answer, through a failed refresh", async () => {
+    // Answers, then fails: the conversation and the inbox keep looking for new messages.
+    expect((await asksOver(5_500, pollEvery(1_000), [true, false])).asked).toBe(6);
+  });
+
+  it("polls again as soon as Try again brings an answer", async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    let asked = 0;
+    const observer = new QueryObserver(client, {
+      queryKey: ["polled"],
+      queryFn: async () => {
+        asked += 1;
+        if (asked === 1) throw new LoadFailure(502, "the read");
+        return asked;
+      },
+      refetchInterval: pollEvery(1_000),
+    });
+    const stop = observer.subscribe(() => undefined);
+    await vi.advanceTimersByTimeAsync(3_500);
+    expect(asked).toBe(1);
+    await observer.refetch();
+    await vi.advanceTimersByTimeAsync(3_500);
+    expect(asked).toBe(5);
+    stop();
+    client.clear();
   });
 });

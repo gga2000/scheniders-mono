@@ -20,7 +20,13 @@
 --   a month that ends with renewal off is not charged and locks the shop like
 --   an unpaid month; no credit or job charges it, the shop paying from its
 --   lock screen turns renewal back on and pays (one log row), and the demo
---   store renews at no charge whatever the switch says (round 20).
+--   store renews at no charge whatever the switch says (round 20);
+--   the same holds at a trial's end: the trial stays locked, never active,
+--   until the shop pays its first month, and the demo store's ended trial
+--   stays on the hourly list (round 21);
+--   the shop paying from its lock screen charges once against a second
+--   writer: staff turning renewal off wait and win, the hourly job answers
+--   busy without waiting, a second press finds the shop open (round 21).
 
 \set ON_ERROR_STOP 1
 
@@ -1114,3 +1120,220 @@ SELECT pg_temp.check(
 SELECT pg_temp.check(
   (public.billing_lock_snapshot('20000000-0000-4000-8000-0000000000d3'))->>'renewal_off' = 'false',
   'the demo store''s snapshot never says renewal is off');
+
+-- 22a. Renewal off at a trial's end (staff console audit round 21). Staff can
+--      turn renewal off on a trial. When the trial ends, nothing is charged:
+--      the subscription goes past_due and the shop keeps its trial lock
+--      (trial_ended), never active, never suspended. The hourly job leaves
+--      it, settling charges nothing, and money in does not pay it. The shop
+--      paying from its lock screen turns renewal back on and pays its first
+--      month. The demo store's ended trial stays on the hourly list: it
+--      renews at no charge whatever the switch says.
+--      e1 has the month's money; e2 is the demo store.
+INSERT INTO public.tenants (id, plan, status, trial_ends_at, is_demo) VALUES
+  ('20000000-0000-4000-8000-0000000000e1', 'starter', 'trial', now() - interval '1 hour', false),
+  ('20000000-0000-4000-8000-0000000000e2', 'starter', 'trial', now() - interval '1 hour', true);
+INSERT INTO public.wallet (tenant_id, balance_iqd) VALUES
+  ('20000000-0000-4000-8000-0000000000e1', 50000),
+  ('20000000-0000-4000-8000-0000000000e2', 0);
+INSERT INTO public.subscriptions (tenant_id, plan, status, current_period_start, current_period_end, auto_renew, created_at)
+SELECT t.id, 'starter', 'trialing', t.trial_ends_at - interval '7 days', t.trial_ends_at, false, t.trial_ends_at - interval '7 days'
+  FROM public.tenants t
+ WHERE t.id IN ('20000000-0000-4000-8000-0000000000e1', '20000000-0000-4000-8000-0000000000e2');
+-- The daily renewal of the shop's newest subscription, at the end it reads now.
+CREATE FUNCTION pg_temp.renew_latest(p_tenant text) RETURNS jsonb LANGUAGE sql AS $$
+  SELECT public.renew_subscription_core(s.id, s.current_period_end)
+    FROM public.subscriptions s WHERE s.tenant_id = p_tenant::uuid ORDER BY s.created_at DESC LIMIT 1;
+$$;
+
+SELECT pg_temp.check(
+  pg_temp.lock('20000000-0000-4000-8000-0000000000e1') = 'trial_ended'
+  AND pg_temp.lock('20000000-0000-4000-8000-0000000000e2') = 'trial_ended',
+  'renewal off at a trial''s end: the ended trials are locked before the renewal runs');
+SELECT pg_temp.check(
+  NOT EXISTS (SELECT 1 FROM public.billing_lock_due() WHERE tenant_id = '20000000-0000-4000-8000-0000000000e1')
+  AND EXISTS (SELECT 1 FROM public.billing_lock_due() WHERE tenant_id = '20000000-0000-4000-8000-0000000000e2'),
+  'the hourly job leaves an ended trial with renewal off alone, but not the demo store''s');
+
+-- The daily renewal: not charged, the trial lock stays.
+SELECT pg_temp.check(
+  (pg_temp.renew_latest('20000000-0000-4000-8000-0000000000e1'))->>'outcome' = 'not_renewed',
+  'renewal off at a trial''s end: the renewal answers not_renewed');
+SELECT pg_temp.check(
+  pg_temp.debits('20000000-0000-4000-8000-0000000000e1') = 0
+  AND pg_temp.balance('20000000-0000-4000-8000-0000000000e1') = 50000
+  AND pg_temp.sub_status('20000000-0000-4000-8000-0000000000e1') = 'past_due'
+  AND pg_temp.shop_status('20000000-0000-4000-8000-0000000000e1') = 'trial'
+  AND pg_temp.lock('20000000-0000-4000-8000-0000000000e1') = 'trial_ended',
+  'renewal off at a trial''s end: nothing is charged, the trial stays locked, never active or suspended');
+SELECT pg_temp.check(
+  NOT EXISTS (SELECT 1 FROM public.billing_lock_due() WHERE tenant_id = '20000000-0000-4000-8000-0000000000e1'),
+  'the hourly job still leaves it alone once the month is past_due, though the wallet holds it');
+SELECT pg_temp.check(
+  (public.settle_billing_lock('20000000-0000-4000-8000-0000000000e1', true))->>'outcome' = 'not_renewed'
+  AND (public.settle_billing_lock('20000000-0000-4000-8000-0000000000e1', false))->>'outcome' = 'not_renewed'
+  AND pg_temp.debits('20000000-0000-4000-8000-0000000000e1') = 0
+  AND pg_temp.sub_status('20000000-0000-4000-8000-0000000000e1') = 'past_due',
+  'settling an ended trial with renewal off charges nothing');
+SELECT public.admin_topup_wallet('20000000-0000-4000-8000-0000000000e1', 9000, 'receipt', NULL, 'manual', 'off-trial-1');
+SELECT pg_temp.check(
+  pg_temp.balance('20000000-0000-4000-8000-0000000000e1') = 59000
+  AND pg_temp.debits('20000000-0000-4000-8000-0000000000e1') = 0
+  AND pg_temp.lock('20000000-0000-4000-8000-0000000000e1') = 'trial_ended',
+  'money in does not buy a first month staff stopped');
+SELECT pg_temp.check(
+  (SELECT (s->>'locked')::boolean AND s->>'reason' = 'trial_ended' AND (s->>'renewal_off')::boolean
+     FROM public.billing_lock_snapshot('20000000-0000-4000-8000-0000000000e1') s),
+  'the snapshot says the trial ended and renewal is off');
+
+-- The shop pays from its lock screen: renewal back on, the first month paid
+-- from the trial's end (less than a day ago).
+SELECT set_config('test.uid', '30000000-0000-4000-8000-0000000000e1', false);
+SELECT set_config('test.admin_of', '20000000-0000-4000-8000-0000000000e1', false);
+SELECT pg_temp.check(
+  (public.pay_billing_lock('20000000-0000-4000-8000-0000000000e1'))->>'outcome' = 'renewed',
+  'the shop pays its first month from the lock screen');
+SELECT pg_temp.check(
+  pg_temp.auto_renew('20000000-0000-4000-8000-0000000000e1')
+  AND pg_temp.lock('20000000-0000-4000-8000-0000000000e1') IS NULL
+  AND pg_temp.sub_status('20000000-0000-4000-8000-0000000000e1') = 'active'
+  AND pg_temp.shop_status('20000000-0000-4000-8000-0000000000e1') = 'active'
+  AND pg_temp.balance('20000000-0000-4000-8000-0000000000e1') = 50000
+  AND pg_temp.debits('20000000-0000-4000-8000-0000000000e1') = 1
+  AND pg_temp.logs('20000000-0000-4000-8000-0000000000e1', 'auto_renew_toggle') = 1,
+  'paying turns renewal back on, charges the first month once and opens the shop as paying');
+SELECT pg_temp.check(
+  (SELECT s.current_period_start = date_trunc('second', t.trial_ends_at)
+     FROM public.subscriptions s JOIN public.tenants t ON t.id = s.tenant_id
+    WHERE s.tenant_id = '20000000-0000-4000-8000-0000000000e1'),
+  'the first month runs from the trial''s end');
+SELECT set_config('test.uid', '', false);
+SELECT set_config('test.admin_of', '', false);
+
+-- The demo store: the hourly job renews its ended trial at no charge.
+SELECT pg_temp.check(
+  (SELECT r->>'outcome' = 'renewed' AND (r->>'demo')::boolean AND (r->>'charged')::numeric = 0
+     FROM public.settle_billing_lock('20000000-0000-4000-8000-0000000000e2', false) r)
+  AND pg_temp.lock('20000000-0000-4000-8000-0000000000e2') IS NULL
+  AND pg_temp.debits('20000000-0000-4000-8000-0000000000e2') = 0,
+  'the demo store''s ended trial renews at no charge with renewal off');
+
+-- 22b. Paying from the lock screen against a second writer (staff console
+--      audit round 21). The shop's press holds the shop's billing lock while
+--      it pays; a second writer at the same moment cannot charge twice:
+--        f1: staff turn renewal off. They wait, then win: the month the shop
+--            paid stays paid, and renewal is off for the next one.
+--        f2: the hourly job answers busy and changes nothing.
+--        f3: a second press (another tab) waits, then finds the shop open.
+--      Each shop has exactly one month in its wallet. Session A is the
+--      shop's press; session B the second writer. The rows are committed so
+--      both sessions see them; the database is thrown away.
+INSERT INTO public.tenants (id, plan, status) VALUES
+  ('20000000-0000-4000-8000-0000000000f1', 'starter', 'active'),
+  ('20000000-0000-4000-8000-0000000000f2', 'starter', 'active'),
+  ('20000000-0000-4000-8000-0000000000f3', 'starter', 'active');
+INSERT INTO public.wallet (tenant_id, balance_iqd) VALUES
+  ('20000000-0000-4000-8000-0000000000f1', 9000),
+  ('20000000-0000-4000-8000-0000000000f2', 9000),
+  ('20000000-0000-4000-8000-0000000000f3', 9000);
+INSERT INTO public.subscriptions (tenant_id, plan, status, current_period_start, current_period_end, auto_renew, created_at) VALUES
+  ('20000000-0000-4000-8000-0000000000f1', 'starter', 'past_due', now() - interval '30 days 1 hour', now() - interval '1 hour', false, now() - interval '60 days'),
+  ('20000000-0000-4000-8000-0000000000f2', 'starter', 'past_due', now() - interval '30 days 1 hour', now() - interval '1 hour', true, now() - interval '60 days'),
+  ('20000000-0000-4000-8000-0000000000f3', 'starter', 'past_due', now() - interval '30 days 1 hour', now() - interval '1 hour', false, now() - interval '60 days');
+-- Session B waits on session A: it holds a lock it has not been granted.
+CREATE FUNCTION pg_temp.wait_for(p_pid integer, p_label text) RETURNS void LANGUAGE plpgsql AS $$
+DECLARE _tries integer := 0;
+BEGIN
+  WHILE NOT EXISTS (SELECT 1 FROM pg_locks WHERE pid = p_pid AND NOT granted) LOOP
+    _tries := _tries + 1;
+    IF _tries > 200 THEN RAISE EXCEPTION 'FAIL %: session B never waited on session A', p_label; END IF;
+    PERFORM pg_sleep(0.05);
+  END LOOP;
+END $$;
+
+CREATE EXTENSION IF NOT EXISTS dblink;
+
+DO $$
+DECLARE
+    _conn constant text := format('dbname=%s user=%s port=%s host=%s', current_database(), current_user,
+        current_setting('port'), split_part(current_setting('unix_socket_directories'), ',', 1));
+    _pay constant text := 'SELECT public.pay_billing_lock(%L)::text';
+    _b_pid integer;
+    _a jsonb;
+    _b jsonb;
+BEGIN
+    PERFORM dblink_connect('a', _conn);
+    PERFORM dblink_connect('b', _conn);
+    SELECT pid INTO _b_pid FROM dblink('b', 'SELECT pg_backend_pid()') AS t(pid integer);
+    PERFORM dblink_exec('a', 'SET test.uid = ''30000000-0000-4000-8000-0000000000f0''');
+
+    -- f1: staff turn renewal off while the shop pays.
+    PERFORM dblink_exec('a', 'SET test.admin_of = ''20000000-0000-4000-8000-0000000000f1''');
+    PERFORM dblink_exec('a', 'BEGIN');
+    SELECT r::jsonb INTO _a FROM dblink('a', format(_pay, '20000000-0000-4000-8000-0000000000f1')) AS t(r text);
+    PERFORM dblink_send_query('b', 'SELECT public.admin_update_shop(_tenant_id => ''20000000-0000-4000-8000-0000000000f1'', '
+        '_auto_renew => false, _actor_email => ''staff@example.test'', _reason => ''Owner asked to stop renewing'')::text');
+    PERFORM pg_temp.wait_for(_b_pid, 'staff switch');
+    PERFORM dblink_exec('a', 'COMMIT');
+    SELECT r::jsonb INTO _b FROM dblink_get_result('b') AS t(r text);
+    PERFORM * FROM dblink_get_result('b') AS t(r text);
+    PERFORM pg_temp.check(_a->>'outcome' = 'renewed', 'two writers, f1: the shop''s press pays the month');
+    PERFORM pg_temp.check((_b->>'success')::boolean AND _b->'changed' ? 'auto_renew_toggle',
+        'two writers, f1: staff''s switch waits, then turns renewal off');
+    PERFORM pg_temp.check(
+        pg_temp.debits('20000000-0000-4000-8000-0000000000f1') = 1
+        AND pg_temp.balance('20000000-0000-4000-8000-0000000000f1') = 0
+        AND pg_temp.sub_status('20000000-0000-4000-8000-0000000000f1') = 'active'
+        AND pg_temp.lock('20000000-0000-4000-8000-0000000000f1') IS NULL
+        AND NOT pg_temp.auto_renew('20000000-0000-4000-8000-0000000000f1'),
+        'two writers, f1: one charge, the shop open for the month it paid, and staff''s switch stands');
+    PERFORM pg_temp.check(
+        (SELECT count(*) FILTER (WHERE admin_label = 'The shop' AND details->>'auto_renew' = 'true' AND details->>'source' = 'shop_paid') = 1
+            AND count(*) FILTER (WHERE actor_email = 'staff@example.test' AND details->>'auto_renew' = 'false') = 1
+            AND count(*) = 2
+           FROM public.admin_activity_logs
+          WHERE tenant_id = '20000000-0000-4000-8000-0000000000f1' AND action = 'auto_renew_toggle'),
+        'two writers, f1: the log says the shop turned renewal on by paying, then staff turned it off');
+
+    -- f2: the hourly job while the shop pays. It must not wait: if it did,
+    -- B would wait on A here, and lock_timeout ends that wait with an error.
+    PERFORM dblink_exec('a', 'SET test.admin_of = ''20000000-0000-4000-8000-0000000000f2''');
+    PERFORM dblink_exec('b', 'SET lock_timeout = ''5s''');
+    PERFORM dblink_exec('a', 'BEGIN');
+    SELECT r::jsonb INTO _a FROM dblink('a', format(_pay, '20000000-0000-4000-8000-0000000000f2')) AS t(r text);
+    SELECT r::jsonb INTO _b FROM dblink('b',
+        'SELECT public.settle_billing_lock(''20000000-0000-4000-8000-0000000000f2'', false)::text') AS t(r text);
+    PERFORM dblink_exec('a', 'COMMIT');
+    PERFORM dblink_exec('b', 'RESET lock_timeout');
+    PERFORM pg_temp.check(_a->>'outcome' = 'renewed', 'two writers, f2: the shop''s press pays the month');
+    PERFORM pg_temp.check(_b->>'outcome' = 'busy', 'two writers, f2: the hourly job answers busy and does not wait');
+    PERFORM pg_temp.check(
+        (public.settle_billing_lock('20000000-0000-4000-8000-0000000000f2', false))->>'outcome' = 'not_locked'
+        AND pg_temp.debits('20000000-0000-4000-8000-0000000000f2') = 1
+        AND pg_temp.balance('20000000-0000-4000-8000-0000000000f2') = 0
+        AND pg_temp.lock('20000000-0000-4000-8000-0000000000f2') IS NULL,
+        'two writers, f2: one charge; the next hourly run finds the shop open');
+
+    -- f3: a second press while the first one pays.
+    PERFORM dblink_exec('a', 'SET test.admin_of = ''20000000-0000-4000-8000-0000000000f3''');
+    PERFORM dblink_exec('b', 'SET test.uid = ''30000000-0000-4000-8000-0000000000f0''');
+    PERFORM dblink_exec('b', 'SET test.admin_of = ''20000000-0000-4000-8000-0000000000f3''');
+    PERFORM dblink_exec('a', 'BEGIN');
+    SELECT r::jsonb INTO _a FROM dblink('a', format(_pay, '20000000-0000-4000-8000-0000000000f3')) AS t(r text);
+    PERFORM dblink_send_query('b', format(_pay, '20000000-0000-4000-8000-0000000000f3'));
+    PERFORM pg_temp.wait_for(_b_pid, 'second press');
+    PERFORM dblink_exec('a', 'COMMIT');
+    SELECT r::jsonb INTO _b FROM dblink_get_result('b') AS t(r text);
+    PERFORM * FROM dblink_get_result('b') AS t(r text);
+    PERFORM pg_temp.check(_a->>'outcome' = 'renewed', 'two writers, f3: the first press pays the month');
+    PERFORM pg_temp.check(_b->>'outcome' = 'not_locked', 'two writers, f3: the second press waits, then finds the shop open');
+    PERFORM pg_temp.check(
+        pg_temp.debits('20000000-0000-4000-8000-0000000000f3') = 1
+        AND pg_temp.balance('20000000-0000-4000-8000-0000000000f3') = 0
+        AND pg_temp.auto_renew('20000000-0000-4000-8000-0000000000f3')
+        AND pg_temp.logs('20000000-0000-4000-8000-0000000000f3', 'auto_renew_toggle') = 1,
+        'two writers, f3: one charge and one log row');
+
+    PERFORM dblink_disconnect('a');
+    PERFORM dblink_disconnect('b');
+END $$;

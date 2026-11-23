@@ -8,7 +8,10 @@ import { HoldForm } from "./hold-form";
 import { PlanForm } from "./plan-form";
 import { ConvertTrialForm } from "./convert-trial-form";
 import { PauseForm } from "./pause-form";
-import { createRequestIds } from "@/lib/request-ids";
+import { keptRequestIds } from "@/lib/request-ids";
+
+/** The forms are only drawn here: nothing is sent, so the ids stay in this tab. */
+const tabIds = () => keptRequestIds("free-days", { storage: null });
 
 /*
  * Each shop action is a short form whose button says what will happen, so the
@@ -31,7 +34,7 @@ afterAll(() => vi.useRealTimers());
 
 describe("Add money", () => {
   it("shows the wallet now and waits for an amount and how the money came", () => {
-    const html = render(createElement(AddMoneyForm, { shopId: "t1", shopName: "Shop", balance: 4_000, requestIds: createRequestIds(), onDone: () => {} }));
+    const html = render(createElement(AddMoneyForm, { shopId: "t1", shopName: "Shop", balance: 4_000, requestIds: tabIds(), onDone: () => {} }));
     expect(html).toContain("Wallet now 4,000 IQD");
     expect(html).toContain("How did it come?");
     expect(confirmButton(html)).toMatch(DISABLED);
@@ -42,7 +45,7 @@ describe("Add money", () => {
 describe("Give free days", () => {
   it("gives a paying shop 30 days by default, says the new end and that nothing is charged, and asks why", () => {
     const html = render(
-      createElement(FreeDaysForm, { shopId: "t1", shopName: "Shop", requestIds: createRequestIds(), kind: "month", endsAt: "2026-11-19T09:00:00Z", locked: false, onDone: () => {} }),
+      createElement(FreeDaysForm, { shopId: "t1", shopName: "Shop", requestIds: tabIds(), kind: "month", endsAt: "2026-11-19T09:00:00Z", locked: false, renewalOff: false, onDone: () => {} }),
     );
     expect(html).toContain("This month then ends Sat 19 Dec, 12:00.");
     expect(html).toContain("Nothing is charged; the next charge moves to that day.");
@@ -52,9 +55,22 @@ describe("Give free days", () => {
     expect(confirmButton(html)).toContain(">Give 30 free days<");
   });
 
+  // Round 21 (data new 1): with renewal off it said "the next charge moves to that day", but no
+  // charge comes: the daily renewal after the new end locks the shop again. A locked shop opens now.
+  it("with renewal off, says the shop locks again when the days end, and that a locked shop opens now", () => {
+    const days = (locked: boolean, renewalOff: boolean) =>
+      render(
+        createElement(FreeDaysForm, { shopId: "t1", shopName: "Shop", requestIds: tabIds(), kind: "month", endsAt: "2026-11-19T09:00:00Z", locked, renewalOff, onDone: () => {} }),
+      );
+    expect(days(false, true)).toContain("Nothing is charged. Renewal is off, so the shop locks again when that time ends.");
+    expect(days(true, true)).toContain("The shop opens again now, with no charge. Renewal is off, so the shop locks again when that time ends.");
+    expect(days(true, false)).toContain("The shop opens again now, with no charge; the next charge moves to that day.");
+    expect(days(false, true)).not.toContain("next charge");
+  });
+
   it("waits for a reason before trial days, and says a locked trial opens again", () => {
     const html = render(
-      createElement(FreeDaysForm, { shopId: "t1", shopName: "Shop", requestIds: createRequestIds(), kind: "trial", endsAt: "2026-11-15T09:00:00Z", locked: true, onDone: () => {} }),
+      createElement(FreeDaysForm, { shopId: "t1", shopName: "Shop", requestIds: tabIds(), kind: "trial", endsAt: "2026-11-15T09:00:00Z", locked: true, renewalOff: false, onDone: () => {} }),
     );
     // The trial ended yesterday, so the 7 days count from now.
     expect(html).toContain("The trial then ends Mon 23 Nov, 12:00.");
@@ -119,8 +135,8 @@ describe("Change plan", () => {
 // Round 19 (UX new 4): the free period had four names, its sentence showed
 // only after a reason, and a locked trial was not told its store opens.
 describe("Start free time, no charge", () => {
-  const draw = (locked: boolean) =>
-    render(createElement(ConvertTrialForm, { shopId: "t1", shopName: "Shop", requestIds: createRequestIds(), locked, onDone: () => {} }));
+  const draw = (locked: boolean, renewalOff = false) =>
+    render(createElement(ConvertTrialForm, { shopId: "t1", shopName: "Shop", requestIds: tabIds(), locked, renewalOff, onDone: () => {} }));
 
   it("says what happens before a reason is typed, in one name: free time", () => {
     const html = draw(false);
@@ -129,11 +145,19 @@ describe("Start free time, no charge", () => {
     expect(html).toContain("Nothing is charged today; the first charge is on that day.");
     expect(html).not.toMatch(/paid time|paid period/i);
     expect(html).not.toContain("opens again");
+    expect(html).not.toContain("renewal");
     expect(confirmButton(html)).toMatch(DISABLED);
   });
 
   it("tells a locked trial that its store opens again now", () => {
     expect(draw(true)).toContain("The store opens again now.");
+  });
+
+  // Audit round 21: free time turned a renewal staff had stopped back on, without a word.
+  it("says before the press that it turns a stopped monthly renewal back on", () => {
+    expect(draw(false, true)).toContain(
+      "Monthly renewal is off now: this turns it back on, so the shop is charged every month after the free time.",
+    );
   });
 });
 

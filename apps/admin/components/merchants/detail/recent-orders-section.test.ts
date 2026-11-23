@@ -8,6 +8,9 @@ import { LoadFailure } from "@/lib/load-failure";
 /*
  * A shop's "Latest orders" said "No orders yet." when its read failed, so a
  * shop with orders looked like one with none. A failed read now says so.
+ *
+ * Round 24 structure new 2: a failed re-read (after every step on the shop)
+ * threw away the orders on screen. They stay, under a line saying how old.
  */
 
 let read: Record<string, unknown>;
@@ -31,6 +34,33 @@ describe("a shop's latest orders", () => {
     expect(html).toContain("Could not load the latest orders.");
     expect(html).toContain("Try again");
     expect(html).not.toContain("No orders yet.");
+  });
+
+  it("keeps the orders it showed when a later read fails, and says how old they are", () => {
+    const order = {
+      id: "o1",
+      customer_name: "Zainab",
+      customer_phone: null,
+      total_iqd: 25_000,
+      status: "delivered",
+      is_return: false,
+      created_at: "2026-11-22T15:00:00Z",
+      updated_at: "2026-11-22T15:00:00Z",
+      items_count: 1,
+    };
+    read = {
+      ...read,
+      data: { orders: [order] },
+      isError: true,
+      isRefetchError: true,
+      error: new TypeError("Failed to fetch"),
+      // Read at 20:00 in Baghdad.
+      dataUpdatedAt: Date.parse("2026-11-22T17:00:00Z"),
+    };
+    const html = render();
+    expect(html).toContain("Zainab");
+    expect(html).toMatch(/Could not refresh the latest orders\. This list is from (Sun 22 Nov, )?20:00\./);
+    expect(html).not.toContain("Could not load the latest orders.");
   });
 
   it("gives a login that may not read them no Try again", () => {

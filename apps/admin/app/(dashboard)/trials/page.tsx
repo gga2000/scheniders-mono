@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -10,12 +10,27 @@ import {
   Loader2,
 } from "lucide-react";
 import { isStaffReason } from "@/lib/billing-lock-tools";
-import { createRequestIds } from "@/lib/request-ids";
+import { keptRequestIds, requestKey, shopKey } from "@/lib/request-ids";
+import { failureOf, sendJson } from "@/components/merchants/detail/action-ui";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
 import { LoadError } from "@/components/shared/load-error";
+import { StaleLine } from "@/components/shared/stale-line";
 import { okOrLoadFailure } from "@/lib/load-failure";
 import { useCan } from "@/hooks/use-admin-auth";
 import { TrialChecksPanel } from "@/components/trials/trial-checks-panel";
+import { TrialFilterChips } from "@/components/trials/trial-filter-chips";
+import { TrialFollowUpLine } from "@/components/trials/trial-follow-up-line";
+import { useLiveTick } from "@/hooks/use-live-tick";
+import {
+  TRIAL_FOLLOW_UP_KEY,
+  inTrialFilter,
+  trialFilterCounts,
+  trialBar,
+  trialFollowUpResponseSchema,
+  type TrialBarTone,
+  type TrialFilter,
+  type TrialFollowUpRow,
+} from "@/lib/trial-pipeline";
 import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
 import { formatCount, formatDayTime, formatIQD } from "@/lib/format";
 import { TRIAL_ENDING_DAYS } from "@/lib/baghdad-day";
@@ -38,6 +53,8 @@ interface Trial {
   balance_iqd: number;
   days_remaining: number;
   is_expired: boolean;
+  /** The shop's day on the Baghdad calendar, Day 0 on signup (lib/trial-shops). */
+  trial_day: number;
   /** Paused while on trial: its days still run, and free days wait until the pause is lifted. */
   paused: boolean;
 }
@@ -75,24 +92,13 @@ function trialsLine({ total, expired }: TrialsSummary): string {
   return expired > 0 ? `${onTrial}, ${expired} ended and not paid yet` : onTrial;
 }
 
-function getBarColor(days: number, ended: boolean): string {
-  if (ended) return "bg-gray-400";
-  if (days <= TRIAL_ENDING_DAYS) return "bg-red-500";
-  if (days <= 7) return "bg-amber-500";
-  return "bg-green-500";
-}
-
-function getBarBg(days: number, ended: boolean): string {
-  if (ended) return "bg-gray-200";
-  if (days <= TRIAL_ENDING_DAYS) return "bg-red-500/15";
-  if (days <= 7) return "bg-amber-500/15";
-  return "bg-green-500/15";
-}
-
-function getBarPercent(days: number): number {
-  // Assume 30-day max for visual scale
-  return Math.min(100, Math.max(5, (days / 30) * 100));
-}
+/** The bar's fill, its track and the words under it, by how the trial stands (lib/trial-pipeline trialBar). */
+const BAR_TONE: Record<TrialBarTone, { fill: string; track: string; ink: string }> = {
+  running: { fill: "bg-green-500", track: "bg-green-500/15", ink: "text-[var(--ink-green)]" },
+  ending: { fill: "bg-amber-500", track: "bg-amber-500/15", ink: "text-[var(--ink-amber)]" },
+  last: { fill: "bg-red-500", track: "bg-red-500/15", ink: "text-[var(--ink-red)]" },
+  ended: { fill: "bg-gray-400", track: "bg-gray-200", ink: "text-foreground/70" },
+};
 
 // ---------------------------------------------------------------------------
 // Extend Button Component
@@ -103,22 +109,17 @@ function ExtendTrialButton({ tenantId }: { tenantId: string }) {
   const [reason, setReason] = useState("");
   const reasonOk = isStaffReason(reason);
   const queryClient = useQueryClient();
-  // One id per ask: a retry after a lost answer extends the trial once.
-  const [requestIds] = useState(createRequestIds);
+  // One id per ask, kept in this browser: a retry after a lost answer, a
+  // reload, or the shop page's free trial days for the same shop and days
+  // extends the trial once (round 21, structure new 7).
+  const [requestIds] = useState(() => keptRequestIds("free-days"));
 
   const mutation = useMutation({
     mutationFn: async (days: number) => {
-      const request_id = requestIds.idFor(`${tenantId}:${days}`);
-      const res = await adminFetch("/api/trials/extend", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tenant_id: tenantId, days, reason: reason.trim(), request_id }),
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Failed to extend trial");
-      }
-      return res.json();
+      const request_id = requestIds.idFor(requestKey(shopKey(tenantId), "trial", days));
+      const answer = await sendJson("/api/trials/extend", { tenant_id: tenantId, days, reason: reason.trim(), request_id });
+      if (!answer.ok) throw failureOf(answer.status, answer.data, "Failed to extend trial");
+      return answer.data;
     },
     onSuccess: () => {
       requestIds.done();
@@ -188,7 +189,7 @@ function ExtendTrialButton({ tenantId }: { tenantId: string }) {
 // ---------------------------------------------------------------------------
 
 export default function TrialsPage() {
-  const { data, isLoading, isError, error, refetch, isFetching } = useQuery<TrialsResponse>({
+  const pageRead = useQuery<TrialsResponse>({
     queryKey: ["admin", "trials"],
     queryFn: async () => {
       const res = okOrLoadFailure(await adminFetch("/api/trials"), "the trials");
@@ -196,8 +197,26 @@ export default function TrialsPage() {
     },
     staleTime: 30_000,
   });
+  const { data, isLoading, isError, error, refetch, isFetching } = pageRead;
+  // The follow-up facts have their own read: when it fails, the list stays (round 18).
+  const followUp = useQuery({
+    queryKey: TRIAL_FOLLOW_UP_KEY,
+    queryFn: async () => {
+      const res = okOrLoadFailure(await adminFetch("/api/trials/follow-up"), "the follow-up facts");
+      return trialFollowUpResponseSchema.parse(await res.json()).trials;
+    },
+    staleTime: 30_000,
+  });
+  const followUps = useMemo(
+    () => new Map<string, TrialFollowUpRow>((followUp.data ?? []).map((row) => [row.id, row])),
+    [followUp.data],
+  );
+  const [filter, setFilter] = useState<TrialFilter>("all");
+  const now = useLiveTick(60_000);
+  const can = useCan();
   // Only staff who may lift a pause are sent to the shop page to lift it.
-  const canLift = useCan()("reactivate_tenant");
+  const canLift = can("reactivate_tenant");
+  const canLogCall = can("handle_support");
 
   if (isError && !data) {
     return <LoadError what="the trials" error={error} onRetry={() => refetch()} retrying={isFetching} />;
@@ -212,6 +231,9 @@ export default function TrialsPage() {
     if (!a.is_expired && b.is_expired) return 1;
     return a.days_remaining - b.days_remaining;
   });
+  // The chips filter by the follow-up facts; until they are read, every shop shows.
+  const shownFilter: TrialFilter = followUp.data ? filter : "all";
+  const shownTrials = sortedTrials.filter((trial) => inTrialFilter(followUps.get(trial.id), shownFilter));
 
   return (
     <div className="p-4 md:p-6 space-y-4">
@@ -221,6 +243,7 @@ export default function TrialsPage() {
         <p className="text-[13px] text-foreground/70">
           {isLoading ? "Loading..." : trialsLine(summary)}
         </p>
+        <StaleLine read={pageRead} what="the trials" className="mt-2" />
       </div>
 
       {/* Stores that matched an earlier store (Fermi B5) */}
@@ -241,6 +264,19 @@ export default function TrialsPage() {
         />
       </NumberStrip>
 
+      {/* Follow-up chips (B12 item 1): above the list, which stays as it was. */}
+      {sortedTrials.length > 0 && followUp.data && (
+        <TrialFilterChips
+          value={shownFilter}
+          counts={trialFilterCounts(sortedTrials.map((trial) => trial.id), followUps)}
+          onChange={setFilter}
+        />
+      )}
+      {followUp.isError && !followUp.data && (
+        <LoadError compact what="the follow-up facts" error={followUp.error} onRetry={() => followUp.refetch()} retrying={followUp.isFetching} />
+      )}
+      <StaleLine read={followUp} what="the follow-up facts" />
+
       {/* Trial List */}
       {isLoading ? (
         <div className="flex items-center justify-center py-20">
@@ -252,91 +288,88 @@ export default function TrialsPage() {
           <p className="text-lg font-semibold">No shops on trial</p>
           <p className="text-sm mt-1">No shop is on a trial, or past one and not paid yet.</p>
         </div>
+      ) : shownTrials.length === 0 ? (
+        <div className="pastel-card px-6 py-10 text-center text-sm text-foreground/70">No shop in this group right now.</div>
       ) : (
         <div className="pastel-card divide-y divide-[var(--card-border)]">
-          {sortedTrials.map((trial) => (
-            <div
-              key={trial.id}
-              className="p-4 md:p-5 flex flex-col md:flex-row md:items-center gap-4"
-            >
-              {/* Left: Business info */}
-              <div className="md:w-1/4 min-w-0">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-foreground/5 flex items-center justify-center text-foreground/70 font-bold text-xs shrink-0">
-                    {trial.business_name.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="font-semibold text-foreground truncate name-dir" title={trial.business_name}>
-                      {trial.business_name}
-                    </p>
-                    <p className="text-xs text-foreground/70 truncate" title={`${trial.slug}${trial.city ? ` \u00b7 ${trial.city}` : ""}`}>
-                      {trial.slug}
-                      {trial.city ? ` \u00b7 ${trial.city}` : ""}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Center: Countdown bar */}
-              <div className="md:flex-1 min-w-0">
-                <div className="flex items-center gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className={`h-2.5 rounded-full ${getBarBg(trial.days_remaining, trial.is_expired)} overflow-hidden`}>
-                      <div
-                        className={`h-full rounded-full ${getBarColor(trial.days_remaining, trial.is_expired)} transition-all duration-500`}
-                        style={{
-                          width: trial.is_expired
-                            ? "100%"
-                            : `${getBarPercent(trial.days_remaining)}%`,
-                        }}
-                      />
+          {shownTrials.map((trial) => {
+            const row = followUps.get(trial.id);
+            const bar = trialBar(trial);
+            const tone = BAR_TONE[bar.tone];
+            return (
+              <div key={trial.id}>
+                <div className="p-4 md:p-5 flex flex-col md:flex-row md:items-center gap-4">
+                  {/* Left: Business info */}
+                  <div className="md:w-1/4 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg bg-foreground/5 flex items-center justify-center text-foreground/70 font-bold text-xs shrink-0">
+                        {trial.business_name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-foreground truncate name-dir" title={trial.business_name}>
+                          {trial.business_name}
+                        </p>
+                        <p className="text-xs text-foreground/70 truncate" title={`${trial.slug}${trial.city ? ` \u00b7 ${trial.city}` : ""}`}>
+                          {trial.slug}
+                          {trial.city ? ` \u00b7 ${trial.city}` : ""}
+                        </p>
+                      </div>
                     </div>
-                    <div className="flex items-center justify-between mt-1.5">
-                      <p
-                        className={`text-xs font-semibold ${
-                          trial.is_expired
-                            ? "text-foreground/70"
-                            : trial.days_remaining <= TRIAL_ENDING_DAYS
-                              ? "text-[var(--ink-red)]"
-                              : trial.days_remaining <= 7
-                                ? "text-[var(--ink-amber)]"
-                                : "text-[var(--ink-green)]"
-                        }`}
+                  </div>
+
+                  {/* Center: Countdown bar */}
+                  <div className="md:flex-1 min-w-0">
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className={`h-2.5 rounded-full ${tone.track} overflow-hidden`}>
+                          <div
+                            className={`h-full rounded-full ${tone.fill} transition-all duration-500`}
+                            style={{ width: `${bar.percent}%` }}
+                          />
+                        </div>
+                        <div className="flex items-center justify-between mt-1.5">
+                          <p className={`text-xs font-semibold ${tone.ink}`}>
+                            {trialDayLabel(trial)}
+                          </p>
+                          <p className="text-xs text-foreground/70">
+                            {formatDayTime(trial.trial_ends_at)}
+                          </p>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-foreground/20 hidden md:block shrink-0" />
+                    </div>
+                  </div>
+
+                  {/* Right: Balance + Extend */}
+                  <div className="md:w-1/4 flex items-center justify-between md:justify-end gap-3">
+                    <span className="text-sm font-medium text-foreground/70">
+                      {formatIQD(trial.balance_iqd)}
+                    </span>
+                    {trial.paused && canLift ? (
+                      // The database gives trial days only to a shop on trial, not a paused one.
+                      <Link
+                        href={`/merchants/${trial.id}`}
+                        className="px-3 py-1.5 rounded-xl text-xs font-semibold text-foreground/70 hover:text-foreground border border-[var(--card-border)] transition-colors"
                       >
-                        {trialDayLabel(trial)}
-                      </p>
-                      <p className="text-xs text-foreground/70">
-                        {formatDayTime(trial.trial_ends_at)}
-                      </p>
-                    </div>
+                        Paused: lift it to give days
+                      </Link>
+                    ) : trial.paused ? (
+                      <span className="px-3 py-1.5 rounded-xl text-xs font-semibold text-foreground/70 border border-[var(--card-border)]">
+                        Paused: ask a super admin to lift it
+                      </span>
+                    ) : (
+                      <ExtendTrialButton tenantId={trial.id} />
+                    )}
                   </div>
-                  <ChevronRight className="w-4 h-4 text-foreground/20 hidden md:block shrink-0" />
                 </div>
-              </div>
-
-              {/* Right: Balance + Extend */}
-              <div className="md:w-1/4 flex items-center justify-between md:justify-end gap-3">
-                <span className="text-sm font-medium text-foreground/70">
-                  {formatIQD(trial.balance_iqd)}
-                </span>
-                {trial.paused && canLift ? (
-                  // The database gives trial days only to a shop on trial, not a paused one.
-                  <Link
-                    href={`/merchants/${trial.id}`}
-                    className="px-3 py-1.5 rounded-xl text-xs font-semibold text-foreground/70 hover:text-foreground border border-[var(--card-border)] transition-colors"
-                  >
-                    Paused: lift it to give days
-                  </Link>
-                ) : trial.paused ? (
-                  <span className="px-3 py-1.5 rounded-xl text-xs font-semibold text-foreground/70 border border-[var(--card-border)]">
-                    Paused: ask a super admin to lift it
-                  </span>
-                ) : (
-                  <ExtendTrialButton tenantId={trial.id} />
+                {row && (
+                  <div className="-mt-1 px-4 pb-4 md:px-5 md:pb-5">
+                    <TrialFollowUpLine row={row} shopName={trial.business_name} canLogCall={canLogCall} now={now} />
+                  </div>
                 )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

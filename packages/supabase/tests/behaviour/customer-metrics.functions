@@ -1,0 +1,11 @@
+search_fold_phone
+search_fold_arabic
+normalize_phone_for_search
+normalize_arabic_text_for_search
+order_base_id
+order_was_delivered
+customer_metrics_queue_order
+customer_metrics_queue_status_history
+customer_metrics_for
+refresh_customer_aggregates
+orders_write_fingerprint

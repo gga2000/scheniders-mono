@@ -104,9 +104,99 @@ describe("GET /api/billing-check", () => {
     expect(body.renewalsMissed).toEqual([{ tenant_id: "shop-1011", business_name: "Shop 1011", due: LONG_AGO }]);
   });
 
+  it("reads no staff log when no shop is overdue", async () => {
+    stub.state.tables.subscriptions = [];
+    await check();
+    expect(stub.tablesRead()).toEqual(["subscriptions"]);
+  });
+
+  it("answers 500 when the staff log cannot be read, not with a quiet bell", async () => {
+    stub.state.tables.subscriptions = [sub("active", LONG_AGO, { status: "active" })];
+    stub.state.failing.add("admin_activity_logs");
+    const res = await GET(new NextRequest("http://admin.test/api/billing-check"));
+    expect(res.status).toBe(500);
+  });
+
   it("answers 500 when the read fails, not with a quiet bell", async () => {
     stub.state.failing.add("subscriptions");
     const res = await GET(new NextRequest("http://admin.test/api/billing-check"));
     expect(res.status).toBe(500);
+  });
+});
+
+/*
+ * Round 21 (structure new 4, data new 5): the job reaches a paused or held
+ * shop's month and answers on_hold, leaving it open until the first run after
+ * the shop comes back. The bell called that month "not renewed" for up to a
+ * day after the lift, a false alarm on the one watch that guards the renewal.
+ */
+describe("a month that ended while the shop was stopped", () => {
+  let logId = 0;
+  const log = (tenant: string, action: string, createdAt: string, details: Row): Row => {
+    logId += 1;
+    return { id: logId, tenant_id: tenant, action, created_at: createdAt, details };
+  };
+  const HOURS_AGO = (h: number) => new Date(NOW - h * 3600e3).toISOString();
+  const missedIds = async () => (await check()).renewalsMissed.map((row: { tenant_id: string }) => row.tenant_id);
+
+  beforeEach(() => {
+    logId = 0;
+  });
+
+  it("waits 25 hours from the lift of a pause, by staff or by the hourly job", async () => {
+    stub.state.tables.subscriptions = [
+      sub("active", LONG_AGO, { status: "active" }),
+      sub("active", LONG_AGO, { status: "active" }),
+    ];
+    stub.state.tables.admin_activity_logs = [
+      log("shop-1", "pause_tenant", HOURS_AGO(24 * 6), { restrictions: { paused_until: null } }),
+      log("shop-1", "unpause_tenant", HOURS_AGO(3), { status: "active", ended: true }),
+      // Lifted 30 hours ago: today's 03:00 run came after it and should have renewed it.
+      log("shop-2", "pause_tenant", HOURS_AGO(24 * 6), { restrictions: { paused_until: null } }),
+      log("shop-2", "unpause_tenant", HOURS_AGO(30), { status: "active" }),
+    ];
+
+    expect(await missedIds()).toEqual(["shop-2"]);
+  });
+
+  it("waits 25 hours from a timed pause's end when no lift row came (the platform's lift writes none)", async () => {
+    stub.state.tables.subscriptions = [
+      sub("active", LONG_AGO, { status: "active" }),
+      sub("active", LONG_AGO, { status: "active" }),
+    ];
+    stub.state.tables.admin_activity_logs = [
+      log("shop-1", "pause_tenant", HOURS_AGO(24 * 6), { restrictions: { paused_until: HOURS_AGO(5) } }),
+      // Lifted early by staff three days ago: the pause's later end is not when it came back.
+      log("shop-2", "pause_tenant", HOURS_AGO(24 * 6), { restrictions: { paused_until: HOURS_AGO(5) } }),
+      log("shop-2", "unpause_tenant", HOURS_AGO(24 * 3), { status: "active" }),
+    ];
+
+    expect(await missedIds()).toEqual(["shop-2"]);
+  });
+
+  it("waits 25 hours from a hold or a cancel undone, and not from any other status change", async () => {
+    stub.state.tables.subscriptions = [
+      sub("active", LONG_AGO, { status: "active" }),
+      sub("active", LONG_AGO, { status: "active" }),
+      sub("trialing", LONG_AGO, { status: "trial" }),
+    ];
+    stub.state.tables.admin_activity_logs = [
+      log("shop-1", "status_change", HOURS_AGO(2), { status: "active", previous_status: "suspended", source: "single" }),
+      log("shop-2", "status_change", HOURS_AGO(2), { status: "active", previous_status: "trial", source: "single" }),
+      log("shop-3", "status_change", HOURS_AGO(4), { status: "trial", previous_status: "cancelled", source: "bulk" }),
+    ];
+
+    const body = await check();
+    expect(body.renewalsMissed.map((row: { tenant_id: string }) => row.tenant_id)).toEqual(["shop-2"]);
+    expect(body.trialsNotBilled).toEqual([]);
+  });
+
+  it("asks the staff log only for the overdue shops' pauses, lifts and status changes", async () => {
+    stub.state.tables.subscriptions = [sub("active", LONG_AGO, { status: "active" })];
+    await check();
+    expect(stub.callsTo("admin_activity_logs.in")).toEqual([
+      ["tenant_id", ["shop-1"]],
+      ["action", ["pause_tenant", "unpause_tenant", "status_change"]],
+    ]);
   });
 });

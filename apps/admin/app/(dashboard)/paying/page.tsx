@@ -6,11 +6,12 @@ import { Loader2, Lock, Store } from "lucide-react";
 import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
 import { LoadError } from "@/components/shared/load-error";
 import { LoadFailedLine } from "@/components/shared/load-failed-line";
+import { StaleLine } from "@/components/shared/stale-line";
 import { ShopNameLink } from "@/components/shared/shop-name-link";
 import { adminFetch } from "@/lib/admin-fetch";
 import { dayOf } from "@/lib/baghdad-day";
 import { formatCount, formatDateKey, formatIQD, formatMonth } from "@/lib/format";
-import { okOrLoadFailure } from "@/lib/load-failure";
+import { okOrLoadFailure, pollEvery } from "@/lib/load-failure";
 import { useCan } from "@/hooks/use-admin-auth";
 import { planLabel } from "@/types/admin";
 import {
@@ -101,6 +102,7 @@ function StaffPay({ read }: { read: StaffPayRead }) {
         <Loader2 className="h-5 w-5 animate-spin text-foreground/70" />
       ) : (
         <>
+          <StaleLine read={read} what="the staff pay" />
           <p className="text-[13px] text-foreground">
             {data.people.length === 1 ? "1 person" : `${formatCount(data.people.length)} people`}
             {data.people.length > 0 && (
@@ -158,18 +160,19 @@ export default function PayingShopsPage() {
     },
     staleTime: 60_000,
     // Refreshed with the shops beside it, so "so far" never disagrees with "Paying, now".
-    refetchInterval: 300_000,
+    refetchInterval: pollEvery(300_000),
     enabled: seesStaffPay,
   });
-  const { data, error, isLoading, isError, isFetching, refetch } = useQuery({
+  const pageRead = useQuery({
     queryKey: ["admin", "paying-merchants"],
     queryFn: async () => {
       const res = okOrLoadFailure(await adminFetch("/api/paying-merchants"), "the paying shops");
       return payingResponseSchema.parse(await res.json());
     },
     staleTime: 60_000,
-    refetchInterval: 300_000,
+    refetchInterval: pollEvery(300_000),
   });
+  const { data, error, isLoading, isError, isFetching, refetch } = pageRead;
 
   if (isError && !data) {
     return <LoadError what="the paying shops" onRetry={() => refetch()} retrying={isFetching} error={error} />;
@@ -184,6 +187,7 @@ export default function PayingShopsPage() {
           one more day while its renewal runs. The demo store, shops we built for a lead and our own store never count; a
           shop moved to Internal keeps the months it paid. Months end at midnight, Baghdad time.
         </p>
+        <StaleLine read={pageRead} what="the paying shops" className="mt-2" />
       </div>
 
       {isLoading || !data ? (

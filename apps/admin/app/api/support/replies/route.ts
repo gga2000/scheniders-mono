@@ -14,7 +14,10 @@ export async function GET(request: NextRequest) {
     .select(SUPPORT_SAVED_REPLY_COLUMNS)
     .order("position", { ascending: true })
     .order("title", { ascending: true });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("Support saved replies read error:", error);
+    return NextResponse.json({ error: "Failed to load the saved replies" }, { status: 500 });
+  }
   return NextResponse.json({ replies: data ?? [] });
 }
 
@@ -38,7 +41,10 @@ export async function POST(request: NextRequest) {
     })
     .select(SUPPORT_SAVED_REPLY_COLUMNS)
     .single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("Support saved reply add error:", error);
+    return NextResponse.json({ error: "Failed to add the saved reply" }, { status: 500 });
+  }
 
   await logAdminAction(admin, "support_saved_reply_added", { details: { title: parsed.data.title } });
   return NextResponse.json({ reply: data });

@@ -11,6 +11,7 @@ import {
 import type { AdminEmployee, CommissionType } from "@/types/leads";
 import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
 import { LoadFailedLine } from "@/components/shared/load-failed-line";
+import { StaleLine } from "@/components/shared/stale-line";
 
 interface TeamCommissionDashboardProps {
   employees: AdminEmployee[];
@@ -37,14 +38,8 @@ type Period = "month" | "quarter";
 export function TeamCommissionDashboard({
   employees,
 }: TeamCommissionDashboardProps) {
-  const {
-    data: configs,
-    isLoading: configsLoading,
-    isError: configsFailed,
-    error: configsError,
-    refetch: refetchConfigs,
-    isFetching: configsFetching,
-  } = useCommissionConfigs();
+  const configsRead = useCommissionConfigs();
+  const { data: configs, isLoading: configsLoading } = configsRead;
   const [period, setPeriod] = useState<Period>("month");
 
   const totals = useMemo(() => {
@@ -88,19 +83,21 @@ export function TeamCommissionDashboard({
           </div>
         </div>
 
+        {/* A failed refresh keeps the settings shown, under this line. */}
+        <StaleLine read={configsRead} what="the commission settings" kept="settings" className="mb-3" />
         {configsLoading ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="w-5 h-5 animate-spin text-foreground/70" />
           </div>
-        ) : configsFailed ? (
+        ) : !configs ? (
           <LoadFailedLine
             className="py-4"
             what="the commission settings"
-            error={configsError}
-            onRetry={() => void refetchConfigs()}
-            retrying={configsFetching}
+            error={configsRead.error}
+            onRetry={() => void configsRead.refetch()}
+            retrying={configsRead.isFetching}
           />
-        ) : !configs || configs.length === 0 ? (
+        ) : configs.length === 0 ? (
           <p className="text-sm text-foreground/70 py-4">
             No commission configurations set up yet.
           </p>

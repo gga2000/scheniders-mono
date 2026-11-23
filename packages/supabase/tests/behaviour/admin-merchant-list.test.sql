@@ -28,6 +28,11 @@
 --       still lists them while staff have paused them;
 --     * a shop with no rows at all still gets a row of zeros and blanks;
 --     * a shop asked for twice comes back once; a shop not asked for never does.
+--     * the "last done by" badge (admin_last_actors) is each shop's newest
+--       step: a shop whose one step is older than another shop's 20 still
+--       gets it, 250 shops asked get 250 badges, a shop with no step and a
+--       shop not asked for get none; a step whose row keeps an email and no
+--       staff id answers the email.
 --   Merchants page header:
 --     * the fees of a set of shops over the same 30 days, as one number, equal
 --       to the list's fees added up.
@@ -76,7 +81,8 @@ BEGIN
         'public.admin_merchant_list_stats(uuid[], timestamptz)',
         'public.admin_fees_30d(uuid[], timestamptz)',
         'public.admin_team_counts()',
-        'public.admin_locked_shops()'
+        'public.admin_locked_shops()',
+        'public.admin_last_actors(uuid[])'
     ] LOOP
         PERFORM pg_temp.check('access: anon can run ' || _fn, NOT has_function_privilege('anon', _fn, 'EXECUTE'));
         PERFORM pg_temp.check('access: authenticated can run ' || _fn, NOT has_function_privilege('authenticated', _fn, 'EXECUTE'));
@@ -427,6 +433,61 @@ BEGIN
     END;
     RESET ROLE;
     PERFORM pg_temp.check('anon: ran merchant_code', _n = 0);
+END $$;
+
+-- Merchants list: "last done by" ---------------------------------------------
+DO $$
+DECLARE
+    _staff uuid := gen_random_uuid();
+    _busy uuid := gen_random_uuid();     -- 20 steps today
+    _old uuid := gen_random_uuid();      -- one step, a month ago
+    _none uuid := gen_random_uuid();     -- no step at all
+    _other uuid := gen_random_uuid();    -- has a step, is never asked for
+    _mail uuid := gen_random_uuid();     -- one step by a person known by email only
+    _many uuid[];
+    _got jsonb;
+BEGIN
+    INSERT INTO public.tenants (id, business_name, slug) VALUES
+        (_busy, 'tt la busy', 'tt-la-busy-' || _busy),
+        (_old, 'tt la old', 'tt-la-old-' || _old),
+        (_none, 'tt la none', 'tt-la-none-' || _none),
+        (_other, 'tt la other', 'tt-la-other-' || _other),
+        (_mail, 'tt la mail', 'tt-la-mail-' || _mail);
+
+    INSERT INTO public.admin_activity_logs (admin_user_id, admin_label, tenant_id, action, created_at)
+    SELECT _staff, 'Noor', _busy, 'note_' || g, '2026-11-22 10:00:00+03'::timestamptz + make_interval(mins => g)
+    FROM generate_series(1, 20) g;
+    INSERT INTO public.admin_activity_logs (admin_user_id, admin_label, tenant_id, action, created_at) VALUES
+        (NULL, 'system', _old, 'extend_trial', '2026-10-20 09:00:00+03'),
+        (_staff, 'Noor', _other, 'pause', '2026-11-22 11:00:00+03');
+    INSERT INTO public.admin_activity_logs (admin_user_id, admin_label, actor_email, tenant_id, action, created_at) VALUES
+        (NULL, NULL, 'noor@example.com', _mail, 'extend_trial', '2026-11-16 06:21:00+03');
+
+    _got := public.admin_last_actors(ARRAY[_busy, _old, _none, _busy, _mail]);
+    PERFORM pg_temp.check('last done by: the busy shop''s newest step',
+        _got -> _busy::text ->> 'action' = 'note_20'
+        AND (_got -> _busy::text ->> 'created_at')::timestamptz = '2026-11-22 10:20:00+03'
+        AND _got -> _busy::text ->> 'admin_user_id' = _staff::text);
+    PERFORM pg_temp.check('last done by: a shop whose one step is older than another''s 20 still has it',
+        _got -> _old::text ->> 'action' = 'extend_trial' AND _got -> _old::text ->> 'admin_label' = 'system'
+        AND _got -> _old::text -> 'admin_user_id' = 'null'::jsonb
+        AND _got -> _old::text -> 'actor_email' = 'null'::jsonb);
+    PERFORM pg_temp.check('last done by: a step known by its email only answers the email',
+        _got -> _mail::text ->> 'actor_email' = 'noor@example.com'
+        AND _got -> _mail::text -> 'admin_user_id' = 'null'::jsonb
+        AND _got -> _mail::text -> 'admin_label' = 'null'::jsonb);
+    PERFORM pg_temp.check('last done by: a shop with no step, or not asked for, is left out; one asked twice comes once',
+        (SELECT array_agg(k ORDER BY k) FROM jsonb_object_keys(_got) k) = (SELECT array_agg(x::text ORDER BY x::text) FROM unnest(ARRAY[_busy, _old, _mail]) x));
+
+    SELECT array_agg(gen_random_uuid()) INTO _many FROM generate_series(1, 250);
+    INSERT INTO public.tenants (id, business_name, slug)
+    SELECT x, 'tt la many', 'tt-la-many-' || x FROM unnest(_many) x;
+    INSERT INTO public.admin_activity_logs (admin_user_id, admin_label, tenant_id, action)
+    SELECT _staff, 'Noor', x, 'note' FROM unnest(_many) x;
+    PERFORM pg_temp.check('last done by: 250 shops asked get 250 badges',
+        (SELECT count(*) FROM jsonb_object_keys(public.admin_last_actors(_many))) = 250);
+    PERFORM pg_temp.check('last done by: no shops asked, no badges',
+        public.admin_last_actors(ARRAY[]::uuid[]) = '{}'::jsonb);
 END $$;
 
 -- Every failed check is collected, then raised together, so psql -v ON_ERROR_STOP=1

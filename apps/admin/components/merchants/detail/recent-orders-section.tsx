@@ -5,6 +5,7 @@ import { useMerchantRecentOrders, type RecentOrder } from "@/hooks/use-merchant-
 import { cn } from "@/lib/utils";
 import { formatIQD, formatWhen } from "@/lib/format";
 import { LoadFailedLine } from "@/components/shared/load-failed-line";
+import { StaleLine } from "@/components/shared/stale-line";
 import { REFUND_ORDER_WORDS, type RefundOrderStatus } from "@scheniders/shared/refund-words";
 
 interface RecentOrdersSectionProps {
@@ -75,17 +76,19 @@ const TONE: Record<Tone, string> = {
 };
 
 export function RecentOrdersSection({ merchantId, limit = 5 }: RecentOrdersSectionProps) {
-  const { data, isLoading, isError, error, refetch, isFetching } = useMerchantRecentOrders(merchantId, limit);
+  const ordersRead = useMerchantRecentOrders(merchantId, limit);
+  const { data, isLoading, isError, error, refetch, isFetching } = ordersRead;
   const orders = data?.orders ?? [];
 
   return (
     <section className="pastel-card p-5" aria-label="Latest orders">
       <h2 className="mb-3 text-[15px] font-semibold text-foreground">Latest orders</h2>
+      <StaleLine read={ordersRead} what="the latest orders" kept="list" className="mb-2" />
       {isLoading ? (
         <div className="flex justify-center py-6 text-foreground/70">
           <Loader2 className="h-4 w-4 animate-spin" aria-label="Loading orders" />
         </div>
-      ) : isError ? (
+      ) : isError && !data ? (
         <LoadFailedLine className="py-4" what="the latest orders" error={error} onRetry={() => void refetch()} retrying={isFetching} />
       ) : orders.length === 0 ? (
         <p className="py-4 text-[13px] text-foreground/70">No orders yet.</p>
