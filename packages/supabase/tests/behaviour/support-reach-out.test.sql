@@ -217,6 +217,10 @@ BEGIN
 END $$;
 
 -- Scoreboard: Basra's question counts, Amal's outreach does not.
+-- The scoreboard counts from now(), so Basra's case is moved into this week
+-- for the check and put back after; a fixed date drops out of the window a week later.
+UPDATE public.support_cases SET created_at = now() - interval '1 hour'
+WHERE id = 'bc000000-0000-4000-8000-000000000001';
 DO $$
 DECLARE
     s jsonb := public.support_scoreboard(7);
@@ -225,6 +229,8 @@ BEGIN
     PERFORM pg_temp.check('board: answered only merchants', (s ->> 'answered')::int = 1);
     PERFORM pg_temp.check('board: reached out', (s ->> 'reached_out')::int = 1);
 END $$;
+UPDATE public.support_cases SET created_at = '2026-11-16 09:30+03'
+WHERE id = 'bc000000-0000-4000-8000-000000000001';
 
 -- Trial ends soon, at 10 AM on Mon 16 Nov: Baghdad days, and a paused trial.
 INSERT INTO public.tenants (id, business_name, display_id, status, restrictions, trial_ends_at) VALUES
