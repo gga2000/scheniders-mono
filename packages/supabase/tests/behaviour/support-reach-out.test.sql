@@ -217,13 +217,11 @@ BEGIN
 END $$;
 
 -- Scoreboard: Basra's question counts, Amal's outreach does not.
--- The board reads the last 7 days from now(), and Basra's question is dated
--- 16 Nov above, so from 23 Nov it fell out of the window and the test failed
--- by the calendar alone. Who started each conversation is what is checked
--- here, so Basra's question is dated a day ago first.
+-- The board reads the 7 days before now, so the question is dated inside
+-- them here: dated 16 Nov 09:30 as above, it fell out of the window on
+-- 23 Nov at 09:30 and the board counted nothing.
 UPDATE public.support_cases SET created_at = now() - interval '1 day'
-WHERE id = 'bc000000-0000-4000-8000-000000000001';
-
+ WHERE id = 'bc000000-0000-4000-8000-000000000001';
 DO $$
 DECLARE
     s jsonb := public.support_scoreboard(7);

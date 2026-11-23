@@ -327,18 +327,20 @@ SELECT pg_temp.orders('c0000000-0000-4000-8000-000000000001', ARRAY[1021], now()
 SELECT pg_temp.check(
   (public.trial_customer_sweep())->>'checked' = '2',
   'the next sweep checks G too');
-SELECT pg_temp.check(pg_temp.verdict('c0000000-0000-4000-8000-000000000001') = 'no_trial', '30% shared customers -> no trial');
-SELECT pg_temp.check(NOT pg_temp.running('c0000000-0000-4000-8000-000000000001'), 'G''s running trial ended');
+-- Ali 23 Nov: an earlier store's owner can mark deliveries by hand, so shared
+-- customers alone are a medium sign: review, and the trial runs on.
+SELECT pg_temp.check(pg_temp.verdict('c0000000-0000-4000-8000-000000000001') = 'review', '30% shared customers alone -> review');
+SELECT pg_temp.check(pg_temp.running('c0000000-0000-4000-8000-000000000001'), 'G''s trial runs on');
 SELECT pg_temp.check(
   pg_temp.signals('c0000000-0000-4000-8000-000000000001') = jsonb_build_array(jsonb_build_object(
       'family', 'customers', 'source', 'customer_overlap', 'tenant_id', 'c0000000-0000-4000-8000-00000000000f',
       'matched', 9, 'customers', 30)),
   'staff see 9 of 30 customers shared with F, not with paying J, and the excluded orders are not in the 30');
 SELECT pg_temp.check(
-  (SELECT trial_withheld_at IS NOT NULL FROM public.trial_checks WHERE tenant_id = 'c0000000-0000-4000-8000-000000000001')
-  AND (SELECT details = jsonb_build_object('signals', jsonb_build_array('customers')) AND admin_label = 'system'
-         FROM public.admin_activity_logs WHERE tenant_id = 'c0000000-0000-4000-8000-000000000001' AND action = 'trial_withheld'),
-  'withheld and logged as a customer signal');
+  (SELECT trial_withheld_at IS NULL FROM public.trial_checks WHERE tenant_id = 'c0000000-0000-4000-8000-000000000001')
+  AND NOT EXISTS (SELECT 1 FROM public.admin_activity_logs
+                   WHERE tenant_id = 'c0000000-0000-4000-8000-000000000001' AND action = 'trial_withheld'),
+  'nothing is withheld or logged for G');
 
 -- H: 8 of 30 (27%) -> nothing. I: 30 orders, 4 customers, all F's -> under 5, nothing.
 SELECT pg_temp.shop('c0000000-0000-4000-8000-000000000002', 'trial', interval '1 day', '07910000004', 'h@example.com');
@@ -348,8 +350,9 @@ SELECT pg_temp.orders('c0000000-0000-4000-8000-000000000002',
 SELECT pg_temp.shop('c0000000-0000-4000-8000-000000000003', 'trial', interval '1 day', '07910000005', 'i@example.com');
 SELECT pg_temp.orders('c0000000-0000-4000-8000-000000000003',
                       array(SELECT 21 + (g % 4) FROM generate_series(1, 30) g), now() - interval '40 minutes');
--- L: trial ended 3 days ago, unpaid, 15 of 30 from F. M: created after G, F's customers 1-40.
-SELECT pg_temp.shop('c0000000-0000-4000-8000-000000000004', 'trial', interval '10 days', '07910000006', 'l@example.com');
+-- L: trial ended 3 days ago, unpaid, 15 of 30 from F, and F's owner phone.
+-- M: created after G, F's customers 1-40.
+SELECT pg_temp.shop('c0000000-0000-4000-8000-000000000004', 'trial', interval '10 days', '07910000001', 'l@example.com');
 SELECT pg_temp.orders('c0000000-0000-4000-8000-000000000004',
                       array(SELECT generate_series(1, 15)) || array(SELECT generate_series(3001, 3015)),
                       now() - interval '40 minutes');
@@ -362,28 +365,48 @@ SELECT pg_temp.check(
   pg_temp.verdict('c0000000-0000-4000-8000-000000000004') = 'no_trial'
   AND (SELECT trial_withheld_at IS NULL FROM public.trial_checks WHERE tenant_id = 'c0000000-0000-4000-8000-000000000004')
   AND NOT EXISTS (SELECT 1 FROM public.admin_activity_logs WHERE tenant_id = 'c0000000-0000-4000-8000-000000000004' AND action = 'trial_withheld'),
-  'a trial that already ended is listed for staff, with nothing to withhold');
+  'shared customers and an owner phone -> no trial; a trial that already ended is listed for staff, with nothing to withhold');
 SELECT pg_temp.check(
   (SELECT array_agg(s->>'tenant_id' ORDER BY s->>'tenant_id') FROM jsonb_array_elements(pg_temp.signals('c0000000-0000-4000-8000-000000000005')) s)
     = ARRAY['c0000000-0000-4000-8000-000000000001', 'c0000000-0000-4000-8000-000000000004', 'c0000000-0000-4000-8000-00000000000f'],
   'M matches every earlier unpaid store it shares customers with');
 SELECT pg_temp.check(
+  pg_temp.verdict('c0000000-0000-4000-8000-000000000005') = 'review' AND pg_temp.running('c0000000-0000-4000-8000-000000000005'),
+  'customers shared with three earlier stores are still one sign: review');
+SELECT pg_temp.check(
   NOT pg_temp.signals('c0000000-0000-4000-8000-000000000001') @> '[{"tenant_id": "c0000000-0000-4000-8000-000000000005"}]'::jsonb,
   'a later store is never an earlier store');
+
+-- S: trial since 30 minutes, F's store email, and 10 of its first 30
+-- customers are F's: two medium signs end the running trial.
+SELECT pg_temp.shop('c0000000-0000-4000-8000-000000000011', 'trial', interval '30 minutes', '07910000012', 'f@example.com');
+SELECT pg_temp.check(pg_temp.verdict('c0000000-0000-4000-8000-000000000011') = 'review', 'F''s store email alone -> review');
+SELECT pg_temp.orders('c0000000-0000-4000-8000-000000000011',
+                      array(SELECT generate_series(1, 10)) || array(SELECT generate_series(9001, 9020)),
+                      now() - interval '20 minutes');
+SELECT public.trial_customer_sweep();
+SELECT pg_temp.check(
+  pg_temp.verdict('c0000000-0000-4000-8000-000000000011') = 'no_trial' AND NOT pg_temp.running('c0000000-0000-4000-8000-000000000011'),
+  'shared customers and a store email -> no trial, and the running trial ends');
+SELECT pg_temp.check(
+  (SELECT trial_withheld_at IS NOT NULL FROM public.trial_checks WHERE tenant_id = 'c0000000-0000-4000-8000-000000000011')
+  AND (SELECT details = jsonb_build_object('signals', jsonb_build_array('customers', 'email')) AND admin_label = 'system'
+         FROM public.admin_activity_logs WHERE tenant_id = 'c0000000-0000-4000-8000-000000000011' AND action = 'trial_withheld'),
+  'withheld and logged as customer and email signals');
 
 -- N: an owner phone equal to one of F's customers is no match.
 SELECT pg_temp.shop('c0000000-0000-4000-8000-000000000006', 'trial', interval '0 days', '07800000001', 'n@example.com');
 SELECT pg_temp.check(pg_temp.verdict('c0000000-0000-4000-8000-000000000006') IS NULL, 'customer and owner phones never cross');
 
--- Staff give G its trial back: the hourly re-check neither ends it nor makes news.
+-- Staff give S its trial back: the hourly re-check neither ends it nor makes news.
 SELECT pg_temp.check(
-  (public.admin_trial_check_decide('c0000000-0000-4000-8000-000000000001', 'allow_trial', 'Shared supplier, different owner', 7,
+  (public.admin_trial_check_decide('c0000000-0000-4000-8000-000000000011', 'allow_trial', 'Shared supplier, different owner', 7,
                                    'a0000000-0000-4000-8000-000000000002', 'helper@fermi.test'))->>'success' = 'true',
-  'staff can give G its trial back');
+  'staff can give S its trial back');
 SELECT public.trial_customer_sweep();
-SELECT pg_temp.check(pg_temp.running('c0000000-0000-4000-8000-000000000001'), 'the sweep never ends a trial staff gave back');
+SELECT pg_temp.check(pg_temp.running('c0000000-0000-4000-8000-000000000011'), 'the sweep never ends a trial staff gave back');
 SELECT pg_temp.check(
-  (SELECT updated_at <= decided_at FROM public.trial_checks WHERE tenant_id = 'c0000000-0000-4000-8000-000000000001'),
+  (SELECT updated_at <= decided_at FROM public.trial_checks WHERE tenant_id = 'c0000000-0000-4000-8000-000000000011'),
   'an hourly re-check with nothing new is no news');
 
 -- A change committed late, stamped just before the last sweep, is still read.
