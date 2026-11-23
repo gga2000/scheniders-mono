@@ -355,6 +355,7 @@ describe("zipUnpacked", () => {
     const styles = PART_LIMITS["xl/styles.xml"];
     expect(strings).toBe(8 * 1024 * 1024);
     expect(styles).toBe(2 * 1024 * 1024);
+    expect(PART_LIMITS["xl/_rels/workbook.xml.rels"]).toBe(1024 * 1024);
     const book = bookEntries([sheetXml(TWO_ROWS)]);
     const withPart = (name: string, size: number) => zip([...book, { name, data: new Uint8Array(size) }]);
     expect(zipUnpacked(withPart("xl/sharedStrings.xml", strings))).toMatchObject({ ok: true });
@@ -434,6 +435,34 @@ describe("the reader's temporary files", () => {
     // Stored, not deflated, the same links read as they do deflated.
     const stored = bookEntries([fine]).map((entry) => (entry.name === "xl/_rels/workbook.xml.rels" ? { ...entry, stored: true } : entry));
     expect(await readImportFile(zip(stored), "stored.xlsx")).toMatchObject({ ok: true, file: { sheet: "Sheet1" } });
+  });
+
+  // Audit round 25: a links part of one 8 MB comment (a 9 KB file) ran the
+  // pattern that checked it out of stack, and the throw left the reader as a
+  // bare 500 on every press.
+  it("reads links behind one long comment, and refuses links past their own limit as too big", async () => {
+    const limit = PART_LIMITS["xl/_rels/workbook.xml.rels"];
+    const book = bookEntries([sheetXml(TWO_ROWS)]);
+    const withComment = (size: number) =>
+      zip(
+        book.map((entry) => {
+          if (entry.name !== "xl/_rels/workbook.xml.rels") return entry;
+          const links = Buffer.from(entry.data).toString("utf8");
+          return { ...entry, data: utf8(links.replace(XML, `${XML}<!--${"a".repeat(size - links.length - 7)}-->`)) };
+        }),
+      );
+    expect(await readImportFile(withComment(limit), "comment.xlsx")).toMatchObject({ ok: true, file: { rows: [["عطر", "35000"]] } });
+    expect(await readImportFile(withComment(limit + 1), "comment.xlsx")).toEqual(TOO_BIG);
+    const eight = withComment(8 * 1024 * 1024);
+    expect(eight.length).toBeLessThan(20 * 1024);
+    expect(await readImportFile(eight, "comment.xlsx")).toEqual(TOO_BIG);
+    expect(readdirSync(dir)).toEqual([]);
+  });
+
+  it("reads a long comment or a long run of spaces before the element without running out of stack", () => {
+    expect(hasLinksRoot(`${XML}<!--${"a".repeat(8 * 1024 * 1024)}--><Relationships xmlns="${RELS}"/>`)).toBe(true);
+    expect(hasLinksRoot(`${XML}${" ".repeat(16 * 1024 * 1024)}<Relationships xmlns="${RELS}"/>`)).toBe(true);
+    expect(hasLinksRoot(`${XML}<!--${"a".repeat(8 * 1024 * 1024)}-->`)).toBe(false);
   });
 
   it("finds the Relationships element as the reader does", () => {
