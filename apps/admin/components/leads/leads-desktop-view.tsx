@@ -41,6 +41,7 @@ import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
 import { formatCount } from "@/lib/format";
 import { LoadError } from "@/components/shared/load-error";
 import { StaleLine } from "@/components/shared/stale-line";
+import { LoadFailedLine } from "@/components/shared/load-failed-line";
 
 
 export function LeadsDesktopView() {
@@ -73,7 +74,9 @@ export function LeadsDesktopView() {
   // stops the wait, and the table uses the default columns.
   const layout = useLeadsTableLayout();
   const waitingForColumns = viewMode === "table" && layout.isPending;
-  const { data: analytics, isError: analyticsFailed, refetch: refetchAnalytics, isFetching: analyticsRetrying } = useLeadAnalytics();
+  const analyticsRead = useLeadAnalytics();
+  const analytics = analyticsRead.data;
+  const analyticsFailed = analyticsRead.isError;
   // While loading "...", after a failed read a dash and a line that says so: never a number that is not known.
   const leadNumber = (pick: (a: NonNullable<typeof analytics>) => number) =>
     analytics ? formatCount(pick(analytics)) : analyticsFailed ? "—" : "...";
@@ -221,18 +224,17 @@ export function LeadsDesktopView() {
           note={analytics ? `${analytics.conversion_rate.toFixed(1)}% of all leads` : undefined}
         />
       </NumberStrip>
-      {analyticsFailed && !analytics && (
-        <p className="-mt-2 flex items-center gap-2 text-xs text-[var(--ink-red)]" role="alert">
-          Could not load the lead numbers.
-          <button
-            type="button"
-            onClick={() => refetchAnalytics()}
-            disabled={analyticsRetrying}
-            className="font-semibold underline disabled:opacity-50"
-          >
-            {analyticsRetrying ? "Loading" : "Try again"}
-          </button>
-        </p>
+      {/* Never read: dashes and this line. A failed refresh keeps the numbers, under the stale line. */}
+      {analyticsFailed && !analytics ? (
+        <LoadFailedLine
+          className="-mt-2 text-xs"
+          what="the lead numbers"
+          error={analyticsRead.error}
+          onRetry={() => void analyticsRead.refetch()}
+          retrying={analyticsRead.isFetching}
+        />
+      ) : (
+        <StaleLine read={analyticsRead} what="the lead numbers" className="-mt-2 text-xs" />
       )}
 
       {/* Workspace Panel */}

@@ -22,6 +22,12 @@ import { describe, expect, it } from "vitest";
  * Round 24 (UX new 7): a list or a page that never loaded said "No numbers
  * are shown" in its LoadError. LoadError now takes `shows`, as StaleLine takes
  * `kept`, and the two agree for each read.
+ *
+ * Round 25 (structure new 1): the guard read one spelling. A read whose error
+ * flag was renamed (`isError: configsFailed`), asked with `isError ||`, or
+ * tested as `x.isError && (<section><LoadError …` passed it while throwing
+ * its data away: three settings cards, a team member, the commission
+ * settings, the quick notes and the Leads numbers. Those spellings count too.
  */
 
 const ROOT = join(__dirname, "..", "..");
@@ -35,20 +41,45 @@ function sources(dir: string): string[] {
   });
 }
 
+const count = (source: string, pattern: RegExp) => [...source.matchAll(pattern)].length;
+
+/** The names a read's error flag is given where it is taken apart: `const { isError: notesFailed } = …`. */
+function errorFlagNames(source: string): string[] {
+  return [...source.matchAll(/\{[^{}]*\bisError:\s*(\w+)[^{}]*\}\s*=(?![=>])/g)].map((m) => m[1]);
+}
+
+/** Every spelling of a read's error flag: `isError`, `read.isError`, or a name it was given. */
+function errorFlags(source: string): string[] {
+  return ["(?:\\w+\\.)*isError", ...errorFlagNames(source)];
+}
+
 /** Places that keep a read's data on a failure: they fall back only when there is none. */
 function keptOnFailure(source: string): number {
-  return [...source.matchAll(/\bisError\s*&&\s*(?:!\s*[\w.]+|[\w.]+\.length\s*===\s*0)/g)].length;
+  return errorFlags(source).reduce(
+    (sum, flag) =>
+      sum + count(source, new RegExp(`(?<![!.\\w])${flag}\\s*&&\\s*(?:!\\s*[\\w.]+|[\\w.]+\\.length\\s*===\\s*0)`, "g")),
+    0,
+  );
 }
 
 /**
  * Places that swap a read's data for its error: an error branch that does not
  * also ask whether anything was read. Passing the error on (`isError ? error
- * : null`) is not a swap.
+ * : null`) is not a swap, and neither is a write's own error line (`save.isError
+ * && <p>…`): only a branch that draws the read's error in place of its data is.
  */
 function dropsOnFailure(source: string): number {
-  const ternary = [...source.matchAll(/\b(?:[\w.]+\.)?isError\s*\?(?!\s*(?:[\w.]+\.)?error\b)/g)].length;
-  const early = [...source.matchAll(/\bif\s*\(\s*(?:[\w.]+\.)?isError\s*\)\s*(?:\{\s*)?return\b/g)].length;
-  return ternary + early;
+  return errorFlags(source).reduce((sum, flag) => {
+    const head = `(?<![!.\\w])${flag}`;
+    const ternary = count(source, new RegExp(`${head}\\s*\\?(?![.?])(?!\\s*(?:[\\w.]+\\.)?error\\b)`, "g"));
+    const early = count(source, new RegExp(`\\bif\\s*\\(\\s*${flag}\\s*(?:\\|\\|[^)]*)?\\)\\s*(?:\\{\\s*)?return\\b`, "g"));
+    const either = count(source, new RegExp(`${head}\\s*\\|\\|(?![^)]*\\)\\s*(?:\\{\\s*)?return\\b)`, "g"));
+    const block = count(
+      source,
+      new RegExp(`${head}\\s*&&\\s*\\(?\\s*(?:<(?!\\/)[^<>]*>\\s*)*<(?:LoadError|LoadFailedLine)\\b`, "g"),
+    );
+    return sum + ternary + early + either + block;
+  }, 0);
 }
 
 /** Lines that say a refresh failed and how old what is kept is. */
@@ -102,6 +133,23 @@ describe("a page that keeps its last read when a read fails", () => {
     expect(dropsOnFailure("<LoadError error={isError ? error : null} />")).toBe(0);
     expect(dropsOnFailure("<LoadError error={read.isError ? read.error : null} />")).toBe(0);
     expect(dropsOnFailure("if (save.isError) errorRef.current?.scrollIntoView();")).toBe(0);
+    // Round 25: the other spellings of a dropped read, and their kept forms.
+    const renamed = "const { data: configs, isError: configsFailed } = useCommissionConfigs();\n";
+    expect(errorFlagNames(renamed)).toEqual(["configsFailed"]);
+    expect(errorFlagNames("leadsCountLine({ count: data?.total, isError: neverRead })")).toEqual([]);
+    expect(dropsOnFailure(`${renamed}{configsFailed ? <LoadFailedLine /> : <List />}`)).toBe(1);
+    expect(dropsOnFailure(`${renamed}if (configsFailed) return null;`)).toBe(1);
+    expect(dropsOnFailure(`${renamed}{configsFailed && !configs ? <LoadFailedLine /> : <List />}`)).toBe(0);
+    expect(keptOnFailure(`${renamed}{configsFailed && !configs ? <LoadFailedLine /> : <List />}`)).toBe(1);
+    expect(dropsOnFailure("if (isError || !data) return <LoadError />;")).toBe(1);
+    expect(dropsOnFailure("{read.isError || !read.data ? <LoadError /> : <List />}")).toBe(1);
+    expect(dropsOnFailure("{(!read.isError || read.data) && <List />}")).toBe(0);
+    expect(dropsOnFailure('{tab === "Actions" && actions.isError && (\n  <section className="card">\n    <LoadError compact />')).toBe(1);
+    expect(dropsOnFailure("{read.isError && <LoadFailedLine what=\"x\" onRetry={r} />}")).toBe(1);
+    expect(dropsOnFailure('{addNote.isError && (\n  <p role="alert">Not saved. {addNote.error.message}</p>')).toBe(0);
+    expect(dropsOnFailure("{read.isError && !read.data && (<section><LoadError /></section>)}")).toBe(0);
+    expect(dropsOnFailure("const label = data?.name ?? (isError ? undefined : 'x');")).toBe(1);
+    expect(dropsOnFailure("const n = read?.isError?.valueOf();")).toBe(0);
     const pair = (load: string, stale: string) =>
       mismatched(`<LoadError compact what="the leads"${load} onRetry={() => void refetch()} />\n<StaleLine read={r} what="the leads"${stale} />`);
     expect(pair(' shows="list"', ' kept="list"')).toEqual([]);

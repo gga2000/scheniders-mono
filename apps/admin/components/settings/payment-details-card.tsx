@@ -6,6 +6,8 @@ import { z } from "zod";
 import { Check, Landmark, Loader2 } from "lucide-react";
 import { adminFetch } from "@/lib/admin-fetch";
 import { okOrLoadFailure } from "@/lib/load-failure";
+import { LoadFailedLine } from "@/components/shared/load-failed-line";
+import { StaleLine } from "@/components/shared/stale-line";
 import { cn } from "@/lib/utils";
 import { EMPTY_PAYMENT_DETAILS, paymentDetailsSchema, type PaymentDetails } from "@/lib/topup-queue";
 
@@ -32,7 +34,8 @@ const FIELDS: { key: keyof PaymentDetails; label: string; hint: string; ltr?: bo
  */
 export function PaymentDetailsCard({ canEdit }: { canEdit: boolean }) {
   const queryClient = useQueryClient();
-  const { data, isLoading, isError } = useQuery(paymentDetailsQuery);
+  const read = useQuery(paymentDetailsQuery);
+  const { data, isLoading } = read;
 
   const save = useMutation({
     mutationFn: async (details: PaymentDetails) => {
@@ -64,11 +67,16 @@ export function PaymentDetailsCard({ canEdit }: { canEdit: boolean }) {
       {isLoading ? (
         // The empty form, greyed, holds the card's height until the details arrive.
         <PaymentDetailsForm saved={EMPTY_PAYMENT_DETAILS} canEdit={canEdit} save={save} loading />
-      ) : isError || !data ? (
-        <p className="text-xs text-[var(--ink-red)]">Could not load the payment details. Reload the page.</p>
+      ) : !data ? (
+        <LoadFailedLine what="the payment details" error={read.error} onRetry={() => void read.refetch()} retrying={read.isFetching} />
       ) : (
-        // A new save gives a new updated_at, so the form starts again from what was saved.
-        <PaymentDetailsForm key={data.updated_at ?? "unsaved"} saved={data.details} canEdit={canEdit} save={save} />
+        // A failed refresh keeps the form and what was typed in it, under the
+        // line that says how old the saved values are. A new save gives a new
+        // updated_at, so the form starts again from what was saved.
+        <>
+          <StaleLine read={read} what="the payment details" kept="settings" className="mb-3" />
+          <PaymentDetailsForm key={data.updated_at ?? "unsaved"} saved={data.details} canEdit={canEdit} save={save} />
+        </>
       )}
     </div>
   );
