@@ -30,7 +30,7 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/merchants",
 }));
 
-const { default: MerchantsPage } = await import("./page");
+const { MerchantsView: MerchantsPage } = await import("./merchants-view");
 
 const SHOP: AdminTenant = {
   id: "6d4e6d9b-eaf5-42f9-abd1-a8afee593d9d",

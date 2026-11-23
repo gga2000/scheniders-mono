@@ -101,8 +101,8 @@ describe("ON_TRIAL_FILTER", () => {
 const ADMIN_DIR = path.resolve(__dirname, "..");
 const RAW_TRIAL = /status\s*[!=]==\s*"trial"|"trial"\s*[!=]==\s*[\w.]*status\b|\.eq\(\s*"status"\s*,\s*"trial"\s*\)/g;
 const RAW_ON_PURPOSE: Record<string, { count: number; why: string }> = {
-  "app/api/merchants/route.ts": { count: 1, why: "the ?status= the page asked for, not a shop's status" },
-  "app/api/merchants/stats/route.ts": { count: 2, why: "the ?status= asked for, and the Pipeline's raw columns, which add up to the total" },
+  "lib/merchants-list.ts": { count: 1, why: "the ?status= the page asked for, not a shop's status" },
+  "lib/merchants-stats.ts": { count: 2, why: "the ?status= asked for, and the Pipeline's raw columns, which add up to the total" },
   "app/(dashboard)/merchants/[id]/page.tsx": { count: 1, why: "free days from the trial end only for a trial that is not paused" },
   "components/support/support-today.tsx": { count: 1, why: "shop_status comes from support_tasks_due, which reads tenant_effective_status" },
   "components/trials/trial-checks-panel.tsx": { count: 2, why: "the paused trial is answered first; the decisions wait for the pause to lift" },

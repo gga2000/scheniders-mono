@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAdminStore } from "@/store/use-admin-store";
 import { adminFetch } from "@/lib/admin-fetch";
+import { merchantsStatsKey, merchantsStatsParams } from "@/lib/merchants-query";
 
 export interface MerchantsStats {
   total: number;
@@ -55,34 +56,20 @@ export function useMerchantsStats(options: UseMerchantsStatsOptions = {}) {
     dateRange,
   } = useAdminStore();
 
-  const effectiveStatusFilter = ignoreStatusFilter ? null : statusFilter;
+  const filters = {
+    planFilter,
+    statusFilter: ignoreStatusFilter ? null : statusFilter,
+    cityFilter,
+    balanceFilter,
+    healthFilter,
+    searchQuery,
+    dateRange,
+  };
 
   return useQuery<MerchantsStats>({
-    queryKey: [
-      "admin",
-      "merchants",
-      "stats",
-      {
-        planFilter,
-        statusFilter: effectiveStatusFilter,
-        cityFilter,
-        balanceFilter,
-        healthFilter,
-        searchQuery,
-        dateRange,
-      },
-    ],
+    queryKey: merchantsStatsKey(filters),
     queryFn: async () => {
-      const params = new URLSearchParams();
-      if (planFilter) params.set("plan", planFilter);
-      if (effectiveStatusFilter) params.set("status", effectiveStatusFilter);
-      if (cityFilter) params.set("city", cityFilter);
-      if (balanceFilter) params.set("balance", balanceFilter);
-      if (healthFilter) params.set("health", healthFilter);
-      if (searchQuery) params.set("search", searchQuery);
-      if (dateRange.from) params.set("date_from", dateRange.from);
-      if (dateRange.to) params.set("date_to", dateRange.to);
-
+      const params = merchantsStatsParams(filters);
       const res = await adminFetch(`/api/merchants/stats?${params.toString()}`);
       if (!res.ok) throw new Error("Failed to fetch merchant stats");
       return res.json();
