@@ -38,7 +38,9 @@ import { SignupPhoneCheck, useSignupPhoneCodeSwitch } from "@/components/auth/si
 import { StoreAddressField, storeAddressSendable, useStoreAddress } from "@/components/auth/store-address-field";
 import { AuthCardHeading, AuthCardShell } from "@/components/auth/auth-card-shell";
 import { FermiSignupPixel } from "@/components/auth/fermi-signup-pixel";
+import { AuthHero } from "@/components/auth/auth-hero";
 import { trackSignupComplete } from "@/lib/fermi-pixel";
+import { TRIAL_DAYS } from "@/lib/trial";
 
 const BUSINESS_TYPE_ICONS: Record<string, LucideIcon> = {
     Shirt,
@@ -222,7 +224,7 @@ function SignupForm() {
 
     return (
         <div className="px-6 sm:px-8 pt-3 pb-8">
-            <AuthCardHeading icon={<Store className="w-5 h-5" />} title={t("signup.title")} subtitle={t("signup.subtitle")} />
+            <AuthCardHeading icon={<Store className="w-5 h-5" />} title={t("signup.title")} subtitle={t("signup.subtitle", { count: TRIAL_DAYS })} />
 
                 {sentTo ? (
                     <div className="mt-6 space-y-4">
@@ -460,7 +462,7 @@ function SignupForm() {
 
 export default function SignupPage() {
     return (
-        <AuthCardShell showBack={false}>
+        <AuthCardShell showBack={false} aside={<AuthHero variant="signup" />}>
             <FermiSignupPixel />
             <Suspense
                 fallback={
