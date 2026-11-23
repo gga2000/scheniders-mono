@@ -135,7 +135,7 @@ export function CustomDatePicker({ dateRange, onChange, presets }: CustomDatePic
                 )}
             >
                 <Calendar className="w-4 h-4 text-indigo-500" />
-                <span dir={dir}>{dayMonth(dateRange.from)} - {inThisYear ? dayMonth(dateRange.to) : dayMonthYear(dateRange.to)}</span>
+                <span dir={dir} className="whitespace-nowrap">{dayMonth(dateRange.from)} - {inThisYear ? dayMonth(dateRange.to) : dayMonthYear(dateRange.to)}</span>
             </button>
 
             {/* Dropdown */}

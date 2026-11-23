@@ -223,7 +223,8 @@ export default function ReportsPage() {
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    {/* Never squeezed by the subtitle: the date range broke onto two lines at 1440 (round 19). */}
+                    <div className="flex shrink-0 items-center gap-3">
                         {/* Custom Date Range Picker */}
                         <CustomDatePicker
                             dateRange={dateRange}
