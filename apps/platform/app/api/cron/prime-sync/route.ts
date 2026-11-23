@@ -12,12 +12,11 @@ import { sendPrimeFailedNotices, type PrimeFailedNoticeOutcome } from "@/lib/pri
 import { recheckPrimeLinkRequests, type PrimeLinkRecheckOutcome } from "@/lib/prime/self-link";
 import { CRON_MONITORS, withCronMonitor } from "@/lib/job-monitor";
 import { reportDeferredStores, storeBudget } from "@/lib/cron-budget";
+import { PRIME_STATUS_EVERY_MS } from "@/lib/prime/sync-health";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-/** Prime's status is read this often; staff edits go out on every run (5 minutes). */
-const STATUS_EVERY_MS = 15 * 60 * 1000;
 /** Slack for cron start jitter, so a 15-minute rhythm does not slip to 20. */
 const STATUS_JITTER_MS = 60 * 1000;
 /** Prime's webhook setting is checked this often per warm instance (one read; a save only when it differs). */
@@ -99,7 +98,7 @@ async function runScheduled(request: NextRequest) {
             errors.push(report(err, tenantId, "push"));
         }
         const lastSynced = connection.last_synced_at ? Date.parse(connection.last_synced_at as string) : 0;
-        const statusDue = Date.now() - lastSynced >= STATUS_EVERY_MS - STATUS_JITTER_MS;
+        const statusDue = Date.now() - lastSynced >= PRIME_STATUS_EVERY_MS - STATUS_JITTER_MS;
         if (statusDue) {
             try {
                 result.sync = await syncPrimeTenant(db, client, tenantId, stepNames);

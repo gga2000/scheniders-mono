@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { usePrimeStatement, usePrimeStatementAction, usePrimeStatements } from "@/hooks/use-prime-statements";
+import { PrimeReadError } from "@/lib/prime/read-error";
 import { primePaidButNotDelivered } from "@/lib/prime/statement";
 import { useActionProblem } from "./use-action-problem";
 
@@ -73,7 +74,10 @@ export function PrimeStatementCard({ onOpen }: { onOpen: (id: number) => void })
             {statements.isPending ? (
                 <div className="h-16 animate-pulse rounded-xl bg-black/[0.04] dark:bg-white/10" aria-busy="true" />
             ) : statements.isError ? (
-                <p className="text-sm text-muted">{t("orders.prime.unreachable")}</p>
+                <p className="text-sm text-muted">
+                    {/* "Try in a minute" only when Prime is silent; a refusal does not pass in a minute. */}
+                    {statements.error instanceof PrimeReadError && statements.error.reason === "prime_unreachable" ? t("orders.prime.unreachable") : t("prime.page.statementsUnread")}
+                </p>
             ) : !entry || !latest ? (
                 <p dir={dir} className="text-left text-sm text-muted">
                     {note ? note.text : t("prime.page.noStatements")}

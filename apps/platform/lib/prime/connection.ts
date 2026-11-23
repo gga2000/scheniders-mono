@@ -11,24 +11,32 @@ export interface PrimeConnection extends PrimeMerchant {
     branchName: string | null;
 }
 
-/** The tenant's Prime connection when its API link is switched on, else null. */
-export async function loadPrimeConnection(db: ServiceDb, tenantId: string): Promise<PrimeConnection | null> {
+/**
+ * The tenant's Prime connection when its API link is switched on, else null,
+ * with when Prime's statuses were last read for it (null before the first read).
+ */
+export async function loadPrimeConnection(db: ServiceDb, tenantId: string): Promise<{ connection: PrimeConnection; syncedAt: string | null } | null> {
     const { data, error } = await db
         .from("prime_connections")
-        .select("merchant_login_id, shop_id, branch_name")
+        .select("merchant_login_id, shop_id, branch_name, last_synced_at")
         .eq("tenant_id", tenantId)
         .eq("is_active", true)
         .maybeSingle();
     if (error) throw new Error(error.message);
     if (!data) return null;
     const branch = typeof data.branch_name === "string" ? data.branch_name.trim() : "";
-    return { merchantLoginId: data.merchant_login_id, shopId: Number(data.shop_id), branchName: branch || null };
+    return {
+        connection: { merchantLoginId: data.merchant_login_id, shopId: Number(data.shop_id), branchName: branch || null },
+        syncedAt: typeof data.last_synced_at === "string" ? data.last_synced_at : null,
+    };
 }
 
 /** A tenant's way to Prime: the client to call and the merchant and branch it ships as. */
 export interface PrimeLink {
     client: PrimeClient;
     connection: PrimeConnection;
+    /** When Prime's statuses were last read for this store; null before the first read and for the demo store, which reads nothing. */
+    syncedAt: string | null;
 }
 
 async function isDemoTenant(db: ServiceDb, tenantId: string): Promise<boolean> {
@@ -45,8 +53,8 @@ async function isDemoTenant(db: ServiceDb, tenantId: string): Promise<boolean> {
  */
 export async function loadPrimeLink(db: ServiceDb, tenantId: string): Promise<PrimeLink | null> {
     const client = getPrimeClient();
-    const connection = client ? await loadPrimeConnection(db, tenantId) : null;
-    if (client && connection) return { client, connection };
-    if (await isDemoTenant(db, tenantId)) return { client: createDemoPrimeClient(db, tenantId), connection: DEMO_PRIME_CONNECTION };
+    const found = client ? await loadPrimeConnection(db, tenantId) : null;
+    if (client && found) return { client, ...found };
+    if (await isDemoTenant(db, tenantId)) return { client: createDemoPrimeClient(db, tenantId), connection: DEMO_PRIME_CONNECTION, syncedAt: null };
     return null;
 }

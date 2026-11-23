@@ -4,6 +4,7 @@ import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import { useAuth } from "@/components/auth/auth-provider";
 import { authedFetch } from "@/lib/authed-fetch";
+import { primeReadError, retryPrimeRead } from "@/lib/prime/read-error";
 
 const summarySchema = z.object({
     parcels: z.number(),
@@ -75,7 +76,7 @@ const oneAnswer = z.object({
 
 async function getJson<T>(url: string, token: string, schema: z.ZodType<T>): Promise<T> {
     const res = await authedFetch(url);
-    if (!res.ok) throw new Error(`Prime statements failed: ${res.status}`);
+    if (!res.ok) throw await primeReadError(res, "Prime statements");
     return schema.parse(await res.json());
 }
 
@@ -87,6 +88,7 @@ export function usePrimeStatements(enabled: boolean) {
         queryKey: ["prime-statements", tenantId],
         enabled: enabled && !!token,
         staleTime: 5 * 60_000,
+        retry: retryPrimeRead,
         queryFn: () => getJson("/api/prime/statements", token ?? "", listAnswer),
     });
 }
@@ -99,6 +101,7 @@ export function usePrimeStatement(id: number | null) {
         queryKey: ["prime-statements", tenantId, id],
         enabled: id !== null && !!token,
         staleTime: 5 * 60_000,
+        retry: retryPrimeRead,
         queryFn: () => getJson(`/api/prime/statements?id=${id}`, token ?? "", oneAnswer),
     });
 }
