@@ -83,9 +83,10 @@ describe("GET /api/hourly-jobs", () => {
     ]);
   });
 
-  // Round 14 (Reliability new 4): the reason was read and dropped, and no
-  // failure reached Sentry.
-  it("says what the failed run said, and sends it to Sentry once", async () => {
+  // Round 14 (Reliability new 4): the reason was read and dropped. The bell
+  // also sent the failure to Sentry, so only while a console was open; the
+  // scheduled check (/api/cron/hourly-jobs) does that each hour now.
+  it("says what the failed run said, and leaves Sentry to the scheduled check", async () => {
     stub.state.functions.staff_job_runs = () => ({
       data: [ran("lift-ended-pauses", 19), ran("refresh-lead-scores", 3, "failed")],
       error: null,
@@ -93,14 +94,7 @@ describe("GET /api/hourly-jobs", () => {
     expect((await (await check()).json()).jobs).toEqual([
       { job: "refresh-lead-scores", problem: "failed", last_run: minutesAgo(3), message: "ERROR: something" },
     ]);
-    await check();
-    expect(sentry.captureException).toHaveBeenCalledTimes(1);
-    const [error, context] = sentry.captureException.mock.calls[0];
-    expect(String(error)).toBe("Error: Hourly job refresh-lead-scores failed");
-    expect(context).toEqual({
-      fingerprint: ["hourly-job", "failed", "refresh-lead-scores"],
-      extra: { last_run: minutesAgo(3), message: "ERROR: something" },
-    });
+    expect(sentry.captureException).not.toHaveBeenCalled();
   });
 
   it("fails out loud when the runs cannot be read, so the bell says it could not check", async () => {

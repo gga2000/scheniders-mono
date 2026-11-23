@@ -15,17 +15,17 @@ const PROBLEM_WORDS: Record<JobProblem["problem"], string> = {
 
 /**
  * GET /api/cron/hourly-jobs: for Vercel's scheduler, once an hour after the
- * database's hourly jobs have run (:21 and :27). Every problem the staff bell
+ * database's hourly jobs have run (:21 and :27; hourly-jobs.test.ts keeps it
+ * at least 5 minutes after both). Every problem the staff bell
  * would show goes to Sentry, one issue per job and problem, one event per
  * hour while it lasts: a failed run with what it said, a job that stopped or
  * was never scheduled, paused shops the lift missed, and trials and months
  * the daily renewal job missed (lib/billing-check.ts; round 20: the renewal
  * runs on the platform and its Sentry monitor has never checked in, so a
  * missed run reached no one). Round 15: the bell sends only failed runs, and
- * only while someone has a console open.
- * Not scheduled yet: Vercel calls it once CRON_SECRET is set and vercel.json
- * has its `crons` entry. Until then only the bell's send reaches Sentry, under
- * the same fingerprint as a failed run here, so both land on one issue.
+ * only while someone has a console open; it no longer sends at all.
+ * Vercel calls it at minute 40 of each hour (vercel.json `crons`, with the
+ * project's CRON_SECRET as its bearer token).
  */
 export async function GET(request: Request) {
   const refused = requireCronAuth(request);

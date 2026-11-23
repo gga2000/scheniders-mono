@@ -19,8 +19,8 @@ export type PauseNotLifted = { tenant_id: string; business_name: string; paused_
  *     or that is not scheduled (staff_job_runs), with what a failed run said.
  * Empty lists mean the hourly jobs are running. The staff bell reads it
  * (/api/hourly-jobs). The scheduled check (/api/cron/hourly-jobs) sends it to
- * Sentry each hour once Vercel calls it: that needs CRON_SECRET and a `crons`
- * entry in vercel.json, and neither is there yet. A failed read throws.
+ * Sentry each hour: Vercel calls it at minute 40 (vercel.json `crons`). A
+ * failed read throws.
  */
 export async function checkHourlyJobs(
   supabase: ReturnType<typeof createAdminClient>,
