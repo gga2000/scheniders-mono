@@ -8,18 +8,18 @@ import { leadsCountLine, pageAfterShrink } from "./leads-count";
 
 describe("the Leads header line", () => {
   it("counts the leads once they are read", () => {
-    expect(leadsCountLine({ count: 1240, isError: false })).toBe("1,240 leads in the pipeline");
-    expect(leadsCountLine({ count: 1, isError: false })).toBe("1 lead in the pipeline");
-    expect(leadsCountLine({ count: 0, isError: false })).toBe("0 leads in the pipeline");
+    expect(leadsCountLine({ count: 1240, neverRead: false })).toBe("1,240 leads in the pipeline");
+    expect(leadsCountLine({ count: 1, neverRead: false })).toBe("1 lead in the pipeline");
+    expect(leadsCountLine({ count: 0, neverRead: false })).toBe("0 leads in the pipeline");
   });
 
   it("never says 0 while the read is running", () => {
-    expect(leadsCountLine({ count: undefined, isError: false })).toBe("Counting leads...");
+    expect(leadsCountLine({ count: undefined, neverRead: false })).toBe("Counting leads...");
   });
 
-  it("says the count failed, even over an older count", () => {
-    expect(leadsCountLine({ count: undefined, isError: true })).toBe("Could not count the leads");
-    expect(leadsCountLine({ count: 40, isError: true })).toBe("Could not count the leads");
+  it("says nothing over a list that never loaded, where Lead numbers already count the leads", () => {
+    // Round 25 UX new 3: "Could not count the leads" sat above "Leads, now 28".
+    expect(leadsCountLine({ count: undefined, neverRead: true })).toBeNull();
   });
 });
 

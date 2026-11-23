@@ -50,6 +50,29 @@ export function shouldRetryLoad(failureCount: number, error: unknown): boolean {
   return loadFailureKind(error) === "failed" && failureCount < LOAD_RETRIES;
 }
 
+/** What `pollEvery` reads of a query: what it holds, and how often it failed. */
+interface PolledQuery {
+  state: { data: unknown; errorUpdateCount: number };
+}
+
+/**
+ * A read's `refetchInterval`: asked again every `ms`, except while it holds
+ * nothing and has failed. TanStack sets such a read back to pending, with no
+ * error, for every try, so each poll swapped its failure line and Try again
+ * for a spinner, every few seconds on a bad line (round 25 UX new 1). It then
+ * waits for Try again, or for the tab to come back into view, and polls again
+ * once it holds an answer. A read that holds an answer keeps polling, under
+ * its stale line when a refresh fails.
+ *
+ * Only for a read whose failure is drawn with a Try again. A read with no
+ * failure line of its own (an alert that shows only problems, a menu count)
+ * keeps a plain interval: nothing of it flips, and it has no Try again to
+ * wait for, so it must find its answer by itself.
+ */
+export function pollEvery(ms: number): (query: PolledQuery) => number | false {
+  return (query) => (query.state.data === undefined && query.state.errorUpdateCount > 0 ? false : ms);
+}
+
 interface CountRead {
   /** The count, once the read has answered. */
   count: number | undefined;

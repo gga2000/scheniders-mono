@@ -21,6 +21,7 @@ import { formatCount, formatIQD, formatMonth } from "@/lib/format";
 import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
 import { adminFetch } from "@/lib/admin-fetch";
 import { planLabel } from "@/types/admin";
+import { pollEvery } from "@/lib/load-failure";
 
 interface RevenueData {
   mrrWaterfall: Array<{ month: string; revenue: number }>;
@@ -64,7 +65,7 @@ export default function RevenuePage() {
       return res.json();
     },
     staleTime: 60_000,
-    refetchInterval: 120_000,
+    refetchInterval: pollEvery(120_000),
   });
   const { data, isLoading, isError, error, isFetching, refetch } = pageRead;
 

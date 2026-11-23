@@ -10,7 +10,7 @@ import { adminFetch } from "@/lib/admin-fetch";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { LoadError } from "@/components/shared/load-error";
 import { StaleLine } from "@/components/shared/stale-line";
-import { okOrLoadFailure } from "@/lib/load-failure";
+import { okOrLoadFailure, pollEvery } from "@/lib/load-failure";
 import { monthOf } from "@/lib/baghdad-day";
 import { formatMonth } from "@/lib/format";
 import { STATUS_LABELS, planLabel } from "@/types/admin";
@@ -127,7 +127,7 @@ export default function WhatsAppPage() {
       return responseSchema.parse(await res.json());
     },
     staleTime: 60_000,
-    refetchInterval: 120_000,
+    refetchInterval: pollEvery(120_000),
   });
   const { data, error, isLoading, isError, isFetching, refetch } = pageRead;
 

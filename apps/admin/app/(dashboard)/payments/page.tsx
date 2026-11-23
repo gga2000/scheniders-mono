@@ -15,7 +15,7 @@ import { LoadError } from "@/components/shared/load-error";
 import { StaleLine } from "@/components/shared/stale-line";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
 import { isStaffReason } from "@/lib/billing-lock-tools";
-import { okOrLoadFailure } from "@/lib/load-failure";
+import { okOrLoadFailure, pollEvery } from "@/lib/load-failure";
 import { failureOf, sendJson } from "@/components/merchants/detail/action-ui";
 import {
   REJECT_REASON_MAX,
@@ -267,7 +267,7 @@ export default function PaymentsPage() {
       const res = okOrLoadFailure(await adminFetch("/api/wallet-topup-requests"), "the payments");
       return responseSchema.parse(await res.json()).requests;
     },
-    refetchInterval: 60_000,
+    refetchInterval: pollEvery(60_000),
   });
   const { data, error, isLoading, isError, isFetching, refetch } = pageRead;
 

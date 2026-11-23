@@ -128,4 +128,16 @@ describe("the count beside a place", () => {
       label: "Could not check the support inbox",
     });
   });
+
+  it("keeps its ? while a count that never answered is asked again", () => {
+    // Round 25 UX new 1: pending again with no error for each try, so the badge read 0.
+    expect(waitingBadge({ data: undefined, isError: false, errorUpdateCount: 1 }, "receipts to check", "the receipts")).toEqual({
+      count: null,
+      label: "Could not check the receipts",
+    });
+    // The first read, still running: no failure yet.
+    expect(waitingBadge({ data: undefined, isError: false, errorUpdateCount: 0 }, "receipts to check", "the receipts").count).toBe(0);
+    // A count it holds after an earlier failure is shown.
+    expect(waitingBadge({ data: 2, isError: false, errorUpdateCount: 1 }, "receipts to check", "the receipts").count).toBe(2);
+  });
 });

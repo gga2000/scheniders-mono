@@ -8,7 +8,7 @@ import { LoadError } from "@/components/shared/load-error";
 import { StaleLine } from "@/components/shared/stale-line";
 import { adminFetch } from "@/lib/admin-fetch";
 import { formatCount, formatDateKey, formatIQD } from "@/lib/format";
-import { okOrLoadFailure } from "@/lib/load-failure";
+import { okOrLoadFailure, pollEvery } from "@/lib/load-failure";
 import { weekRowSchema, weekSpan, type WeekSummary } from "@/lib/weekly-dashboard";
 
 /** GET /api/weekly-dashboard: the database's weeks with their sums (lib/weekly-dashboard weekSummary). */
@@ -72,7 +72,7 @@ export default function WeeklyNumbersPage() {
       return weeklyResponseSchema.parse(await res.json());
     },
     staleTime: 60_000,
-    refetchInterval: 300_000,
+    refetchInterval: pollEvery(300_000),
   });
   const { data, error, isLoading, isError, isFetching, refetch } = pageRead;
 

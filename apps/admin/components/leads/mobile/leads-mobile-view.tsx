@@ -98,7 +98,7 @@ export function LeadsMobileView() {
       <div>
         <h1 className="text-[22px] font-semibold text-foreground">Leads</h1>
         <p className="text-[13px] text-foreground/70">
-          {leadsCountLine({ count: data?.pages[0]?.total, isError: neverRead })}
+          {leadsCountLine({ count: data?.pages[0]?.total, neverRead })}
         </p>
       </div>
 

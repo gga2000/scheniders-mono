@@ -20,6 +20,7 @@ import { LoadError } from "@/components/shared/load-error";
 import { StaleLine } from "@/components/shared/stale-line";
 import { formatDateKey, formatDay, formatMonth } from "@/lib/format";
 import { adminFetch } from "@/lib/admin-fetch";
+import { pollEvery } from "@/lib/load-failure";
 
 interface UsageData {
   heatmapData: Array<{ date: string; count: number }>;
@@ -54,7 +55,7 @@ export default function UsagePage() {
       return res.json();
     },
     staleTime: 60_000,
-    refetchInterval: 120_000,
+    refetchInterval: pollEvery(120_000),
   });
   const { data, isLoading, isError, error, isFetching, refetch } = pageRead;
 
