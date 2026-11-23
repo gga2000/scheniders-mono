@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { X, MapPin, ChevronDown, Search, CreditCard, Wallet, Activity, AlertCircle } from "lucide-react";
 import { useAdminStore } from "@/store/use-admin-store";
 import { useMerchantsStats } from "@/hooks/use-merchants-stats";
+import { PartReadLine } from "@/components/shared/stale-line";
 import { cn } from "@/lib/utils";
 import { SHOP_GOVERNORATES } from "@/lib/shop-city";
 import type { HealthBand } from "@/lib/merchant-health";
@@ -278,7 +279,8 @@ export const MerchantFilterBarV2 = memo(function MerchantFilterBarV2({
   // ── Status counts (server-aggregated; ignore current status filter
   // so all pills show their counts regardless of which one is active).
   // Until they are read the pills show a dash: a 0 would pass for a count. ──
-  const { data: stats } = useMerchantsStats({ ignoreStatusFilter: true });
+  const statsRead = useMerchantsStats({ ignoreStatusFilter: true });
+  const { data: stats } = statsRead;
   const statusCounts: Record<string, number> = {
     "": stats?.total ?? 0,
     // A paused trial too: the Trial filter lists it, as Trials does.
@@ -406,6 +408,9 @@ export const MerchantFilterBarV2 = memo(function MerchantFilterBarV2({
           </div>
         )}
       </div>
+
+      {/* A failed refresh keeps the counts and says how old they are (round 25, R3-10): they were silently old. */}
+      <PartReadLine read={statsRead} what="the status counts" className="text-xs" />
 
       {/* Secondary filters — compact dropdowns */}
       <div className="flex items-center gap-2 flex-wrap pt-2 border-t border-foreground/5">

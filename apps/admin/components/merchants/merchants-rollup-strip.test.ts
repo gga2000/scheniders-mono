@@ -1,6 +1,6 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { MerchantsStats } from "@/hooks/use-merchants-stats";
 
 /*
@@ -20,7 +20,9 @@ const stats: MerchantsStats = {
   governorates: { BGD: 2 },
   unknown_city: 0,
 };
-vi.mock("@/hooks/use-merchants-stats", () => ({ useMerchantsStats: () => ({ data: stats }) }));
+/** The numbers read as the strip sees it; a test swaps in a failed read. */
+let read: Record<string, unknown> = { data: stats };
+vi.mock("@/hooks/use-merchants-stats", () => ({ useMerchantsStats: () => read }));
 
 const { MerchantsRollupStrip } = await import("./merchants-rollup-strip");
 
@@ -39,5 +41,38 @@ describe("MerchantsRollupStrip", () => {
 
   it("drops MRR, ARR and the year figure", () => {
     for (const word of ["MRR", "ARR", "/yr", "/mo", "Usage Charges", "300K"]) expect(html).not.toContain(word);
+  });
+});
+
+/*
+ * Round 25 (R3-10): a failed refresh kept the money tiles with nothing to say
+ * they were old, and a first read that failed left dashes that looked like
+ * numbers on their way. The strip now says so, as Home and the map do.
+ */
+describe("MerchantsRollupStrip after a failed read", () => {
+  const settled = { isFetching: false, refetch: () => Promise.resolve(), error: new Error("fetch failed") };
+  afterEach(() => {
+    read = { data: stats };
+    vi.useRealTimers();
+  });
+
+  it("keeps the tiles and says a refresh failed and how old they are", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-11-23T09:00:00Z")); // 12:00 in Baghdad
+    read = { ...settled, data: stats, isRefetchError: true, isLoadingError: false, dataUpdatedAt: Date.parse("2026-11-23T08:42:00Z") };
+    const html = renderToStaticMarkup(createElement(MerchantsRollupStrip));
+    expect(html).toContain("Could not refresh the money numbers. These numbers are from 11:42.");
+    expect(html).toMatch(/25,000<span[^>]*>IQD/);
+  });
+
+  it("says the numbers could not load when they were never read", () => {
+    read = { ...settled, data: undefined, isRefetchError: false, isLoadingError: true, dataUpdatedAt: 0 };
+    const html = renderToStaticMarkup(createElement(MerchantsRollupStrip));
+    expect(html).toContain("Could not load the money numbers.");
+    expect(html).not.toContain("Could not refresh");
+  });
+
+  it("draws no line over numbers that are current", () => {
+    expect(renderToStaticMarkup(createElement(MerchantsRollupStrip))).not.toContain("Could not");
   });
 });

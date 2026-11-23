@@ -12,8 +12,7 @@ import { useAdminStore } from "@/store/use-admin-store";
 import { cn } from "@/lib/utils";
 import { SHOP_GOVERNORATES, governorateNamed } from "@/lib/shop-city";
 import { useMerchantsStats } from "@/hooks/use-merchants-stats";
-import { StaleLine } from "@/components/shared/stale-line";
-import { LoadFailedLine } from "@/components/shared/load-failed-line";
+import { PartReadLine } from "@/components/shared/stale-line";
 
 const HEAT_SCALE = [
   "#f1f5f9",
@@ -57,7 +56,7 @@ interface GovCount {
 export function MerchantsMapView() {
   const { cityFilter, setCityFilter } = useAdminStore();
   const statsRead = useMerchantsStats();
-  const { data: stats, isError } = statsRead;
+  const { data: stats } = statsRead;
   const [hovered, setHovered] = useState<string | null>(null);
   const [tooltip, setTooltip] = useState<{
     x: number;
@@ -116,17 +115,7 @@ export function MerchantsMapView() {
             )}
           </span>
         </div>
-        {isError && !stats ? (
-          <LoadFailedLine
-            className="mb-3"
-            what="the governorate counts"
-            error={statsRead.error}
-            onRetry={() => void statsRead.refetch()}
-            retrying={statsRead.isFetching}
-          />
-        ) : (
-          <StaleLine read={statsRead} what="the governorate counts" className="mb-3" />
-        )}
+        <PartReadLine read={statsRead} what="the governorate counts" className="mb-3" />
 
         <svg
           viewBox={`${-padding} ${-padding} ${IRAQ_MAP_WIDTH + padding * 2} ${IRAQ_MAP_HEIGHT + padding * 2}`}
