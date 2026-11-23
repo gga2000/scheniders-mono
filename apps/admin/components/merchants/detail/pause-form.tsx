@@ -6,7 +6,8 @@ import { formatDayTime } from "@/lib/format";
 import { endAfterDays, shopActionKey } from "@/lib/shop-actions";
 import { isStaffReason } from "@/lib/billing-lock-tools";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
-import { Choice, ConfirmButton, ErrorLine, PanelFields, PanelTitle, postJson, useWriteFailed, WillHappen } from "./action-ui";
+import { Choice, ConfirmButton, ErrorLine, PanelFields, PanelTitle, useWriteFailed, WillHappen } from "./action-ui";
+import { postJson } from "@/lib/send-json";
 
 const DAYS = [1, 3, 7, 30];
 

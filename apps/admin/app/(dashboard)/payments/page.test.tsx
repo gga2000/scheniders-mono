@@ -17,7 +17,7 @@ vi.mock("@/hooks/use-admin-auth", () => ({ useAdminAuth: () => ({ role: "super_a
 
 const { default: PaymentsPage } = await import("./page");
 const { TOPUP_QUEUE_KEY } = await import("@/lib/topup-queue");
-const { ANSWER_LOST } = await import("@/components/merchants/detail/action-ui");
+const { ANSWER_LOST } = await import("@/lib/answer-lost");
 
 const REQUEST = {
   id: "7a1c2d3e-0000-4000-8000-000000000001",

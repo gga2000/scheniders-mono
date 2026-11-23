@@ -22,7 +22,7 @@ import { quickTopUpPlan } from "@/lib/quick-top-up";
 import { formatCount, formatIQD, formatWhen } from "@/lib/format";
 import { useAdminAuth, useCan } from "@/hooks/use-admin-auth";
 import { adminFetch } from "@/lib/admin-fetch";
-import { postJson } from "@/components/merchants/detail/action-ui";
+import { postJson } from "@/lib/send-json";
 import { planLabel } from "@/types/admin";
 
 // ---------------------------------------------------------------------------

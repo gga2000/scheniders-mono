@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { EASE_CHROME } from "@/lib/animation-constants";
-import { adminFetch } from "@/lib/admin-fetch";
+import { sendJson } from "@/lib/send-json";
 import { readLeadImportResult, type LeadImportOutcome } from "@/lib/lead-import";
 import {
   X,
@@ -389,21 +389,15 @@ export function LeadImportDialog({ isOpen, onClose }: LeadImportDialogProps) {
     }, 200);
 
     try {
-      const res = await adminFetch("/api/leads/import", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ leads: mappedLeads }),
-      });
+      const answer = await sendJson("/api/leads/import", { leads: mappedLeads });
 
       clearInterval(progressInterval);
       setImportProgress(100);
-
-      const body: unknown = await res.json().catch(() => null);
-      setImportResult(readLeadImportResult(res.ok, body, mappedLeads.length));
+      setImportResult(readLeadImportResult(answer.ok, answer.data, mappedLeads.length));
     } catch {
       clearInterval(progressInterval);
       setImportProgress(100);
-      // The request never got an answer (no connection): nothing is known to be saved.
+      // No answer came back (the connection dropped): some rows may be saved, and the result says to look.
       setImportResult(readLeadImportResult(false, null, mappedLeads.length));
     } finally {
       setIsImporting(false);

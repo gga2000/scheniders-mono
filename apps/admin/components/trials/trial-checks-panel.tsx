@@ -23,7 +23,7 @@ import { isPausedTrial } from "@/lib/effective-status";
 import { formatDayTime } from "@/lib/format";
 import { keptRequestIds, requestKey, shopKey } from "@/lib/request-ids";
 import { adminFetch } from "@/lib/admin-fetch";
-import { failureOf, sendJson } from "@/components/merchants/detail/action-ui";
+import { failureOf, sendJson } from "@/lib/send-json";
 
 const GIVE_BACK_DAYS = [3, 7];
 

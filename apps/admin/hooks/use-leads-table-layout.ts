@@ -1,13 +1,19 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { z } from "zod";
 import { adminFetch } from "@/lib/admin-fetch";
+import { answerLostWords } from "@/lib/answer-lost";
+import { sendStep } from "@/lib/send-json";
 import {
   layoutSchema,
   resolveLeadLayout,
   serializeLayout,
   type ResolvedLayout,
 } from "@/lib/leads-table-layout";
+
+/** What a save answers: the layout as the server stored it. */
+const savedLayoutSchema = z.object({ layout: layoutSchema });
 
 /** Single global key — there is exactly one shared, org-wide layout. */
 const LAYOUT_KEY = ["leads-table-layout"] as const;
@@ -75,18 +81,15 @@ export function useSaveLeadsTableLayout() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (layout: ResolvedLayout): Promise<ResolvedLayout> => {
-      const res = await adminFetch("/api/admin/leads-table-layout", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(serializeLayout(layout)),
-      });
-      if (!res.ok) {
-        const body = (await res.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(body?.error ?? "Failed to save layout");
-      }
-      const json = (await res.json()) as { layout: unknown };
-      const parsed = layoutSchema.safeParse(json.layout);
-      return resolveLeadLayout(parsed.success ? parsed.data : null);
+      const saved = await sendStep<unknown>(
+        "/api/admin/leads-table-layout",
+        serializeLayout(layout),
+        "PUT",
+        answerLostWords("the table"),
+        "The layout was not saved.",
+      );
+      const parsed = savedLayoutSchema.safeParse(saved);
+      return resolveLeadLayout(parsed.success ? parsed.data.layout : null);
     },
     onSuccess: (resolved) => {
       qc.setQueryData<ResolvedLayout>(LAYOUT_KEY, resolved);

@@ -16,7 +16,7 @@ import { StaleLine } from "@/components/shared/stale-line";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
 import { isStaffReason } from "@/lib/billing-lock-tools";
 import { okOrLoadFailure, pollEvery } from "@/lib/load-failure";
-import { failureOf, sendJson } from "@/components/merchants/detail/action-ui";
+import { failureOf, sendJson } from "@/lib/send-json";
 import {
   REJECT_REASON_MAX,
   TOPUP_QUEUE_KEY,

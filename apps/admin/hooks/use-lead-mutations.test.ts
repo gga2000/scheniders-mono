@@ -38,8 +38,8 @@ describe("useBuildStore", () => {
     expect(invalidated).not.toContainEqual(["admin", "merchants"]);
   });
 
-  it("falls back to plain words when the answer is not the server's", async () => {
-    adminFetch.mockResolvedValueOnce(new Response("<html>Bad gateway</html>", { status: 502 }));
+  it("falls back to plain words when a refusal has none", async () => {
+    adminFetch.mockResolvedValueOnce(new Response("<html>Bad request</html>", { status: 400 }));
     const { result } = setup();
 
     await act(async () => {
@@ -47,6 +47,33 @@ describe("useBuildStore", () => {
     });
 
     await waitFor(() => expect(result.current.error?.message).toBe("Failed to build store"));
+  });
+
+  // Round 25 (structure new 5): a gateway's wordless 502 said "failed", when the store may have been built.
+  it("says a gateway's wordless 502 may have built the store, and where to look", async () => {
+    adminFetch.mockResolvedValueOnce(new Response("<html>Bad gateway</html>", { status: 502 }));
+    const { result } = setup();
+
+    await act(async () => {
+      await result.current.mutateAsync({ leadId: "lead-1", data: {} }).catch(() => undefined);
+    });
+
+    await waitFor(() =>
+      expect(result.current.error?.message).toBe("No answer came back, so this may have been done. Check the lead before trying again."),
+    );
+  });
+
+  it("says a dropped connection may have built the store, not the browser's words", async () => {
+    adminFetch.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    const { result } = setup();
+
+    await act(async () => {
+      await result.current.mutateAsync({ leadId: "lead-1", data: {} }).catch(() => undefined);
+    });
+
+    await waitFor(() =>
+      expect(result.current.error?.message).toBe("No answer came back, so this may have been done. Check the lead before trying again."),
+    );
   });
 
   it("reads the lead, the lists and the numbers again after a build", async () => {

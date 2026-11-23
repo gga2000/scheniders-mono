@@ -5,6 +5,8 @@ import { queryOptions, useMutation, useQuery, useQueryClient, type UseMutationRe
 import { z } from "zod";
 import { Check, Landmark, Loader2 } from "lucide-react";
 import { adminFetch } from "@/lib/admin-fetch";
+import { answerLostWords } from "@/lib/answer-lost";
+import { sendStep } from "@/lib/send-json";
 import { okOrLoadFailure } from "@/lib/load-failure";
 import { LoadFailedLine } from "@/components/shared/load-failed-line";
 import { StaleLine } from "@/components/shared/stale-line";
@@ -39,13 +41,7 @@ export function PaymentDetailsCard({ canEdit }: { canEdit: boolean }) {
 
   const save = useMutation({
     mutationFn: async (details: PaymentDetails) => {
-      const res = await adminFetch("/api/settings/payment-details", {
-        method: "PUT",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(details),
-      });
-      const body = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(typeof body?.error === "string" ? body.error : `Save failed: ${res.status}`);
+      await sendStep<unknown>("/api/settings/payment-details", details, "PUT", answerLostWords("these details"), "The details were not saved.");
     },
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: paymentDetailsQuery.queryKey }),
   });

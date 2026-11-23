@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { useCan } from "@/hooks/use-admin-auth";
 import { statusLandedText, statusPickRefusal, statusPickSaves } from "@/lib/shop-status-choice";
 import { STATUS_LABELS, type TenantStatus, type TrialPayment } from "@/types/admin";
-import { adminFetch } from "@/lib/admin-fetch";
+import { sendStep } from "@/lib/send-json";
 
 const STATUS_OPTIONS: Array<{
   value: TenantStatus;
@@ -65,16 +65,7 @@ export const MerchantStatusDropdown = memo(function MerchantStatusDropdown({
 
   const mutation = useMutation({
     mutationFn: async (newStatus: TenantStatus) => {
-      const res = await adminFetch(`/api/merchants/${merchantId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus }),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error ?? "Failed to update status");
-      }
-      return res.json();
+      return sendStep<unknown>(`/api/merchants/${merchantId}`, { status: newStatus }, "PATCH", undefined, "The status was not changed.");
     },
     onMutate: async (newStatus) => {
       // Optimistic update, with the status the server will save.

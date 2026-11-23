@@ -7,7 +7,7 @@ import { hasPermission } from "@/lib/admin-permissions";
 import { formatDayTime, formatUntilDay } from "@/lib/format";
 import { pauseLiftOverdue } from "@/lib/tenant-pause";
 import type { TenantRestrictions } from "@/types/admin";
-import { postJson } from "./action-ui";
+import { postJson } from "@/lib/send-json";
 
 interface LimitedBannerProps {
   merchantId: string;

@@ -6,7 +6,8 @@ import { PLAN_LABELS, PLAN_TIERS, planLabel, type PlanTier } from "@/types/admin
 import { isStaffReason } from "@/lib/billing-lock-tools";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
 import { shopActionKey } from "@/lib/shop-actions";
-import { Choice, ConfirmButton, ErrorLine, PanelFields, PanelTitle, postJson, useWriteFailed, WillHappen } from "./action-ui";
+import { Choice, ConfirmButton, ErrorLine, PanelFields, PanelTitle, useWriteFailed, WillHappen } from "./action-ui";
+import { postJson } from "@/lib/send-json";
 
 /**
  * Move a shop to another plan. The button names the move; nothing is charged

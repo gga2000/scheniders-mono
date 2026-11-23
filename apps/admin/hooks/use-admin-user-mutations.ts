@@ -1,7 +1,8 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { adminFetch } from "@/lib/admin-fetch";
+import { answerLostWords } from "@/lib/answer-lost";
+import { sendStep } from "@/lib/send-json";
 import type { AdminRole } from "@/types/admin";
 
 export interface AddAdminUserInput {
@@ -17,16 +18,7 @@ export function useAddAdminUser() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (data: AddAdminUserInput) => {
-      const res = await adminFetch("/api/admin-users", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || "Failed to add admin employee");
-      }
-      return res.json();
+      return sendStep<unknown>("/api/admin-users", data, "POST", answerLostWords("the team list"), "Could not add the staff member.");
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-team"] });
