@@ -42,13 +42,15 @@ const CASES = { cases: [{ id: CASE_ID }], waitingOnUs: 1 };
 const DETAIL = { case: { id: CASE_ID }, messages: [], notes: [], shop: {} };
 let list: Read;
 let detail: Read;
+let needsUs: Read = read([]);
+let tasks: Read = read({ tasks: [], me: "me" });
 
 vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams() }));
 vi.mock("@/hooks/use-support-cases", () => ({
   useSupportCases: () => list,
   useSupportCase: () => detail,
-  useSupportNeedsUs: () => read([]),
-  useSupportTasks: () => read({ tasks: [], me: "me" }),
+  useSupportNeedsUs: () => needsUs,
+  useSupportTasks: () => tasks,
 }));
 vi.mock("@/components/support/support-conversation", () => ({
   SupportConversation: () => {
@@ -64,11 +66,17 @@ vi.mock("@/components/support/support-case-list", () => ({ SupportCaseList: () =
 vi.mock("@/components/support/support-shop-card", () => ({ SupportShopCard: () => null }));
 vi.mock("@/components/support/support-alerts-toggle", () => ({ SupportAlertsToggle: () => null }));
 vi.mock("@/components/support/support-notice-bar", () => ({ SupportNoticeBar: () => null }));
-vi.mock("@/components/support/support-tab-count", () => ({ SupportTabCount: () => null }));
+vi.mock("@/components/support/support-tab-count", () => ({
+  SupportTabCount: ({ badge }: { badge: { label: string } }) => createElement("span", null, badge.label),
+}));
 
 import SupportPage from "./page";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  needsUs = read([]);
+  tasks = read({ tasks: [], me: "me" });
+});
 
 describe("the support inbox across a failed re-read", () => {
   it("keeps the reply being typed, and says the list and the conversation are old", () => {
@@ -98,5 +106,36 @@ describe("the support inbox across a failed re-read", () => {
     expect(screen.getByText("Could not load the conversations")).toBeTruthy();
     expect(screen.getByText("Try again")).toBeTruthy();
     expect(screen.queryByText(/Failed to fetch/)).toBeNull();
+  });
+});
+
+/*
+ * Round 25 (structure new 2): the tab counts and the waiting line said "?" or
+ * "Could not check" after one failed refresh, while the lists under them kept
+ * their rows with a stale line. They keep the last count now, and say they
+ * could not check only when nothing was ever read.
+ */
+describe("the counts across a failed re-read", () => {
+  it("keeps the last counts while the lists keep their rows", () => {
+    list = read(CASES, true);
+    detail = read(DETAIL);
+    needsUs = read([{ tenant_id: "a" }, { tenant_id: "b" }], true);
+    tasks = read({ tasks: [{ owner_id: "me" }], me: "me" }, true);
+    render(createElement(SupportPage));
+    expect(screen.getByText("1 merchant waiting on us")).toBeTruthy();
+    expect(screen.getByText("2 to look at")).toBeTruthy();
+    expect(screen.getByText("1 to call today")).toBeTruthy();
+    expect(screen.queryByText(/Could not check/)).toBeNull();
+  });
+
+  it("says it could not check when nothing was ever read", () => {
+    list = read(undefined, true);
+    detail = read(undefined);
+    needsUs = read(undefined, true);
+    tasks = read(undefined, true);
+    render(createElement(SupportPage));
+    expect(screen.getByText("Could not check who is waiting on us")).toBeTruthy();
+    expect(screen.getByText("Could not check the shops that need us")).toBeTruthy();
+    expect(screen.getByText("Could not check today's calls")).toBeTruthy();
   });
 });
