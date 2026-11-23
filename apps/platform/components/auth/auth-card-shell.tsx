@@ -34,9 +34,8 @@ export function AuthCardShell({ children, showBack = true }: { children: React.R
             {/* No entry fade: it started at opacity 0 in the server HTML, so the
                 card stayed invisible until all JS had run (6 s on a slow phone). */}
             <div className="w-full max-w-[440px] relative z-10">
-                <div className="flex items-center justify-center gap-2.5 mb-7">
-                    <Image src="/icons/icon-192.png" alt="" width={32} height={32} className="rounded-[9px] shadow-sm" />
-                    <span className="text-[17px] font-semibold tracking-tight text-[#1E1E1E]">Scheniders</span>
+                <div className="flex items-center justify-center mb-7">
+                    <Image src="/brand/fermi-wordmark.svg" alt="Fermi" width={92} height={28} unoptimized priority />
                 </div>
 
                 <div className="bg-white rounded-[28px] border border-[#ECE8DD] shadow-[0_1px_2px_rgba(30,30,30,0.04),0_24px_60px_-24px_rgba(30,30,30,0.18)] overflow-hidden">

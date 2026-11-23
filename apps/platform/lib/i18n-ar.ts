@@ -8443,7 +8443,7 @@ export const ar: Record<string, string> = {
     "signup.title": "أنشئ حسابك",
     "signup.sells": "شنو تبيع؟",
     "signup.sellsHint": "اختار واحد أو أكثر. نجهّزلك أمثلة ومقاسات تناسب بضاعتك.",
-    "signup.subtitle": "ابدأ فترتك التجريبية المجانية 14 يوماً",
+    "signup.subtitle": "ابدأ فترتك التجريبية المجانية {count} أيام",
     "signup.businessName": "اسم النشاط التجاري *",
     "signup.businessNamePlaceholder": "اسم متجرك",
     "signup.address": "عنوان متجرك *",
@@ -8541,7 +8541,7 @@ export const ar: Record<string, string> = {
     "pwreset.done.opening": "جارِ فتح متجرك",
     // ── Login + billing chrome (UX2-14 follow-up) ──
     "login.title": "أهلاً بعودتك",
-    "login.subtitle": "سجّل الدخول إلى نظام شنايدر لإدارة الطلبات",
+    "login.subtitle": "سجّل الدخول إلى نظام فيرمي لإدارة الطلبات",
     "login.email": "البريد الإلكتروني",
     "login.password": "كلمة المرور",
     "login.rememberMe": "تذكّرني",

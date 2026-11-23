@@ -15,6 +15,7 @@ import { normalizeIraqiMobile } from '@scheniders/shared';
 import { env } from '@/lib/env';
 import { buildStorefrontUrl } from '@/lib/storefront-url';
 import { linkSignupProof, loadSignupWhatsApp, releaseSignupProof, sendSignupWelcome, spendSignupProof } from '@/lib/signup-phone-code';
+import { TRIAL_DAYS } from '@/lib/trial';
 
 /**
  * Every self-serve signup starts a 7-day trial on Team, with no order cap
@@ -23,7 +24,6 @@ import { linkSignupProof, loadSignupWhatsApp, releaseSignupProof, sendSignupWelc
  * one who does not pick pays for Team. The plan is never taken from the request.
  */
 const TRIAL_PLAN = 'growth';
-const TRIAL_DAYS = 7;
 
 // Each signup creates an auth user, a tenant and four supporting rows with the
 // service role. Vercel sets the client IP; mobile carriers share NATs, so the

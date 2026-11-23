@@ -7595,7 +7595,7 @@ export const en: Record<string, string> = {
     "signup.title": "Create Your Account",
     "signup.sells": "What do you sell?",
     "signup.sellsHint": "Pick one or more. We set up examples and sizes that fit your goods.",
-    "signup.subtitle": "Start your 14-day free trial",
+    "signup.subtitle": "Start your {count}-day free trial",
     "signup.businessName": "Business Name *",
     "signup.businessNamePlaceholder": "Your business name",
     "signup.address": "Your store's address *",
@@ -7690,7 +7690,7 @@ export const en: Record<string, string> = {
     "pwreset.done.opening": "Opening your store",
     // ── Login + billing chrome (UX2-14 follow-up) ──
     "login.title": "Welcome Back",
-    "login.subtitle": "Sign in to Scheniders Order Management",
+    "login.subtitle": "Sign in to Fermi Order Management",
     "login.email": "Email Address",
     "login.password": "Password",
     "login.rememberMe": "Remember me",
