@@ -6,7 +6,8 @@ import { forbidden, requireAdminPermission } from "@/lib/api-auth";
 import { logAdminActivityBatch } from "@/lib/activity-logger";
 import { hasPermission } from "@/lib/admin-permissions";
 import { topUpWallet } from "@/lib/wallet-topup";
-import { bulkTopupAmountSchema } from "@/lib/topup-queue";
+import { formatIQD } from "@/lib/format";
+import { bulkTopupAmountSchema, STAFF_TOPUP_MIN_IQD, TOPUP_MAX_IQD } from "@/lib/topup-queue";
 import { extendTrial, MAX_TRIAL_EXTENSION_DAYS } from "@/lib/trial-extension";
 import { staffReasonSchema, staffRequestIdSchema } from "@/lib/staff-reason";
 import { updateShop, type ShopChange, type ShopUpdateActor } from "@/lib/shop-update";
@@ -232,7 +233,7 @@ export async function POST(request: NextRequest) {
         const amountParsed = bulkTopupAmountSchema.safeParse(params?.amount_iqd);
         if (!amountParsed.success) {
           return NextResponse.json(
-            { error: "params.amount_iqd is required and must be a whole number between 1,000 and 10,000,000" },
+            { error: `The amount must be a whole number from ${formatIQD(STAFF_TOPUP_MIN_IQD)} to ${formatIQD(TOPUP_MAX_IQD)}.` },
             { status: 400 }
           );
         }

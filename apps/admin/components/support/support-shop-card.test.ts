@@ -66,7 +66,7 @@ describe("SupportShopCard", () => {
   // Round 19: the card wrote its own status words beside the one status map.
   it.each([
     ["active", "Active"],
-    ["suspended", "Suspended"],
+    ["suspended", "On hold"],
     ["cancelled", "Cancelled"],
   ])("names the %s status %s, as the Merchants page does", (status, word) => {
     const html = render(card(status, {}));

@@ -318,7 +318,7 @@ export function MerchantsMapView() {
                   { label: "Active", count: stats.status.active, color: "bg-emerald-500" },
                   { label: "Trial", count: stats.status.trial, color: "bg-amber-500" },
                   { label: "Paused", count: stats.status.limited, color: "bg-yellow-500" },
-                  { label: "Suspended", count: stats.status.suspended, color: "bg-rose-500" },
+                  { label: "On hold", count: stats.status.suspended, color: "bg-rose-500" },
                   { label: "Cancelled", count: stats.status.cancelled, color: "bg-slate-400" },
                 ]
                   .filter((b) => b.count > 0)

@@ -13,11 +13,18 @@ import { planLabel } from "@/types/admin";
 /** The console's cache key for the queue (the page and the bell share it). */
 export const TOPUP_QUEUE_KEY = ["admin", "wallet-topup-requests"] as const;
 
+/** The least a shop's own transfer may be approved for: the merchant app's top-up minimum. */
 export const TOPUP_MIN_IQD = 1_000;
+/**
+ * The least staff may add to a wallet by hand at once (Quick Top-Up, Add money
+ * on a shop's page, bulk top-up). Ali's money rule, 23 Nov: 2,500 IQD, so a
+ * typed "5" meant as 5,000 cannot go through.
+ */
+export const STAFF_TOPUP_MIN_IQD = 2_500;
 /** The most IQD staff may add to a wallet at once; admin_topup_wallet checks it again. */
 export const TOPUP_MAX_IQD = 10_000_000;
 /** What one bulk top-up may add to each wallet: a whole number in IQD (the bulk route and dialog share it). */
-export const bulkTopupAmountSchema = z.number().int().min(TOPUP_MIN_IQD).max(TOPUP_MAX_IQD);
+export const bulkTopupAmountSchema = z.number().int().min(STAFF_TOPUP_MIN_IQD).max(TOPUP_MAX_IQD);
 export const REJECT_REASON_MAX = 300;
 
 const sameFileSchema = z.object({

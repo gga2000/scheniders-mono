@@ -62,6 +62,18 @@ describe("POST /api/billing/topup", () => {
     expect(from).not.toHaveBeenCalled();
   });
 
+  // Ali's money rule, 23 Nov: staff add at least 2,500 IQD by hand.
+  it("refuses less than 2,500 IQD in the console's words, before touching the wallet", async () => {
+    for (const amount of [1, 2_499]) {
+      const res = await POST(req({ tenant_id: TENANT, amount }));
+      expect(res.status).toBe(400);
+      expect((await res.json()).error).toBe("At least 2,500 IQD at once.");
+    }
+    rpc.mockResolvedValue({ data: { success: true, new_balance: 2_500 }, error: null });
+    expect((await POST(req({ tenant_id: TENANT, amount: 2_500 }))).status).toBe(200);
+    expect(rpc).toHaveBeenCalledTimes(1);
+  });
+
   it("credits through the atomic RPC with the acting admin, never a read-then-write", async () => {
     rpc.mockResolvedValue({ data: { success: true, new_balance: 30000 }, error: null });
     const res = await POST(req({ tenant_id: TENANT, amount: 5000, description: "Zain cash receipt 12" }));

@@ -34,7 +34,7 @@ function computeAlert(merchant: AlertShop): AlertInfo | null {
   const trialEnd = merchant.trial_ends_at;
 
   if (status === "suspended") {
-    return { icon: Ban, label: "Suspended", detail: "Account is currently suspended", age: null, severity: "critical" };
+    return { icon: Ban, label: "On hold", detail: "The shop is on hold", age: null, severity: "critical" };
   }
 
   if (status === "cancelled") {

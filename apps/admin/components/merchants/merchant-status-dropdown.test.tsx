@@ -36,15 +36,15 @@ function openMenu(status: TenantStatus, label: string, trialPayment: TrialPaymen
 
 describe("the card's status menu", () => {
   it("leaves Active out for a trial shop", () => {
-    expect(openMenu("trial", "Trial", "never_paid")).toEqual(["Trial", "Trial", "Suspended", "Cancelled"]);
+    expect(openMenu("trial", "Trial", "never_paid")).toEqual(["Trial", "Trial", "On hold", "Cancelled"]);
   });
 
   it("leaves Trial out for a paying shop whose subscription is not a trial", () => {
-    expect(openMenu("active", "Active", "paid")).toEqual(["Active", "Active", "Suspended", "Cancelled"]);
+    expect(openMenu("active", "Active", "paid")).toEqual(["Active", "Active", "On hold", "Cancelled"]);
   });
 
   it("offers Trial and Active to a held shop whose subscription is still a trial", () => {
-    expect(openMenu("suspended", "Suspended", "never_paid")).toEqual(["Suspended", "Trial", "Active", "Suspended", "Cancelled"]);
+    expect(openMenu("suspended", "On hold", "never_paid")).toEqual(["On hold", "Trial", "Active", "On hold", "Cancelled"]);
   });
 
   it("is no menu on a paused shop, whose chip reads Paused as every other screen does", () => {
@@ -78,7 +78,7 @@ describe("the card while a pick is saved", () => {
   it("shows Trial at once when Active is picked for a held trial never paid", async () => {
     const client = heldShopList("never_paid");
     showChip("suspended", "never_paid", client);
-    fireEvent.click(screen.getByRole("button", { name: "Suspended" }));
+    fireEvent.click(screen.getByRole("button", { name: "On hold" }));
     fireEvent.click(screen.getByRole("button", { name: "Active" }));
     await vi.waitFor(() => expect(shownStatus(client)).toBe("trial"));
   });
@@ -87,7 +87,7 @@ describe("the card while a pick is saved", () => {
     for (const trialPayment of ["paid", "no_subscription"] as const) {
       const client = heldShopList(trialPayment);
       showChip("suspended", trialPayment, client);
-      fireEvent.click(screen.getByRole("button", { name: "Suspended" }));
+      fireEvent.click(screen.getByRole("button", { name: "On hold" }));
       fireEvent.click(screen.getByRole("button", { name: "Active" }));
       await vi.waitFor(() => expect(shownStatus(client)).toBe("active"));
       cleanup();
