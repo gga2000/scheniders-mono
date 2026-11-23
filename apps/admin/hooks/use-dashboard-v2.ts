@@ -5,6 +5,7 @@ import { useMemo } from "react";
 import type { DashboardV2Stats } from "@/types/dashboard";
 import { okOrLoadFailure, pollEvery } from "@/lib/load-failure";
 import { adminFetch } from "@/lib/admin-fetch";
+import { DASHBOARD_V2_KEY } from "@/lib/dashboard-v2-key";
 
 async function fetchDashboardV2(): Promise<DashboardV2Stats> {
   const res = await adminFetch("/api/dashboard/v2");
@@ -14,7 +15,7 @@ async function fetchDashboardV2(): Promise<DashboardV2Stats> {
 
 export function useDashboardV2() {
   const query = useQuery<DashboardV2Stats>({
-    queryKey: ["admin", "dashboard-v2"],
+    queryKey: DASHBOARD_V2_KEY,
     queryFn: fetchDashboardV2,
     staleTime: 30_000,
     refetchInterval: pollEvery(60_000),

@@ -21,7 +21,7 @@ import type {
   LTVDistribution,
   TimeToFirstOrderBucket,
   TenantOnboarding,
-  KpiData,
+  DashboardV2Stats,
   PlatformOrderStat,
 } from "@/types/dashboard";
 import { addDays, dayOf } from "./baghdad-day";
@@ -624,7 +624,7 @@ export function calculateKpis(
   stats: DashboardStats,
   income: IncomeStats,
   tenants: DashboardTenant[],
-): Record<string, KpiData> {
+): DashboardV2Stats["kpis"] {
   const { orders, sales, today } = stats;
 
   const activeTenants = tenants.filter((t) => t.status === "active").length;

@@ -21,12 +21,13 @@ export type AdminContext = { user: { id: string; email?: string | null }; role: 
 
 /**
  * Resolve the admin context from the caller's cookie-based Supabase session —
- * the transport the browser uses for same-origin fetches. Returns null when
+ * the transport the browser uses for same-origin fetches, and the one a page
+ * has when it reads on the server. Returns null when
  * there is no valid session; throws `AdminAuthError(401)` for a sign-in past
  * the staff age limit, `AdminAuthError(403)` when the user lacks
  * admin-console access, and a plain error when the key read or database fails.
  */
-async function adminFromCookies(): Promise<AdminContext | null> {
+export async function adminFromCookies(): Promise<AdminContext | null> {
   const cookieStore = await cookies();
   const supabase = createServerClient(
     env.NEXT_PUBLIC_SUPABASE_URL,

@@ -1,39 +1,50 @@
-import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import type { ReactElement } from "react";
+import type { DehydratedState } from "@tanstack/react-query";
 
 /*
- * Round 22 (R3-10): Home re-reads every minute. When a re-read failed it kept
- * the last numbers and said nothing, so staff read old numbers as today's.
+ * Speed audit round 3: Home asked for its numbers only after its JS ran (page,
+ * then JS, then /api/dashboard/v2). It now reads them on the server, with the
+ * same staff check as that route, and arrives with them in.
  */
 
-const dashboard = vi.hoisted(() => ({ state: {} as Record<string, unknown> }));
-vi.mock("@/hooks/use-dashboard-v2", () => ({ useDashboardV2: () => dashboard.state }));
-// The widgets draw the numbers; this test is about the line over them.
-vi.mock("@/components/dashboard/seed-automation-toggle", () => ({ SeedAutomationToggle: () => null }));
-vi.mock("@/components/merchants/merchant-watchlist-widget", () => ({ MerchantWatchlistWidget: () => null }));
-vi.mock("@/components/dashboard/activity-feed", () => ({ ActivityFeed: () => null }));
+const staff = vi.hoisted(() => ({ current: null as null | { user: { id: string }; role: string } }));
+const read = vi.hoisted(() => vi.fn(async () => ({ kpis: { totalOrders: { value: 7 } } })));
+vi.mock("@/lib/api-auth", () => ({ adminFromCookies: async () => staff.current }));
+vi.mock("@/lib/admin-supabase", () => ({ createAdminClient: () => ({}) }));
+vi.mock("@/lib/dashboard-v2", () => ({ readDashboardV2: read }));
+vi.mock("@/lib/admin-fetch", () => ({ leaveIfSignedOut: vi.fn() }));
+vi.mock("@/components/dashboard/command-center", () => ({ CommandCenter: () => null }));
 
-import CommandCenterPage from "./page";
+import HomePage from "./page";
 
-const READ_AT = Date.parse("2026-11-22T15:42:00Z"); // 18:42 in Baghdad
-const draw = (state: Record<string, unknown>) => {
-  dashboard.state = { isLoading: false, isFetching: false, refetch: () => {}, data: {}, dataUpdatedAt: READ_AT, ...state };
-  return renderToStaticMarkup(createElement(CommandCenterPage));
-};
+async function pageState(): Promise<DehydratedState> {
+  const page = (await HomePage()) as ReactElement<{ state: DehydratedState }>;
+  return page.props.state;
+}
 
-afterEach(() => vi.useRealTimers());
-
-describe("Home after a failed re-read", () => {
-  it("says the numbers are from the last read that worked", () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(Date.parse("2026-11-22T16:30:00Z"));
-    const html = draw({ isError: true, isRefetchError: true, error: new Error("fetch failed") });
-    expect(html).toContain("Could not refresh the dashboard. These numbers are from 18:42.");
-    expect(html).toContain("Command Center");
+describe("Home's server read", () => {
+  it("arrives with the numbers for signed-in staff, under the key the page reads", async () => {
+    staff.current = { user: { id: "u1" }, role: "super_admin" };
+    read.mockClear();
+    const state = await pageState();
+    expect(read).toHaveBeenCalledOnce();
+    expect(state.queries).toHaveLength(1);
+    expect(state.queries[0].queryKey).toEqual(["admin", "dashboard-v2"]);
+    expect(state.queries[0].state.data).toEqual({ kpis: { totalOrders: { value: 7 } } });
   });
 
-  it("says nothing while the reads work", () => {
-    expect(draw({ isError: false, error: null })).not.toContain("Could not refresh");
+  it("reads nothing without a staff sign-in, and leaves the numbers to the browser's own ask", async () => {
+    staff.current = null;
+    read.mockClear();
+    const state = await pageState();
+    expect(read).not.toHaveBeenCalled();
+    expect(state.queries).toHaveLength(0);
+  });
+
+  it("leaves a failed read out of the page, so the browser asks again and shows the failure", async () => {
+    staff.current = { user: { id: "u1" }, role: "super_admin" };
+    read.mockRejectedValueOnce(new Error("database down"));
+    expect((await pageState()).queries).toHaveLength(0);
   });
 });
