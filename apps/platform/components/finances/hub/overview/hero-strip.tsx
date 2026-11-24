@@ -13,6 +13,8 @@ import type { FinanceOverviewResult } from "@/hooks/use-finance-overview";
 
 interface HeroStripProps {
     data: FinanceOverviewResult;
+    /** Confirmed and in-transit cash of every open order now, from the same rows as the cash card. */
+    onTheRoad: number;
     onTileClick?: (tile: HeroTileId) => void;
     activeTile?: HeroTileId | null;
 }
@@ -42,7 +44,7 @@ type TileSpec = {
     hint?: string;
 };
 
-export function HeroStrip({ data, onTileClick, activeTile }: HeroStripProps) {
+export function HeroStrip({ data, onTheRoad, onTileClick, activeTile }: HeroStripProps) {
     const { t } = useLanguage();
     const revSeries = data.series.map((s) => s.revenue);
     const profitSeries = data.series.map((s) => s.profit);
@@ -84,7 +86,7 @@ export function HeroStrip({ data, onTileClick, activeTile }: HeroStripProps) {
             id: "cash_float",
             label: t("finances.hero.float"),
             sublabel: t("finances.hero.floatSub"),
-            value: data.cash_float,
+            value: onTheRoad,
             prevValue: 0,
             series: [],
             Icon: Truck,

@@ -63,3 +63,40 @@ export function useFinanceOrders({ start, end, compareStart }: FinanceOrdersRang
 }
 
 const EMPTY: Order[] = [];
+
+/** The statuses of a sale whose cash is still on the road. */
+const ON_THE_ROAD: ReadonlySet<Order["status"]> = new Set<Order["status"]>(["confirmed", "in_transit"]);
+
+/**
+ * Every confirmed or in-transit order of the shop, whatever day it was placed.
+ * The period read above stops at its first day, so a parcel out for 40 days
+ * was missing from a 7-day view while still counting in a 60-day one.
+ */
+export function useOnTheRoadOrders() {
+    const { tenantId } = useAuth();
+    const query = useQuery({
+        queryKey: ["finance-orders", tenantId, "on-the-road"],
+        queryFn: (): Promise<Order[]> => {
+            if (!tenantId) throw new Error("No active tenant");
+            return orderRepository.findOnTheRoad(tenantId);
+        },
+        enabled: !!tenantId,
+        staleTime: 60_000,
+    });
+    return {
+        orders: query.data ?? EMPTY,
+        loading: query.isPending,
+        error: query.error ? (query.error instanceof Error ? query.error.message : "Failed to load orders") : null,
+    };
+}
+
+/**
+ * The period's orders with their open ones swapped for every open order the
+ * shop has: delivered, refused and refund rows stay as the period read them,
+ * and the money on the road comes from one list on every card.
+ */
+export function withOnTheRoad(orders: readonly Order[], onTheRoad: readonly Order[]): Order[] {
+    const settled = orders.filter((o) => !ON_THE_ROAD.has(o.status));
+    const seen = new Set(settled.map((o) => o.id));
+    return [...settled, ...onTheRoad.filter((o) => !seen.has(o.id))];
+}

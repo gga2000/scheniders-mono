@@ -4,7 +4,7 @@ import { useLanguage } from "@/hooks/use-language";
 import { useState, useEffect, useMemo, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
-import { useFinanceOrders } from "@/hooks/use-finance-orders";
+import { useFinanceOrders, useOnTheRoadOrders, withOnTheRoad } from "@/hooks/use-finance-orders";
 import { useProductsCrud } from "@/hooks/use-products-crud";
 import { toBaghdadDayKey } from "@/lib/order-window";
 import { useExpenses } from "@/hooks/use-expenses";
@@ -190,11 +190,15 @@ function FinancesContent() {
     } = useFinancePeriod("last30");
 
     // Data sources
-    const { orders, loading: ordersLoading, error: ordersError } = useFinanceOrders({
+    const periodOrders = useFinanceOrders({
         start: period.start,
         end: period.end,
         compareStart: compareRange?.start,
     });
+    const { orders } = periodOrders;
+    const onTheRoad = useOnTheRoadOrders();
+    const ordersLoading = periodOrders.loading || onTheRoad.loading;
+    const ordersError = periodOrders.error ?? onTheRoad.error;
     const { products } = useProductsCrud();
     // Loaded back to the comparison period's start so the Overview can net that period's
     // profit of its expenses; every other tab keeps getting the selected period only.
@@ -219,9 +223,13 @@ function FinancesContent() {
         costSnapshots,
     );
 
-    const insights = useFinanceInsights(overview);
-    const inTransitSince = useInTransitSince(orders);
-    const cash = useCashPosition(orders, inTransitSince, { start: period.start, end: period.end });
+    // Money on the road, its in-transit part and its stuck part all come from
+    // these rows: every open order of the shop, whatever day it was placed.
+    const cashOrders = useMemo(() => withOnTheRoad(orders, onTheRoad.orders), [orders, onTheRoad.orders]);
+    const inTransitSince = useInTransitSince(cashOrders);
+    const cash = useCashPosition(cashOrders, inTransitSince, { start: period.start, end: period.end });
+    const onTheRoadNow = cash.cashInTransit + cash.cashConfirmed;
+    const insights = useFinanceInsights(overview, onTheRoadNow);
     const revenue = useFinanceRevenue(
         orders,
         products,
@@ -297,7 +305,7 @@ function FinancesContent() {
                     {activeTab === "overview" && (
                         <div className="space-y-5">
                             <InsightsBanner insights={insights} />
-                            <HeroStrip data={overview} />
+                            <HeroStrip data={overview} onTheRoad={onTheRoadNow} />
                             <div className="grid grid-cols-1 xl:grid-cols-5 gap-5">
                                 <div className="xl:col-span-3 space-y-5">
                                     <PnLWaterfall data={overview} />
@@ -309,7 +317,7 @@ function FinancesContent() {
                                 </div>
                             </div>
                             <RevenueByDimension data={overview} />
-                            <ForecastsTab orders={orders} expenses={expenses} period={period} />
+                            <ForecastsTab orders={orders} cashInTransit={cash.cashInTransit} expenses={expenses} period={period} />
                         </div>
                     )}
 

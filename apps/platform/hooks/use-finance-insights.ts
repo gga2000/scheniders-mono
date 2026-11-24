@@ -43,7 +43,7 @@ const MIN_DELIVERED_SHARE = 0.5;
 
 const SEVERITY_RANK: Record<InsightSeverity, number> = { critical: 0, warning: 1, positive: 2, info: 3 };
 
-export function buildFinanceInsights(data: FinanceOverviewResult, units: MoneyUnits = EN_UNITS): Insight[] {
+export function buildFinanceInsights(data: FinanceOverviewResult, onTheRoad: number, units: MoneyUnits = EN_UNITS): Insight[] {
     const iqd = (n: number) => formatIQD(n, units);
     const out: Insight[] = [];
 
@@ -89,11 +89,11 @@ export function buildFinanceInsights(data: FinanceOverviewResult, units: MoneyUn
         }
     }
 
-    // 3. Cash concentration
-    if (data.cash_float > data.cash_realized && data.cash_float > 500_000) {
+    // 3. Cash concentration: the same on-the-road figure as the card beside it.
+    if (onTheRoad > data.cash_realized && onTheRoad > 500_000) {
         out.push({
             id: "cash_float_high", severity: "warning", hasSuggestion: true,
-            vars: { float: iqd(data.cash_float), realized: iqd(data.cash_realized) },
+            vars: { float: iqd(onTheRoad), realized: iqd(data.cash_realized) },
         });
     }
 
@@ -218,10 +218,10 @@ export function buildFinanceInsights(data: FinanceOverviewResult, units: MoneyUn
     return out.sort((a, b) => SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity]);
 }
 
-export function useFinanceInsights(data: FinanceOverviewResult): Insight[] {
+export function useFinanceInsights(data: FinanceOverviewResult, onTheRoad: number): Insight[] {
     const { t } = useLanguage();
     const iqd = t("common.iqd");
     const thousand = t("finances.insight.unitThousand");
     const million = t("finances.insight.unitMillion");
-    return useMemo(() => buildFinanceInsights(data, { iqd, thousand, million }), [data, iqd, thousand, million]);
+    return useMemo(() => buildFinanceInsights(data, onTheRoad, { iqd, thousand, million }), [data, onTheRoad, iqd, thousand, million]);
 }

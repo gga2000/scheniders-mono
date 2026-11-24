@@ -16,7 +16,7 @@ const ids = (list: Insight[]) => list.map((i) => i.id);
 
 describe("buildFinanceInsights", () => {
     it("flags a sharp revenue drop as critical and puts it first", () => {
-        const list = buildFinanceInsights(make({ gross_revenue: 700_000, margin_pct: 8 }));
+        const list = buildFinanceInsights(make({ gross_revenue: 700_000, margin_pct: 8 }), 0);
         expect(list[0]).toMatchObject({ id: "revenue_drop", severity: "critical" });
         expect(list[0].vars.pct).toBe("30.0");
         expect(ids(list)).toContain("margin_thin");
@@ -26,34 +26,41 @@ describe("buildFinanceInsights", () => {
     });
 
     it("says the shop is losing money only when net profit is negative", () => {
-        expect(ids(buildFinanceInsights(make({ margin_pct: 2, net_profit: -50_000 })))).toContain("margin_negative");
-        expect(ids(buildFinanceInsights(make({ margin_pct: 2, net_profit: 5_000 })))).not.toContain("margin_negative");
+        expect(ids(buildFinanceInsights(make({ margin_pct: 2, net_profit: -50_000 }), 0))).toContain("margin_negative");
+        expect(ids(buildFinanceInsights(make({ margin_pct: 2, net_profit: 5_000 }), 0))).not.toContain("margin_negative");
     });
 
     it("does not call the shop losing while most sales are still undelivered", () => {
         const early = make({ gross_revenue: 3_000_000, delivered_revenue: 70_000, margin_pct: -880, net_profit: -612_000 });
-        expect(ids(buildFinanceInsights(early))).not.toContain("margin_negative");
+        expect(ids(buildFinanceInsights(early, 0))).not.toContain("margin_negative");
     });
 
     it("does not judge the delivery rate on a tiny order count", () => {
-        expect(ids(buildFinanceInsights(make({ orders_count: 5, delivery_rate: 20 })))).not.toContain("delivery_rate_low");
-        expect(ids(buildFinanceInsights(make({ orders_count: 40, delivery_rate: 20 })))).toContain("delivery_rate_low");
+        expect(ids(buildFinanceInsights(make({ orders_count: 5, delivery_rate: 20 }), 0))).not.toContain("delivery_rate_low");
+        expect(ids(buildFinanceInsights(make({ orders_count: 40, delivery_rate: 20 }), 0))).toContain("delivery_rate_low");
     });
 
     it("flags a single channel that carries 70% or more of revenue", () => {
         const list = buildFinanceInsights(make({
             by_channel: [{ key: "meta", label: "Meta Ads", revenue: 800_000, orders: 1, profit: 1 }, { key: "x", label: "Shop", revenue: 100_000, orders: 1, profit: 1 }],
-        } as unknown as Partial<FinanceOverviewResult>));
+        } as unknown as Partial<FinanceOverviewResult>), 0);
         const hit = list.find((i) => i.id === "channel_concentration");
         expect(hit?.vars).toMatchObject({ name: "Meta Ads", share: "80" });
     });
 
+    it("names the money on the road from the figure the cash card uses, not the period's own", () => {
+        // The period's orders hold 100,000 on the road; every open order of the shop holds 900,000.
+        const list = buildFinanceInsights(make({ cash_float: 100_000, cash_realized: 300_000 }), 900_000);
+        expect(list.find((i) => i.id === "cash_float_high")?.vars).toMatchObject({ float: formatIQD(900_000), realized: formatIQD(300_000) });
+        expect(ids(buildFinanceInsights(make({ cash_float: 900_000, cash_realized: 300_000 }), 100_000))).not.toContain("cash_float_high");
+    });
+
     it("falls back to a neutral note when nothing stands out", () => {
-        expect(ids(buildFinanceInsights(make({ margin_pct: 15 })))).toEqual(["neutral"]);
+        expect(ids(buildFinanceInsights(make({ margin_pct: 15 }), 0))).toEqual(["neutral"]);
     });
 
     it("says nothing for a period with no orders", () => {
-        expect(buildFinanceInsights(make({ orders_count: 0, margin_pct: 15 }))).toEqual([]);
+        expect(buildFinanceInsights(make({ orders_count: 0, margin_pct: 15 }), 0)).toEqual([]);
     });
 });
 

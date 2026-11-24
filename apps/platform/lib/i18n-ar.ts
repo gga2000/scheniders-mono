@@ -322,7 +322,7 @@ export const ar: Record<string, string> = {
     "finances.hero.cashIn": "النقد المستلم",
     "finances.hero.cashInSub": "مسلّم ومحصّل",
     "finances.hero.float": "نقد قيد التحصيل",
-    "finances.hero.floatSub": "مؤكد · قيد التوصيل",
+    "finances.hero.floatSub": "مؤكد · قيد التوصيل · الآن",
     "finances.hero.aov": "متوسط قيمة الطلب",
     "finances.hero.orders": "{count} طلب",
     "finances.hero.orders.one": "طلب واحد",
