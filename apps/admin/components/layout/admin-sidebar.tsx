@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { ChevronLeft, ChevronRight, LogOut, Shield, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import { useSupportWaitingCount } from "@/hooks/use-support-cases";
 import { useLeadsWithNoOwner } from "@/hooks/use-leads";
 import { useTopupRequests } from "@/components/shared/topup-requests-section";
@@ -276,14 +276,14 @@ export function AdminSidebar({
     <AnimatePresence>
       {mobileMenuOpen && (
         <>
-          <motion.div
+          <m.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setMobileMenuOpen?.(false)}
             className="fixed inset-0 z-50 bg-black/50"
           />
-          <motion.aside
+          <m.aside
             initial={{ x: "-100%" }}
             animate={{ x: 0 }}
             exit={{ x: "-100%" }}
@@ -321,7 +321,7 @@ export function AdminSidebar({
                 </button>
               </div>
             )}
-          </motion.aside>
+          </m.aside>
         </>
       )}
     </AnimatePresence>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import { Bell, Check, Wallet, Building2, Clock, AlertTriangle } from "lucide-react";
 import { EASE_CHROME } from "@/lib/animation-constants";
 import { TopupRequestsSection, useTopupRequests } from "./topup-requests-section";
@@ -131,20 +131,20 @@ export function NotificationBell() {
       >
         <Bell className="w-4.5 h-4.5" aria-hidden />
         {unreadCount > 0 && (
-          <motion.span
+          <m.span
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-xs font-bold tabular-nums text-white"
           >
             {unreadCount > 9 ? "9+" : unreadCount}
-          </motion.span>
+          </m.span>
         )}
       </button>
 
       {/* Dropdown Panel */}
       <AnimatePresence>
         {isOpen && (
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: 8, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.95 }}
@@ -251,7 +251,7 @@ export function NotificationBell() {
                 })
               )}
             </div>
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
     </div>
