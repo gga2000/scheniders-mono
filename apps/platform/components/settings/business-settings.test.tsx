@@ -13,7 +13,7 @@ vi.mock("@/components/auth/auth-provider", () => ({ useAuth: () => ({ tenantId: 
 vi.mock("@/hooks/use-toast", () => ({ toast: Object.assign(vi.fn(), { error: vi.fn(), success: vi.fn() }) }));
 
 import { respond, resetRecording } from "@/lib/__fixtures__/recording-supabase";
-import { BusinessSettings } from "./business-settings";
+import { BusinessSettings, storeColors } from "./business-settings";
 
 afterEach(() => {
     cleanup();
@@ -47,6 +47,21 @@ describe("BusinessSettings", () => {
 
         expect(await screen.findByDisplayValue("Scheniders Iraq")).toBeTruthy();
         expect(screen.getByDisplayValue("shop@example.com")).toBeTruthy();
-        expect(screen.getAllByDisplayValue("#111111").length).toBeGreaterThan(0);
+        // The colours show read-only (they are edited in the store editor).
+        expect(screen.getByText("#111111")).toBeTruthy();
+    });
+});
+
+describe("storeColors", () => {
+    it("shows the store editor's colours first, else the old branding pair", () => {
+        expect(storeColors({
+            store_config_v2: { brand_kit: { colors: { primary: "#000000", secondary: "#ffffff", accent: "#ff0000" } } },
+            branding: { logo_url: null, primary_color: "#111111", secondary_color: "#222222" },
+        })).toEqual(["#000000", "#ffffff", "#ff0000"]);
+        expect(storeColors({
+            store_config_v2: null,
+            branding: { logo_url: null, primary_color: "#111111", secondary_color: "#222222" },
+        })).toEqual(["#111111", "#222222"]);
+        expect(storeColors({ store_config_v2: null, branding: null })).toEqual([]);
     });
 });

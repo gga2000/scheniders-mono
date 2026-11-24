@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { BellRing, Plus, Trash2, Phone, AlertTriangle, User } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/components/auth/auth-provider";
@@ -21,9 +22,16 @@ interface StaffAlertConfig {
 const API = "/api/settings/staff-alert";
 
 export function StaffAlertsSettings() {
-    const { session } = useAuth();
+    const { session, tenantId } = useAuth();
     const { t } = useLanguage();
+    const queryClient = useQueryClient();
     const [config, setConfig] = useState<StaffAlertConfig>({ enabled: false, numbers: [] });
+    // The Settings overview and the gear badge read the same row through
+    // useSettings, so a change here refreshes them too.
+    const applyConfig = (next: StaffAlertConfig) => {
+        setConfig(next);
+        void queryClient.invalidateQueries({ queryKey: ["app-settings", tenantId] });
+    };
     const [loading, setLoading] = useState(true);
     const [phone, setPhone] = useState("");
     const [name, setName] = useState("");
@@ -86,7 +94,7 @@ export function StaffAlertsSettings() {
                 throw new Error(body?.error || t("settings.staff.addFailed"));
             }
             const updated = (await res.json()) as StaffAlertConfig;
-            setConfig(updated);
+            applyConfig(updated);
             setPhone("");
             setName("");
             setPhoneError("");
@@ -105,7 +113,7 @@ export function StaffAlertsSettings() {
             });
             if (!res.ok) throw new Error(t("settings.staff.removeFailed"));
             const updated = (await res.json()) as StaffAlertConfig;
-            setConfig(updated);
+            applyConfig(updated);
             toast.success(t("settings.staff.removed"));
         } catch (e) {
             toast.error(e instanceof Error ? e.message : t("settings.staff.removeFailed"));
@@ -123,7 +131,7 @@ export function StaffAlertsSettings() {
             });
             if (!res.ok) throw new Error(t("settings.staff.updateFailed"));
             const updated = (await res.json()) as StaffAlertConfig;
-            setConfig(updated);
+            applyConfig(updated);
             toast.success(next ? t("settings.staff.on") : t("settings.staff.off"));
         } catch (e) {
             toast.error(e instanceof Error ? e.message : t("settings.staff.updateFailed"));
@@ -141,7 +149,7 @@ export function StaffAlertsSettings() {
     if (loading) return <div className="text-sm text-muted-foreground">{t("common.loading")}</div>;
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6" data-setting="staff-alerts">
             <div>
                 <h2 className="text-2xl font-bold tracking-tight text-foreground">{t("settings.staff.title")}</h2>
                 <p className="text-sm text-muted-foreground">

@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { isPlanKey, planName, type PlanKey } from "@scheniders/shared/plans";
+import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
+    ArrowUpRight,
     Building2,
     Save,
     Palette,
@@ -12,8 +13,7 @@ import {
     Mail,
     MapPin,
     Globe,
-    Crown,
-    Calendar,
+    Link2,
     Loader2,
     Upload,
     ImageIcon,
@@ -24,53 +24,34 @@ import { supabase } from "@/lib/supabase";
 import { env } from "@/lib/env";
 import { useAuth } from "@/components/auth/auth-provider";
 import { toast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import { ContactSupportButton } from "@/components/support/contact-support-button";
+
+/** Where the store's colours are edited: the store editor's brand screen, the one the storefront reads. */
+export const STORE_COLORS_EDIT_HREF = "/store/edit?screen=brand_kit";
 
 interface TenantData {
     id: string;
     business_name: string;
     slug: string;
-    plan: string;
-    status: string;
-    trial_ends_at: string | null;
     contact_email: string | null;
     contact_phone: string | null;
     store_config: {
         contact?: { whatsapp_number?: string | null } | null;
         [key: string]: unknown;
     } | null;
+    store_config_v2: {
+        brand_kit?: { colors?: { primary?: string; secondary?: string; accent?: string } | null } | null;
+    } | null;
     city: string | null;
     address: string | null;
     branding: {
         logo_url: string | null;
-        primary_color: string;
-        secondary_color: string;
-    };
-    settings: {
-        timezone: string;
-        language: string;
-        currency: string;
-    };
-    created_at: string;
+        primary_color?: string;
+        secondary_color?: string;
+        [key: string]: unknown;
+    } | null;
 }
-
-// The names come from @scheniders/shared/plans, the one list merchants and staff see.
-const PLAN_COLORS: Record<PlanKey, string> = {
-    starter: "bg-blue-100 text-blue-700",
-    growth: "bg-green-100 text-green-700",
-    professional: "bg-purple-100 text-purple-700",
-    enterprise: "bg-amber-100 text-amber-700",
-    internal: "bg-gray-100 text-gray-700",
-};
-
-const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-    trial: { label: "settings.biz.status.trial", color: "bg-yellow-100 text-yellow-700" },
-    active: { label: "settings.biz.status.active", color: "bg-green-100 text-green-700" },
-    suspended: { label: "settings.biz.status.suspended", color: "bg-red-100 text-red-700" },
-    cancelled: { label: "settings.biz.status.cancelled", color: "bg-gray-100 text-gray-700" },
-};
 
 async function fetchTenantData(tenantId: string): Promise<TenantData> {
     const { data, error } = await supabase
@@ -82,10 +63,20 @@ async function fetchTenantData(tenantId: string): Promise<TenantData> {
     return data;
 }
 
-function computeTrialDays(trialEndsAt: string | null): number | null {
-    if (!trialEndsAt) return null;
-    return Math.max(0, Math.ceil((new Date(trialEndsAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
+/**
+ * The colours the storefront paints with: the store editor's brand colours,
+ * else (an older shop that never opened the editor) the legacy branding pair.
+ */
+export function storeColors(tenant: Pick<TenantData, "store_config_v2" | "branding">): string[] {
+    const kit = tenant.store_config_v2?.brand_kit?.colors;
+    const picked = kit?.primary
+        ? [kit.primary, kit.secondary, kit.accent]
+        : [tenant.branding?.primary_color, tenant.branding?.secondary_color];
+    return picked.filter((c): c is string => typeof c === "string" && c.trim() !== "");
 }
+
+const INPUT =
+    "w-full px-3 py-2 rounded-xl border border-(--card-border) bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/20";
 
 export function BusinessSettings() {
     const { tenantId } = useAuth();
@@ -120,15 +111,13 @@ export function BusinessSettings() {
         );
     }
 
-    // key={tenant.id} resets form state when tenant changes
     return <BusinessSettingsForm tenant={tenant} tenantId={tenantId!} />;
 }
 
 function BusinessSettingsForm({ tenant, tenantId }: { tenant: TenantData; tenantId: string }) {
     const queryClient = useQueryClient();
-    const { t, language } = useLanguage();
+    const { t } = useLanguage();
 
-    // Initialize form state from tenant data (no useEffect needed)
     const [businessName, setBusinessName] = useState(tenant.business_name || "");
     const [contactEmail, setContactEmail] = useState(tenant.contact_email || "");
     const [contactPhone, setContactPhone] = useState(tenant.contact_phone || "");
@@ -137,8 +126,6 @@ function BusinessSettingsForm({ tenant, tenantId }: { tenant: TenantData; tenant
     );
     const [city, setCity] = useState(tenant.city || "");
     const [address, setAddress] = useState(tenant.address || "");
-    const [primaryColor, setPrimaryColor] = useState(tenant.branding?.primary_color || "#3b82f6");
-    const [secondaryColor, setSecondaryColor] = useState(tenant.branding?.secondary_color || "#8b5cf6");
     const [logoUrl, setLogoUrl] = useState(tenant.branding?.logo_url || null);
     const [isUploadingLogo, setIsUploadingLogo] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -165,10 +152,6 @@ function BusinessSettingsForm({ tenant, tenantId }: { tenant: TenantData; tenant
         toast.success(t("settings.biz.logoUploaded"));
     };
 
-    const handleRemoveLogo = () => {
-        setLogoUrl(null);
-    };
-
     const saveMutation = useMutation({
         mutationFn: async () => {
             const { error } = await supabase
@@ -189,12 +172,9 @@ function BusinessSettingsForm({ tenant, tenantId }: { tenant: TenantData; tenant
                     },
                     city: city.trim() || null,
                     address: address.trim() || null,
-                    branding: {
-                        ...tenant.branding,
-                        logo_url: logoUrl,
-                        primary_color: primaryColor,
-                        secondary_color: secondaryColor,
-                    },
+                    // Only the logo is edited here; the colours stay as they are
+                    // (they are changed in the store editor, STORE_COLORS_EDIT_HREF).
+                    branding: { ...(tenant.branding ?? {}), logo_url: logoUrl },
                     updated_at: new Date().toISOString(),
                 })
                 .eq("id", tenantId);
@@ -209,60 +189,27 @@ function BusinessSettingsForm({ tenant, tenantId }: { tenant: TenantData; tenant
         },
     });
 
-    const planColor = isPlanKey(tenant.plan) ? PLAN_COLORS[tenant.plan] : PLAN_COLORS.internal;
-    const statusInfo = STATUS_LABELS[tenant.status] || STATUS_LABELS.trial;
-    const trialDaysLeft = tenant.status === "trial" ? computeTrialDays(tenant.trial_ends_at) : null;
+    const colors = storeColors(tenant);
 
     return (
         <div className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
-                    <h2 className="text-2xl font-bold tracking-tight text-foreground">{t("settings.biz.title")}</h2>
+                    <h2 className="text-2xl font-bold tracking-tight text-foreground">{t("settings.nav.storeInfo")}</h2>
                     <p className="text-sm text-muted-foreground">{t("settings.biz.subtitle")}</p>
                 </div>
                 <button
+                    type="button"
                     onClick={() => saveMutation.mutate()}
                     disabled={saveMutation.isPending || !businessName.trim()}
-                    className={cn(
-                        "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all",
-                        "bg-primary text-primary-foreground hover:bg-primary/90",
-                        "disabled:opacity-50 disabled:cursor-not-allowed"
-                    )}
+                    className="inline-flex h-9 items-center gap-2 rounded-xl bg-(--ink) px-4 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                     {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                     {t("settings.biz.save")}
                 </button>
             </div>
 
-            {/* Plan & Status Banner */}
-            <div className="pastel-card p-5">
-                <div className="flex items-center gap-2 mb-4">
-                    <div className="w-8 h-8 rounded-lg bg-(--pastel-yellow) flex items-center justify-center">
-                        <Crown className="h-4 w-4 text-amber-700" />
-                    </div>
-                    <h3 className="text-base font-semibold text-foreground">{t("settings.biz.subscription")}</h3>
-                </div>
-                <div className="flex flex-wrap items-center gap-3">
-                    <span className={cn("px-3 py-1 rounded-full text-xs font-semibold", planColor)}>
-                        {t("settings.biz.planName", { plan: planName(tenant.plan, language) })}
-                    </span>
-                    <span className={cn("px-3 py-1 rounded-full text-xs font-semibold", statusInfo.color)}>
-                        {t(statusInfo.label)}
-                    </span>
-                    {trialDaysLeft !== null && (
-                        <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <Calendar className="w-3.5 h-3.5" />
-                            {t("settings.biz.trialLeft", { count: trialDaysLeft })}
-                        </span>
-                    )}
-                    <span className="text-xs text-muted-foreground ml-auto">
-                        {t("settings.biz.slug")}: <code className="px-1.5 py-0.5 bg-muted rounded text-xs">{tenant.slug}</code>
-                    </span>
-                </div>
-            </div>
-
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {/* Business Info */}
                 <div className="pastel-card p-6">
                     <div className="flex items-center gap-2 mb-5">
                         <div className="w-8 h-8 rounded-lg bg-(--pastel-blue) flex items-center justify-center">
@@ -271,92 +218,106 @@ function BusinessSettingsForm({ tenant, tenantId }: { tenant: TenantData; tenant
                         <h3 className="text-base font-semibold text-foreground">{t("settings.biz.info")}</h3>
                     </div>
                     <div className="space-y-4">
-                        <div>
-                            <label className="block text-xs font-medium text-muted-foreground mb-1.5">
+                        <div data-setting="store-name">
+                            <label htmlFor="biz-name" className="block text-xs font-medium text-muted-foreground mb-1.5">
                                 {t("settings.biz.name")} *
                             </label>
                             <input
+                                id="biz-name"
                                 type="text"
                                 value={businessName}
                                 onChange={(e) => setBusinessName(e.target.value)}
-                                className="w-full px-3 py-2 rounded-xl border border-(--card-border) bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                className={INPUT}
                                 placeholder={t("settings.biz.namePh")}
                             />
                         </div>
-                        <div>
-                            <label className="block text-xs font-medium text-muted-foreground mb-1.5">
-                                <Mail className="w-3 h-3 inline mr-1" />
-                                {t("settings.biz.email")}
-                            </label>
-                            <input
-                                type="email"
-                                value={contactEmail}
-                                onChange={(e) => setContactEmail(e.target.value)}
-                                className="w-full px-3 py-2 rounded-xl border border-(--card-border) bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-                                placeholder="contact@business.com"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-medium text-muted-foreground mb-1.5">
-                                <Phone className="w-3 h-3 inline mr-1" />
-                                {t("settings.biz.phone")}
-                            </label>
-                            <input
-                                type="tel"
-                                value={contactPhone}
-                                onChange={(e) => setContactPhone(e.target.value)}
-                                className="w-full px-3 py-2 rounded-xl border border-(--card-border) bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-                                placeholder="07XXXXXXXXX"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-medium text-muted-foreground mb-1.5">
+                        <div data-setting="store-whatsapp">
+                            <label htmlFor="biz-whatsapp" className="block text-xs font-medium text-muted-foreground mb-1.5">
                                 <MessageCircle className="w-3 h-3 inline mr-1" />
                                 {t("settings.biz.whatsapp")}
                             </label>
                             <input
+                                id="biz-whatsapp"
                                 type="tel"
                                 value={whatsappNumber}
                                 onChange={(e) => setWhatsappNumber(e.target.value)}
-                                className="w-full px-3 py-2 rounded-xl border border-(--card-border) bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                className={INPUT}
                                 placeholder="07XXXXXXXXX"
                             />
                             <p className="text-[11px] text-muted-foreground mt-1">
                                 <bdi>{t("settings.biz.whatsappHint")}</bdi>
                             </p>
                         </div>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div data-setting="store-contact" className="grid grid-cols-2 gap-3">
                             <div>
-                                <label className="block text-xs font-medium text-muted-foreground mb-1.5">
+                                <label htmlFor="biz-phone" className="block text-xs font-medium text-muted-foreground mb-1.5">
+                                    <Phone className="w-3 h-3 inline mr-1" />
+                                    {t("settings.biz.phone")}
+                                </label>
+                                <input
+                                    id="biz-phone"
+                                    type="tel"
+                                    value={contactPhone}
+                                    onChange={(e) => setContactPhone(e.target.value)}
+                                    className={INPUT}
+                                    placeholder="07XXXXXXXXX"
+                                />
+                            </div>
+                            <div>
+                                <label htmlFor="biz-email" className="block text-xs font-medium text-muted-foreground mb-1.5">
+                                    <Mail className="w-3 h-3 inline mr-1" />
+                                    {t("settings.biz.email")}
+                                </label>
+                                <input
+                                    id="biz-email"
+                                    type="email"
+                                    value={contactEmail}
+                                    onChange={(e) => setContactEmail(e.target.value)}
+                                    className={INPUT}
+                                    placeholder="contact@business.com"
+                                />
+                            </div>
+                        </div>
+                        <div data-setting="store-address" className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label htmlFor="biz-city" className="block text-xs font-medium text-muted-foreground mb-1.5">
                                     <MapPin className="w-3 h-3 inline mr-1" />
                                     {t("settings.biz.city")}
                                 </label>
                                 <input
+                                    id="biz-city"
                                     type="text"
                                     value={city}
                                     onChange={(e) => setCity(e.target.value)}
-                                    className="w-full px-3 py-2 rounded-xl border border-(--card-border) bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                    className={INPUT}
                                     placeholder={t("settings.biz.cityPh")}
                                 />
                             </div>
                             <div>
-                                <label className="block text-xs font-medium text-muted-foreground mb-1.5">
+                                <label htmlFor="biz-address" className="block text-xs font-medium text-muted-foreground mb-1.5">
                                     <Globe className="w-3 h-3 inline mr-1" />
                                     {t("settings.biz.address")}
                                 </label>
                                 <input
+                                    id="biz-address"
                                     type="text"
                                     value={address}
                                     onChange={(e) => setAddress(e.target.value)}
-                                    className="w-full px-3 py-2 rounded-xl border border-(--card-border) bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                    className={INPUT}
                                     placeholder={t("settings.biz.addressPh")}
                                 />
                             </div>
                         </div>
+                        <p className="flex items-center gap-2 border-t border-(--card-border) pt-4 text-xs text-muted-foreground">
+                            <Link2 className="h-3.5 w-3.5 shrink-0" />
+                            {t("settings.biz.slug")}:
+                            <code className="rounded bg-muted px-1.5 py-0.5 text-xs text-foreground">
+                                {storeAddress(tenant.slug, env.NEXT_PUBLIC_STOREFRONT_ROOT_DOMAIN)}
+                            </code>
+                        </p>
                     </div>
                 </div>
 
-                {/* Branding */}
                 <div className="pastel-card p-6">
                     <div className="flex items-center gap-2 mb-5">
                         <div className="w-8 h-8 rounded-lg bg-(--pastel-mint) flex items-center justify-center">
@@ -364,25 +325,23 @@ function BusinessSettingsForm({ tenant, tenantId }: { tenant: TenantData; tenant
                         </div>
                         <h3 className="text-base font-semibold text-foreground">{t("settings.biz.branding")}</h3>
                     </div>
-                    <div className="space-y-5">
-                        {/* Logo Upload */}
-                        <div>
-                            <label className="block text-xs font-medium text-muted-foreground mb-2">
-                                {t("settings.biz.logo")}
-                            </label>
+                    <div className="space-y-6">
+                        <div data-setting="store-logo">
+                            <p className="mb-2 text-xs font-medium text-muted-foreground">{t("settings.biz.logo")}</p>
                             <div className="flex items-center gap-4">
                                 {logoUrl ? (
                                     <div className="relative group">
                                         {/* eslint-disable-next-line @next/next/no-img-element -- image URL may be on any host a merchant pasted; next/image only serves allowlisted hosts */}
                                         <img
                                             src={logoUrl}
-                                            alt="Logo"
+                                            alt={t("settings.biz.logo")}
                                             className="w-16 h-16 rounded-xl object-cover border border-(--card-border)"
                                         />
                                         <button
                                             type="button"
-                                            onClick={handleRemoveLogo}
-                                            className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                            onClick={() => setLogoUrl(null)}
+                                            aria-label={t("settings.biz.removeLogo")}
+                                            className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
                                         >
                                             <Trash2 className="w-3 h-3" />
                                         </button>
@@ -417,81 +376,24 @@ function BusinessSettingsForm({ tenant, tenantId }: { tenant: TenantData; tenant
                             </div>
                         </div>
 
-                        <div>
-                            <label className="block text-xs font-medium text-muted-foreground mb-2">
-                                {t("settings.biz.primary")}
-                            </label>
-                            <div className="flex items-center gap-3">
-                                <input
-                                    type="color"
-                                    value={primaryColor}
-                                    onChange={(e) => setPrimaryColor(e.target.value)}
-                                    className="w-10 h-10 rounded-lg border border-(--card-border) cursor-pointer"
-                                />
-                                <input
-                                    type="text"
-                                    value={primaryColor}
-                                    onChange={(e) => setPrimaryColor(e.target.value)}
-                                    className="w-28 px-3 py-2 rounded-xl border border-(--card-border) bg-background text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/20"
-                                />
-                                <div
-                                    className="flex-1 h-10 rounded-xl flex items-center justify-center text-white text-xs font-semibold"
-                                    style={{ backgroundColor: primaryColor }}
+                        <div data-setting="store-colors" className="border-t border-(--card-border) pt-5">
+                            <p className="mb-2 text-xs font-medium text-muted-foreground">{t("settings.hub.colors.title")}</p>
+                            <div className="flex flex-wrap items-center gap-3">
+                                {colors.map((c) => (
+                                    <span key={c} className="inline-flex items-center gap-2 rounded-lg border border-(--card-border) px-2 py-1">
+                                        <span className="h-5 w-5 rounded-md border border-black/10" style={{ backgroundColor: c }} />
+                                        <code className="text-xs text-foreground">{c}</code>
+                                    </span>
+                                ))}
+                                <Link
+                                    href={STORE_COLORS_EDIT_HREF}
+                                    className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-(--card-border) px-3 text-xs font-semibold text-foreground hover:bg-(--background)"
                                 >
-                                    {t("settings.biz.previewButton")}
-                                </div>
+                                    {t("settings.biz.colorsEdit")}
+                                    <ArrowUpRight className="h-3.5 w-3.5" />
+                                </Link>
                             </div>
-                        </div>
-                        <div>
-                            <label className="block text-xs font-medium text-muted-foreground mb-2">
-                                {t("settings.biz.secondary")}
-                            </label>
-                            <div className="flex items-center gap-3">
-                                <input
-                                    type="color"
-                                    value={secondaryColor}
-                                    onChange={(e) => setSecondaryColor(e.target.value)}
-                                    className="w-10 h-10 rounded-lg border border-(--card-border) cursor-pointer"
-                                />
-                                <input
-                                    type="text"
-                                    value={secondaryColor}
-                                    onChange={(e) => setSecondaryColor(e.target.value)}
-                                    className="w-28 px-3 py-2 rounded-xl border border-(--card-border) bg-background text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/20"
-                                />
-                                <div
-                                    className="flex-1 h-10 rounded-xl flex items-center justify-center text-white text-xs font-semibold"
-                                    style={{ backgroundColor: secondaryColor }}
-                                >
-                                    {t("settings.biz.previewAccent")}
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Preview */}
-                        <div className="mt-4 p-4 rounded-xl border border-(--card-border) bg-muted/30">
-                            <p className="text-xs text-muted-foreground mb-3">{t("settings.biz.preview")}</p>
-                            <div className="flex items-center gap-3">
-                                {logoUrl ? (
-                                    // eslint-disable-next-line @next/next/no-img-element -- image URL may be on any host a merchant pasted; next/image only serves allowlisted hosts
-                                    <img src={logoUrl} alt="Logo" className="w-10 h-10 rounded-xl object-cover" />
-                                ) : (
-                                    <div
-                                        className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-sm font-bold"
-                                        style={{ backgroundColor: primaryColor }}
-                                    >
-                                        {businessName.charAt(0).toUpperCase() || "B"}
-                                    </div>
-                                )}
-                                <div>
-                                    <p className="font-semibold text-sm" style={{ color: primaryColor }}>
-                                        {businessName || t("settings.biz.yourBusiness")}
-                                    </p>
-                                    <p className="text-xs" style={{ color: secondaryColor }}>
-                                        {storeAddress(tenant.slug, env.NEXT_PUBLIC_STOREFRONT_ROOT_DOMAIN)}
-                                    </p>
-                                </div>
-                            </div>
+                            <p className="mt-2 text-[11px] text-muted-foreground"><bdi>{t("settings.biz.colorsHint")}</bdi></p>
                         </div>
                     </div>
                 </div>
