@@ -3,7 +3,7 @@
 import { useState, useCallback } from "react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, m } from "framer-motion";
 import * as Dialog from "@radix-ui/react-dialog";
 import { EASE_CHROME } from "@/lib/animation-constants";
 import {
@@ -271,7 +271,7 @@ export function LeadIndustryManager({ isOpen, onClose }: LeadIndustryManagerProp
               {/* ── Add Industry Form ──────────────────────── */}
               <AnimatePresence>
                 {showAddForm && (
-                  <motion.div
+                  <m.div
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: "auto", opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
@@ -398,7 +398,7 @@ export function LeadIndustryManager({ isOpen, onClose }: LeadIndustryManagerProp
                         {createIndustry.isPending ? "Adding..." : "Add Industry"}
                       </button>
                     </div>
-                  </motion.div>
+                  </m.div>
                 )}
               </AnimatePresence>
 
