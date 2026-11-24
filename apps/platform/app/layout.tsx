@@ -22,6 +22,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { ErrorBoundary } from "@scheniders/ui/error-boundary";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { WebAnalytics } from "@/components/analytics/web-analytics";
+import { BOOT_SCRIPT } from "@/lib/boot/script";
 
 export const metadata: Metadata = {
   title: "شنايدر",
@@ -71,6 +72,9 @@ export default function RootLayout({
   return (
     <html lang="ar" suppressHydrationWarning>
       <head>
+        {/* Starts the first-load read (lib/boot) while the page's code downloads:
+            the server reads who the user is and the page's first figures. */}
+        <script dangerouslySetInnerHTML={{ __html: BOOT_SCRIPT }} />
         {/* Preconnect to the Supabase origin so DNS + TLS overlap with JS parse
             on cold loads — the first request (auth/orders/metrics) fires immediately. */}
         <link rel="preconnect" href={supabaseOrigin} crossOrigin="anonymous" />
