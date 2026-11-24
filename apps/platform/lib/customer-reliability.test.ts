@@ -139,13 +139,13 @@ describe('recencyStatus', () => {
     });
     it('writes the label in the active language', () => {
         expect(recencyStatus(daysAgo(20), tStub, 'en').label).toBe('Cooling · last order 20 days ago');
-        expect(recencyStatus(daysAgo(20), tIn('ar'), 'ar').label).toBe('قلّ نشاطه · آخر طلب قبل 20 يوماً');
+        expect(recencyStatus(daysAgo(20), tIn('ar'), 'ar').label).toBe('قلّ نشاطه · آخر طلب قبل 20 يوم');
         expect(recencyStatus(daysAgo(1), tIn('ar'), 'ar').label).toBe('آخر طلب أمس');
     });
     it('counts days the Arabic way (dual, few, many)', () => {
         expect(recencyStatus(daysAgo(2), tIn('ar'), 'ar').ago).toBe('قبل يومين');
         expect(recencyStatus(daysAgo(5), tIn('ar'), 'ar').ago).toBe('قبل 5 أيام');
-        expect(recencyStatus(daysAgo(12), tIn('ar'), 'ar').ago).toBe('قبل 12 يوماً');
+        expect(recencyStatus(daysAgo(12), tIn('ar'), 'ar').ago).toBe('قبل 12 يوم');
         expect(recencyStatus(daysAgo(5), tStub, 'en').ago).toBe('5 days ago');
     });
     it('gives the bare time since the last order for one-line cells', () => {
@@ -174,7 +174,7 @@ describe('daysAgoLabel', () => {
     it('never abbreviates Arabic (no "قبل 1 ي")', () => {
         expect(daysAgoLabel(0, tIn('ar'))).toBe('اليوم');
         expect(daysAgoLabel(1, tIn('ar'))).toBe('أمس');
-        expect(daysAgoLabel(25, tIn('ar'))).toBe('قبل 25 يوماً');
+        expect(daysAgoLabel(25, tIn('ar'))).toBe('قبل 25 يوم');
         expect(daysAgoLabel(1, tStub)).toBe('yesterday');
     });
 });

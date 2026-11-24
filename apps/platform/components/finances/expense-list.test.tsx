@@ -25,7 +25,7 @@ describe("ExpenseList", () => {
     it("shows every category filter in Arabic", () => {
         render(<ExpenseList expenses={[expense({ id: "a" })]} onEdit={() => {}} onDelete={() => {}} />);
         expect(screen.getByRole("button", { name: "الكل" })).toBeTruthy();
-        for (const name of ["الشحن", "التسويق", "التغليف", "شراء بضاعة", "أخرى"]) {
+        for (const name of ["الشحن", "التسويق", "التغليف", "شراء بضاعة", "غيرها"]) {
             expect(screen.getAllByText(name).length).toBeGreaterThan(0);
         }
         expect(EXPENSE_CATEGORIES).toHaveLength(9);
@@ -41,7 +41,7 @@ describe("ExpenseList", () => {
     it("filters by category and shows the Arabic empty state when nothing matches", () => {
         render(<ExpenseList expenses={[expense({ id: "a" })]} onEdit={() => {}} onDelete={() => {}} />);
         fireEvent.click(screen.getByRole("button", { name: "التسويق" }));
-        expect(screen.getByText("لا توجد مصروفات")).toBeTruthy();
+        expect(screen.getByText("ماكو مصروفات")).toBeTruthy();
     });
 
     it("keeps the stored day under UTC formatting so the date header never shifts", () => {

@@ -297,7 +297,7 @@ describe("BillingSettings", () => {
         expect(note.className).not.toMatch(/amber|red|rose/);
         // Its button opens the form with a month: 9,000 + 30 x 900 - 1,800 = 34,200, to 35,000.
         fireEvent.click(within(note).getByRole("button"));
-        expect((screen.getByLabelText("المبلغ الذي حوّلته") as HTMLInputElement).value).toBe("35000");
+        expect((screen.getByLabelText("المبلغ اللي حوّلته") as HTMLInputElement).value).toBe("35000");
         expect(screen.getByTestId("topup-suggested").textContent).toMatch(/^يكفي \u206735,000 د.ع\u2069 لشهر: الباقة وأجور الطلبات والرسائل حسب آخر 7 أيام$/);
     });
 
@@ -419,7 +419,7 @@ describe("BillingSettings", () => {
         state.qiEnabled = true;
         state.qiCard = { ...SAVED_CARD, auto_refill: false, failures: 3 };
         show();
-        expect(screen.getByTestId("qi-auto-refill").textContent).toContain("توقف الشحن التلقائي بعد 3 محاولات فاشلة");
+        expect(screen.getByTestId("qi-auto-refill").textContent).toContain("الشحن التلقائي وكف بعد 3 محاولات فاشلة");
     });
 
     it("hides the saved card when Qi payments are off", () => {
@@ -436,7 +436,7 @@ describe("BillingSettings", () => {
         show();
         const list = screen.getByTestId("topup-requests").textContent ?? "";
         expect(list).toContain("قيد المراجعة");
-        expect(list).toContain("أُضيف");
+        expect(list).toContain("انضاف");
     });
 
     it("an approved receipt shows what really arrived and offers its printed receipt", () => {
@@ -455,9 +455,9 @@ describe("BillingSettings", () => {
         show();
         expect(screen.getByTestId("topup-request-r3").textContent).toContain("السبب: الوصل مقطوع");
         expect(screen.getByTestId("topup-request-r4").textContent).toContain("السبب: حساب آخر");
-        expect(screen.getAllByText("أرسل الوصل مرة ثانية")).toHaveLength(1);
+        expect(screen.getAllByText("دز الوصل مرة ثانية")).toHaveLength(1);
         expect(screen.queryByTestId("topup-form")).toBeNull();
-        fireEvent.click(screen.getByText("أرسل الوصل مرة ثانية"));
+        fireEvent.click(screen.getByText("دز الوصل مرة ثانية"));
         expect(screen.getByTestId("topup-form")).toBeTruthy();
     });
 
@@ -478,14 +478,14 @@ describe("BillingSettings", () => {
         state.lock = { ...LOCK, locked: true, reason: "unpaid", balance_iqd: 1200 };
         show();
         expect(screen.getByTestId("topup-form")).toBeTruthy();
-        expect((screen.getByLabelText("المبلغ الذي حوّلته") as HTMLInputElement).value).toBe("8000");
+        expect((screen.getByLabelText("المبلغ اللي حوّلته") as HTMLInputElement).value).toBe("8000");
         expect(screen.getByTestId("topup-suggested").textContent).toMatch(/^يكفي \u20678,000 د.ع\u2069 لدفع باقتك$/);
     });
 
     it("a paying shop whose wallet covers its plan and its spend gets no suggestion and the usual amount", () => {
         show();
         fireEvent.click(screen.getByText("شحن المحفظة"));
-        expect((screen.getByLabelText("المبلغ الذي حوّلته") as HTMLInputElement).value).toBe("50000");
+        expect((screen.getByLabelText("المبلغ اللي حوّلته") as HTMLInputElement).value).toBe("50000");
         expect(screen.queryByTestId("topup-suggested")).toBeNull();
     });
 
@@ -499,7 +499,7 @@ describe("BillingSettings", () => {
         fireEvent.click(screen.getByText("إرسال للمراجعة"));
         expect(submitTopup).toHaveBeenCalledWith({ amount: 50_000, method: "zain_cash", file: receipt }, expect.anything());
         const sent = screen.getByTestId("topup-sent");
-        expect(sent.textContent).toContain("تم الإرسال، نفعّل خلال ساعة بأوقات الدوام");
+        expect(sent.textContent).toContain("اندز، نفعّل خلال ساعة بأوقات الدوام");
         expect(sent.textContent).toContain("أوقات الدوام: السبت إلى الخميس، 10 إلى 6");
         expect((within(sent).getByText("راسلنا على واتساب").closest("a") as HTMLAnchorElement).href).toBe("https://wa.me/9647701234567");
         fireEvent.click(within(sent).getByText("تمام"));
@@ -556,10 +556,10 @@ describe("BillingSettings plans (Fermi B1)", () => {
     it("an admin choosing a bigger plan sees what is taken now, and confirms it", () => {
         state.planQuote = UPGRADE;
         show();
-        fireEvent.click(screen.getByText("اختر الفريق"));
+        fireEvent.click(screen.getByText("اختار الفريق"));
         expect(quotedPlans).toContain("growth");
         const dialog = screen.getByTestId("plan-change-dialog").textContent ?? "";
-        expect(dialog).toMatch(/تبدأ الفريق الآن. ينخصم \u20678,000 د.ع\u2069 من محفظتك عن باقي هذا الشهر./);
+        expect(dialog).toMatch(/الفريق تبدي هسه. ينخصم \u20678,000 د.ع\u2069 من محفظتك عن باقي هذا الشهر./);
         expect(dialog).toContain("أعضاء الفريق: 2 من 6");
         fireEvent.click(screen.getByTestId("plan-change-confirm"));
         expect(applyPlan).toHaveBeenCalledWith("growth", expect.anything());
@@ -568,7 +568,7 @@ describe("BillingSettings plans (Fermi B1)", () => {
     it("a wallet that cannot pay the upgrade cannot confirm it", () => {
         state.planQuote = { ...UPGRADE, balance_iqd: 3000, balance_ok: false };
         show();
-        fireEvent.click(screen.getByText("اختر الفريق"));
+        fireEvent.click(screen.getByText("اختار الفريق"));
         expect(screen.getByTestId("plan-change-dialog").textContent).toMatch(/محفظتك ناقصها \u20675,000 د.ع\u2069/);
         expect((screen.getByTestId("plan-change-confirm") as HTMLButtonElement).disabled).toBe(true);
     });
@@ -577,7 +577,7 @@ describe("BillingSettings plans (Fermi B1)", () => {
         state.sub = { ...state.sub, plan: "growth" };
         state.planQuote = { success: false, error: "too_many_members", seats_used: 4, seat_limit: 2, plan: "starter" };
         show();
-        fireEvent.click(screen.getByText("اختر البداية"));
+        fireEvent.click(screen.getByText("اختار البداية"));
         expect(screen.getByTestId("plan-change-dialog").textContent).toContain("عندك 4 أعضاء بالفريق، والبداية تسمح بـ 2.");
         expect((screen.getByTestId("plan-change-confirm") as HTMLButtonElement).disabled).toBe(true);
     });
@@ -589,8 +589,8 @@ describe("BillingSettings plans (Fermi B1)", () => {
         show();
         expect(screen.getByTestId("plan-pending").textContent).toContain("بعد التجربة: البداية");
         expect(screen.getByTestId("plan-option-starter").textContent).toContain("اخترتها");
-        expect(screen.getByText("اختر الفريق")).toBeTruthy();
-        expect(screen.getByTestId("billing-plan-card").textContent).toMatch(/يُخصم \u20679,000 د.ع\u2069/);
+        expect(screen.getByText("اختار الفريق")).toBeTruthy();
+        expect(screen.getByTestId("billing-plan-card").textContent).toMatch(/ينخصم \u20679,000 د.ع\u2069/);
     });
 
     it("a smaller plan waiting for the renewal shows its date, and the admin can stay", () => {
@@ -604,7 +604,7 @@ describe("BillingSettings plans (Fermi B1)", () => {
     it("staff who are not the admin see the plans and cannot change them", () => {
         state.lock = { ...LOCK, can_pay: false };
         show();
-        expect(screen.queryByText("اختر الفريق")).toBeNull();
+        expect(screen.queryByText("اختار الفريق")).toBeNull();
         expect(screen.getByText("صاحب المتجر يقدر يغيّر الباقة.")).toBeTruthy();
     });
 
@@ -673,7 +673,7 @@ describe("BillingSettings WhatsApp messages (Fermi B2)", () => {
         show();
         const card = screen.getByTestId("whatsapp-usage-card").textContent ?? "";
         expect(card).toContain("خلصت رسائل التجربة المجانية، فوقفت الرسائل التلقائية");
-        expect(card).toContain("اختر باقة واشحن المحفظة");
+        expect(card).toContain("اختار باقة واشحن المحفظة");
     });
 
     it("a paying shop sees this month's messages and what they cost, by kind", () => {

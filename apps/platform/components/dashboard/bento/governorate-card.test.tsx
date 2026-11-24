@@ -41,11 +41,11 @@ const ui = (range: DateRangeKey) => <LanguageProvider><GovernorateCard range={ra
 describe("GovernorateCard", () => {
     it("opens on the dashboard's period, with All on the longest it has", () => {
         const { rerender } = render(ui("30d"));
-        expect(pressed()).toMatch(/^30 يوماً/);
+        expect(pressed()).toMatch(/^30 يوم/);
         rerender(ui("today"));
         expect(pressed()).toMatch(/^اليوم/);
         rerender(ui("all"));
-        expect(pressed()).toMatch(/^30 يوماً/);
+        expect(pressed()).toMatch(/^30 يوم/);
     });
 
     it("keeps a tab picked on the card until the chip changes", () => {

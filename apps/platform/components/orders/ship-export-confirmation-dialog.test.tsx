@@ -125,7 +125,7 @@ describe("ship export — the courier", () => {
         const { onConfirmExport } = renderDialog();
         fireEvent.click(screen.getByRole("radio", { name: /شركة ثانية/ }));
         expect(screen.getByTestId("ship-export-layout-editor")).toBeTruthy();
-        expect(screen.getByTestId("ship-export-layout-issue").textContent).toBe("اكتب اسم شركة التوصيل أولاً.");
+        expect(screen.getByTestId("ship-export-layout-issue").textContent).toBe("اكتب اسم شركة التوصيل أول.");
         waitOutCountdown();
         expect((screen.getByRole("button", { name: /صدّر طلبين/ }) as HTMLButtonElement).disabled).toBe(true);
 

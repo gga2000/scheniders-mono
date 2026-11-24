@@ -44,7 +44,7 @@ const ar: Record<string, string> = {
     "whatsapp.usage.held": "الرسائل التلقائية موقوفة لمتجرك: أغلب رسائله الأخيرة ما وصلت للزبون، غالباً بسبب أرقام غلط. الطلبات الجديدة تبقى توصلك: أكّدها من واتسابك. راسل الدعم حتى ترجع الرسائل.",
     "whatsapp.trial.counter": "رسائل التجربة: {sent} من {cap}",
     "whatsapp.trial.free": "مجانية خلال التجربة، علينا. بعد التجربة كل رسالة تنقص من محفظتك.",
-    "whatsapp.trial.capped": "خلصت رسائل التجربة المجانية، فوقفت الرسائل التلقائية. اختر باقة واشحن المحفظة حتى ترجع. الطلبات الجديدة تبقى توصلك: أكّدها من واتسابك.",
+    "whatsapp.trial.capped": "خلصت رسائل التجربة المجانية، فوقفت الرسائل التلقائية. اختار باقة واشحن المحفظة حتى ترجع. الطلبات الجديدة تبقى توصلك: أكّدها من واتسابك.",
     "whatsapp.purpose.confirmation": "تأكيد الطلب",
     "whatsapp.purpose.reminder": "تذكير",
     "whatsapp.purpose.discount": "عرض خصم",
@@ -57,7 +57,7 @@ const ar: Record<string, string> = {
     "orders.card.confirmByHand": "أكّد يدوياً",
     "orders.card.confirmByHandTip": "ما انرسل تأكيد واتساب، أكّد يدوياً من واتسابك",
     "orders.filter.whatsappUnsent": "واتساب ما انرسل",
-    "orders.filter.whatsappUnsentTip": "طلبات تنتظر الزبون وما انرسل لها واتساب تلقائي، خلال آخر {days} يوماً",
+    "orders.filter.whatsappUnsentTip": "طلبات تنتظر الزبون وما انرسل إلها واتساب تلقائي، خلال آخر {days} يوم",
 };
 
 export function whatsappTranslations(locale: Locale): Record<string, string> {

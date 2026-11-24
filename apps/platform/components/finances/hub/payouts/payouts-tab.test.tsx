@@ -51,7 +51,7 @@ describe("PayoutsTab", () => {
     it("says so in Arabic when the courier cannot be reached", async () => {
         state.invoices = null;
         render(<PayoutsTab />);
-        await waitFor(() => expect(screen.getByText(/تعذّر الوصول إلى الوسيط/)).toBeTruthy());
+        await waitFor(() => expect(screen.getByText(/ما كدرنا نوصل للوسيط/)).toBeTruthy());
     });
 
     it("matches an invoice to the orders linked to it and flags a difference", async () => {

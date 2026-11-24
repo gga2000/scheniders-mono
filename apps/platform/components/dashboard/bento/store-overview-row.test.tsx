@@ -28,14 +28,13 @@ const hovers = () => Object.fromEntries(
 );
 
 describe("store overview cards", () => {
-    it("says on each card what that card counts, in standard Arabic", () => {
+    it("says on each card what that card counts", () => {
         renderRow();
         const byCard = hovers();
-        expect(byCard["زوار المتجر"]).toBe("زيارات موقع متجرك فقط.");
-        expect(byCard["طلبات المتجر الإلكتروني"]).toContain("الطلبات من موقع متجرك فقط");
-        // The visitors card no longer talks about orders, and no card is in dialect.
+        expect(byCard["زوار المتجر"]).toBe("زيارات موقع متجرك بس.");
+        expect(byCard["طلبات المتجر الإلكتروني"]).toContain("الطلبات من موقع متجرك بس");
+        // The visitors card no longer talks about orders.
         expect(byCard["زوار المتجر"]).not.toContain("الطلبات");
-        for (const hover of Object.values(byCard)) expect(hover).not.toMatch(/اللي|تلقاها|ينزلها/);
         expect(new Set(Object.values(byCard)).size).toBe(6);
     });
 

@@ -34,9 +34,9 @@ describe("dashboard order pipeline", () => {
                 />
             </LanguageProvider>,
         );
-        expect(screen.getByText("328 طلباً · آخر 30 يوماً")).toBeTruthy();
+        expect(screen.getByText("328 طلب · آخر 30 يوم")).toBeTruthy();
         // Several statuses share the 'other' stage: no single Orders filter to open.
-        const other = screen.getAllByText("حالات أخرى");
+        const other = screen.getAllByText("حالات ثانية");
         other.forEach((el) => el.click());
         expect(opened).toEqual([]);
         expect(other.every((el) => el.closest("button") === null)).toBe(true);
@@ -56,12 +56,12 @@ describe("dashboard order pipeline", () => {
                 />
             </LanguageProvider>,
         );
-        expect(screen.getByText("5,431 طلباً · كل الأيام")).toBeTruthy();
+        expect(screen.getByText("5,431 طلب · كل الأيام")).toBeTruthy();
         screen.getAllByText("مكتمل")[0].click();
         expect(opened).toEqual(["completed"]);
         // The hover title takes the plural form, not «192 طلبات».
         const completed = screen.getAllByText("3,198")[0].closest("[title]");
-        expect(completed?.getAttribute("title")).toBe("مكتمل: 3,198 طلباً");
+        expect(completed?.getAttribute("title")).toBe("مكتمل: 3,198 طلب");
         expect(screen.getAllByText("6")[0].closest("[title]")?.getAttribute("title")).toBe("تم التوصيل: 6 طلبات");
     });
 

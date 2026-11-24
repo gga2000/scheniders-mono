@@ -77,7 +77,7 @@ describe("FollowUpCueBadge", () => {
             last_followup_at: "2026-09-11T11:30:00.000Z",
         });
         expect(container.querySelector('[data-followup-kind="discount"]')?.getAttribute("title"))
-            .toBe("أُرسل الخصم بواسطة علي · قبل 30 دقيقة");
+            .toBe("اندز الخصم بواسطة علي · قبل 30 دقيقة");
     });
 
     it("falls back to an initial when the sender has no avatar", () => {
@@ -103,7 +103,7 @@ describe("FollowUpCueBadge", () => {
         expect(earlier).toBeTruthy();
         expect(earlier?.querySelector('img[alt="علي"]')).toBeTruthy();
         expect(container.querySelector('[data-followup-kind="discount"]')?.getAttribute("title"))
-            .toContain("آخر تواصل: أُرسل التذكير بواسطة علي");
+            .toContain("آخر تواصل: اندز التذكير بواسطة علي");
     });
 
     it("shows no earlier face when nobody has contacted the customer at all", () => {
@@ -170,7 +170,7 @@ describe("FollowUpCueBadge with nothing due", () => {
             last_followup_at: "2026-09-11T11:00:00.000Z",
         });
         expect(container.querySelector('[data-followup-kind="none"]')?.getAttribute("title"))
-            .toBe("تم التواصل بواسطة علي · قبل ساعة واحدة");
+            .toBe("صار تواصل بواسطة علي · قبل ساعة واحدة");
     });
 
     it("says confirmation when that is what went out", () => {
@@ -180,6 +180,6 @@ describe("FollowUpCueBadge with nothing due", () => {
             last_followup_at: "2026-09-11T11:00:00.000Z",
         });
         expect(container.querySelector('[data-followup-kind="none"]')?.getAttribute("title"))
-            .toContain("أُرسل التأكيد");
+            .toContain("اندز التأكيد");
     });
 });

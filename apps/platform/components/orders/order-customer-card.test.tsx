@@ -226,7 +226,7 @@ describe("OrderCustomerCard WhatsApp contact designation", () => {
 
     it("disables designating a slot with no number behind it", () => {
         renderCard(known, { isEditing: true });
-        expect(screen.getByTitle("أدخل الرقم أولاً").hasAttribute("disabled")).toBe(true);
+        expect(screen.getByTitle("دخّل الرقم أول").hasAttribute("disabled")).toBe(true);
     });
 
     it("hides every designation control when the row does not carry the slot", () => {
@@ -260,7 +260,7 @@ describe("OrderCustomerCard source", () => {
     it("names the source the way the order's card does", () => {
         renderCard({ source: "storefront" });
         expect(source()).toContain("المتجر");
-        expect(source()).not.toContain("أخرى");
+        expect(source()).not.toContain("غيرها");
         cleanup();
         renderCard({ source: "whatsapp" });
         expect(source()).toContain("واتساب");

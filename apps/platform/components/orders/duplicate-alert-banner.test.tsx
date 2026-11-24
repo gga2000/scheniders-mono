@@ -87,7 +87,7 @@ describe("DuplicateAlertBanner", () => {
 
         render(<DuplicateAlertBanner alert={alertFor(subject, twins)} order={subject} />);
 
-        expect(screen.getByText("+1 طلب آخر")).toBeTruthy();
+        expect(screen.getByText("+1 طلب ثاني")).toBeTruthy();
     });
 
     it("routes the actions without bubbling to the card beneath", () => {
