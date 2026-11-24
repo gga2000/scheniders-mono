@@ -194,7 +194,7 @@ const ar: Record<string, string> = {
     "guide.done.view": "شوف محلك",
     "guide.done.unlocked": "كل خيارات المحل صارت مفتوحة. زيّنه على ذوقك وقت ما تريد.",
     "guide.done.copy": "انسخ رابط المحل",
-    "guide.done.copied": "تم نسخ الرابط",
+    "guide.done.copied": "انتسخ الرابط",
     "guide.done.close": "تمام",
     "guide.walk.name": "الاسم",
     "guide.walk.photo": "الصورة",

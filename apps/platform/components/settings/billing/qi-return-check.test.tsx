@@ -44,7 +44,7 @@ describe("QiReturnCheck", () => {
         show();
         await waitFor(() => expect(onSettled).toHaveBeenCalled());
         expect(toast.success).toHaveBeenCalledTimes(1);
-        expect(toast.warning).toHaveBeenCalledWith(expect.stringContaining("لم نحفظها"));
+        expect(toast.warning).toHaveBeenCalledWith(expect.stringContaining("ما حفظناها"));
     });
 
     it("says nothing about a card the shop did not ask to save", async () => {
@@ -58,7 +58,7 @@ describe("QiReturnCheck", () => {
         checkQiPayment.mockResolvedValue({ status, amount: 50_000, cardSaved: null });
         show();
         await waitFor(() => expect(onSettled).toHaveBeenCalled());
-        expect(toast.error).toHaveBeenCalledWith(expect.stringContaining("لم يُخصم"));
+        expect(toast.error).toHaveBeenCalledWith(expect.stringContaining("ما انخصم"));
         expect(toast.success).not.toHaveBeenCalled();
     });
 
@@ -66,7 +66,7 @@ describe("QiReturnCheck", () => {
         checkQiPayment.mockRejectedValue(new Error("qi_check_502"));
         show();
         await waitFor(() => expect(onSettled).toHaveBeenCalled());
-        expect(toast.warning).toHaveBeenCalledWith(expect.stringContaining("لم يؤكد"));
+        expect(toast.warning).toHaveBeenCalledWith(expect.stringContaining("ما أكد"));
         expect(toast.success).not.toHaveBeenCalled();
     });
 });

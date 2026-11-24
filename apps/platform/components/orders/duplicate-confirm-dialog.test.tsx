@@ -72,7 +72,7 @@ describe("DuplicateConfirmDialog", () => {
     it("names both orders so the operator can see what they would be duplicating", () => {
         render(<Harness onConfirm={vi.fn()} />);
 
-        expect(screen.getByText("هذا الزبون لديه طلب مؤكد بالفعل")).toBeTruthy();
+        expect(screen.getByText("هذا الزبون عنده طلب مؤكد من قبل")).toBeTruthy();
         expect(screen.getByText("#3261004001")).toBeTruthy();
         expect(screen.getByText("#3261004002")).toBeTruthy();
     });
@@ -86,7 +86,7 @@ describe("DuplicateConfirmDialog", () => {
             <DuplicateConfirmDialog open onOpenChange={() => {}} pairs={pairs} onConfirmAnyway={() => {}} />,
         );
 
-        expect(screen.getByText("3 طلبات لها توأم مؤكد")).toBeTruthy();
+        expect(screen.getByText("3 طلبات إلها توأم مؤكد")).toBeTruthy();
     });
 
     it("speaks about shipping, not confirming, when it held a dispatch", () => {
@@ -104,7 +104,7 @@ describe("DuplicateConfirmDialog", () => {
             />,
         );
 
-        expect(screen.getByText(/الشحن الآن يعني إرسال مندوب ثانٍ/)).toBeTruthy();
+        expect(screen.getByText(/الشحن هسه يعني يروح مندوب ثاني/)).toBeTruthy();
         expect(screen.queryByText("تأكيد على أي حال")).toBeNull();
         fireEvent.click(screen.getByText("شحن على أي حال"));
         expect(onConfirm).toHaveBeenCalledTimes(1);

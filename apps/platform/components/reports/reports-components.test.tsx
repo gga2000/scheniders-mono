@@ -118,7 +118,7 @@ describe("KPICards", () => {
 
     it("puts the delivery rate's base on its card, and a dash while nothing has finished", () => {
         const { container } = inLanguage("ar", <KPICards metrics={kpis} returnsCount={0} />);
-        expect(container.querySelector("[data-kpi-base]")?.textContent).toBe("سُلِّم 1 من 2 منتهية");
+        expect(container.querySelector("[data-kpi-base]")?.textContent).toBe("تسلّم 1 من 2 منتهية");
         cleanup();
         const none = inLanguage("ar", <KPICards metrics={{ ...kpis, deliveryRate: null, deliveredCount: 0, decidedCount: 0 }} returnsCount={0} />);
         expect(none.container.textContent).toContain("—");
@@ -140,7 +140,7 @@ describe("ReturnBreakdown", () => {
     it("labels the return rate and never ranks a missing reason as the top reason", () => {
         const { container } = inLanguage("ar", <ReturnBreakdown data={returnsData({})} />);
         expect(container.querySelector("[data-return-rate]")?.textContent).toBe("4.7% من المُسلَّمة");
-        expect(container.querySelector("[data-return-insight]")?.textContent).toBe("لم يُسجَّل سبب لأي مرتجع في هذه الفترة");
+        expect(container.querySelector("[data-return-insight]")?.textContent).toBe("ما انسجّل سبب لأي مرتجع بهاي الفترة");
         expect(container.textContent).toContain("بلا سبب مسجَّل");
         expect(container.textContent).not.toContain("غير محدد");
     });

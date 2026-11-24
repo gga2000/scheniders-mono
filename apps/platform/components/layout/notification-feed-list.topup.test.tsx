@@ -72,17 +72,17 @@ afterEach(() => {
 describe("Top-up lines in the feed", () => {
     it("says what was added to the wallet", () => {
         show([notice("wallet.topup_approved", { amount: 9000, asked: 10000, receipt_no: 3 })]);
-        expect(screen.getByText(/^أُضيف \u20679,000 د.ع\u2069 إلى محفظتك$/)).toBeTruthy();
+        expect(screen.getByText(/^انضاف \u20679,000 د.ع\u2069 لمحفظتك$/)).toBeTruthy();
     });
 
     it("gives our team's reason for a refusal and asks for the receipt again", () => {
         show([notice("wallet.topup_rejected", { amount: 10000, reason: "الوصل مقطوع" })]);
-        expect(screen.getByText(/^رُفض شحن \u206710,000 د.ع\u2069: الوصل مقطوع\. أرسل الوصل مرة ثانية$/)).toBeTruthy();
+        expect(screen.getByText(/^شحن \u206710,000 د.ع\u2069 انرفض: الوصل مقطوع\. دز الوصل مرة ثانية$/)).toBeTruthy();
     });
 
     it("keeps the old line for a refusal sent before reasons existed", () => {
         show([notice("wallet.topup_rejected", { amount: 10000 })]);
-        expect(screen.getByText(/^رُفض شحن \u206710,000 د.ع\u2069\. تأكد من الوصل وأرسله مرة أخرى$/)).toBeTruthy();
+        expect(screen.getByText(/^شحن \u206710,000 د.ع\u2069 انرفض\. تأكد من الوصل ودزّه مرة ثانية$/)).toBeTruthy();
     });
 });
 
