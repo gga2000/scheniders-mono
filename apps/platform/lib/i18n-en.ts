@@ -5573,6 +5573,7 @@ export const en: Record<string, string> = {
     "settings.overview.store.whatsappNone": "No WhatsApp number",
     "settings.overview.balance": "Balance {amount}",
     "settings.overview.fees.same": "{fee} in every governorate",
+    "settings.overview.fees.allFree": "Free delivery in every governorate",
     "settings.overview.fees.range": "{min} to {max}",
     "settings.overview.fees.split": "Baghdad {baghdad} · other governorates {others}",
     "settings.overview.label.fragileOn": "Fragile tape on",

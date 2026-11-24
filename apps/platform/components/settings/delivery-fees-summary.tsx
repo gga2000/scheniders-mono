@@ -134,7 +134,7 @@ export function DeliveryFeesSummary() {
                                     {g.fee === 0 ? t("settings.fees.free") : formatIQD(g.fee)}
                                 </td>
                                 <td className="p-3 tabular-nums text-muted-foreground">
-                                    {g.freeFrom > 0 ? formatIQD(g.freeFrom) : t("settings.fees.never")}
+                                    {g.fee === 0 ? "—" : g.freeFrom > 0 ? formatIQD(g.freeFrom) : t("settings.fees.never")}
                                 </td>
                             </tr>
                         ))}

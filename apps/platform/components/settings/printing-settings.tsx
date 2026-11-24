@@ -123,7 +123,7 @@ function LabelSwitch({
             >
                 <span
                     className={cn(
-                        "absolute top-1 h-4 w-4 rounded-full bg-white shadow-sm transition-transform",
+                        "absolute left-0 top-1 h-4 w-4 rounded-full bg-white shadow-sm transition-transform",
                         checked ? "translate-x-6" : "translate-x-1",
                     )}
                 />

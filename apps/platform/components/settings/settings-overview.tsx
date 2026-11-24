@@ -84,13 +84,16 @@ export function SettingsOverview() {
     let feesLine: string | null = null;
     if (!shippingLoading) {
         const glance = feesAtAGlance(governorateFees(shipping ?? null));
+        const fee = (iqd: number) => (iqd === 0 ? t("settings.fees.free") : formatIQD(iqd));
         if (glance.otherMin === glance.otherMax && glance.otherMin === glance.baghdad) {
-            feesLine = t("settings.overview.fees.same", { fee: formatIQD(glance.baghdad) });
+            feesLine = glance.baghdad === 0
+                ? t("settings.overview.fees.allFree")
+                : t("settings.overview.fees.same", { fee: formatIQD(glance.baghdad) });
         } else {
             const others = glance.otherMin === glance.otherMax
-                ? formatIQD(glance.otherMin)
-                : t("settings.overview.fees.range", { min: formatIQD(glance.otherMin), max: formatIQD(glance.otherMax) });
-            feesLine = t("settings.overview.fees.split", { baghdad: formatIQD(glance.baghdad), others });
+                ? fee(glance.otherMin)
+                : t("settings.overview.fees.range", { min: fee(glance.otherMin), max: fee(glance.otherMax) });
+            feesLine = t("settings.overview.fees.split", { baghdad: fee(glance.baghdad), others });
         }
     }
 

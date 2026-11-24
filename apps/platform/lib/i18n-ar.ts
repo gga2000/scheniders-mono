@@ -6298,6 +6298,7 @@ export const ar: Record<string, string> = {
     "settings.overview.store.whatsappNone": "ماكو رقم واتساب",
     "settings.overview.balance": "الرصيد {amount}",
     "settings.overview.fees.same": "{fee} لكل المحافظات",
+    "settings.overview.fees.allFree": "التوصيل مجاني لكل المحافظات",
     "settings.overview.fees.range": "من {min} إلى {max}",
     "settings.overview.fees.split": "بغداد {baghdad} · باقي المحافظات {others}",
     "settings.overview.label.fragileOn": "شريط «قابل للكسر» شغّال",

@@ -86,7 +86,9 @@ function useFocusSetting(container: RefObject<HTMLElement | null>, section: Sett
         if (!root || !focus) return;
         const selector = `[data-setting="${CSS.escape(focus)}"]`;
         const light = (el: HTMLElement) => {
-            el.scrollIntoView({ behavior: "smooth", block: "center" });
+            // Scroll only the settings pane (scrollIntoView would also move the page around it).
+            const top = el.getBoundingClientRect().top - root.getBoundingClientRect().top + root.scrollTop - 24;
+            root.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
             el.animate(
                 [
                     { boxShadow: "0 0 0 3px rgb(251 227 142 / 1)", backgroundColor: "rgb(255 251 235 / 1)" },
