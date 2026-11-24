@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useEffectEvent, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { UserPlus, X, Loader2, Shield, LifeBuoy } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -73,7 +73,7 @@ export function AddEmployeeDialog({ isOpen, onClose }: AddEmployeeDialogProps) {
     <AnimatePresence>
       {isOpen && (
         <>
-          <motion.div
+          <m.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -82,7 +82,7 @@ export function AddEmployeeDialog({ isOpen, onClose }: AddEmployeeDialogProps) {
             onClick={onClose}
           />
 
-          <motion.div
+          <m.div
             initial={{ opacity: 0, scale: 0.95, y: 24 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 24 }}
@@ -228,7 +228,7 @@ export function AddEmployeeDialog({ isOpen, onClose }: AddEmployeeDialogProps) {
                 </button>
               </div>
             </div>
-          </motion.div>
+          </m.div>
         </>
       )}
     </AnimatePresence>

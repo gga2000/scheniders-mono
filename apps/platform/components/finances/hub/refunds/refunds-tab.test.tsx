@@ -36,6 +36,6 @@ describe("RefundsTab", () => {
 
     it("shows the empty state without refunds", () => {
         render(<RefundsTab orders={[]} period={period} compareRange={null} />);
-        expect(screen.getAllByText("لا استرجاعات في هذه الفترة.").length).toBeGreaterThan(0);
+        expect(screen.getAllByText("ماكو استرجاعات بهاي الفترة.").length).toBeGreaterThan(0);
     });
 });

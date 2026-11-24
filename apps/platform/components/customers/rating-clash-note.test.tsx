@@ -21,7 +21,7 @@ describe("RatingClashNote", () => {
         const note = container.firstElementChild as HTMLElement;
         expect(note.getAttribute("dir")).toBe("rtl");
         expect(note.className).toContain("text-left");
-        expect(note.textContent).toBe("«VIP» هو أيضاً تقييم للعميل. هذا الوسم لا يغيّر التقييم ولا العرض المحفوظ.");
+        expect(note.textContent).toBe("«VIP» هو هم تقييم للعميل. هذا الوسم ما يغيّر التقييم ولا العرض المحفوظ.");
         const name = note.querySelector("span") as HTMLElement;
         expect(name.textContent).toBe("VIP");
         expect(name.className).toContain("[unicode-bidi:isolate]");

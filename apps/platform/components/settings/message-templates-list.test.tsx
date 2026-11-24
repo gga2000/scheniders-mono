@@ -67,7 +67,7 @@ describe("MessageTemplatesList delete", () => {
         const row = screen.getByText("Old offer").closest("div.flex.items-start") as HTMLElement;
         const buttons = row.querySelectorAll("button");
         fireEvent.click(buttons[buttons.length - 1]);
-        await waitFor(() => expect(toastError).toHaveBeenCalledWith("تعذّر حذف القالب", "permission denied"));
+        await waitFor(() => expect(toastError).toHaveBeenCalledWith("ما كدرنا نحذف القالب", "permission denied"));
         expect(screen.getByText("Old offer")).toBeTruthy();
     });
 });

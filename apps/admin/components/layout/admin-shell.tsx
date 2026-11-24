@@ -7,6 +7,7 @@ import React, {
   useCallback,
 } from "react";
 import { useRouter } from "next/navigation";
+import { LazyMotion } from "framer-motion";
 import { AdminSidebar } from "./admin-sidebar";
 import { AdminTopbar } from "./admin-topbar";
 import { AccessCheckNotice } from "./access-check-notice";
@@ -21,6 +22,9 @@ import { WatchlistSync } from "@/components/merchants/watchlist-sync";
 // ---------------------------------------------------------------------------
 // AdminShell
 // ---------------------------------------------------------------------------
+
+/** The frame's animations (lib/motion-features.ts), fetched after the page. */
+const loadMotionFeatures = () => import("@/lib/motion-features").then((mod) => mod.default);
 
 /** The name a Google sign-in leaves in the user's metadata, if any. */
 function metadataName(metadata: Record<string, unknown> | undefined): string | null {
@@ -102,52 +106,54 @@ export function AdminShell({ children, pageName }: { children: React.ReactNode; 
     : null;
 
   return (
-    <div className="flex min-h-screen bg-background text-foreground">
-      <AdminSidebar
-        collapsed={isCollapsed}
-        setCollapsed={setSidebarCollapsed}
-        isMobile={isMobile}
-        mobileMenuOpen={mobileMenuOpen}
-        setMobileMenuOpen={handleSetMobileMenuOpen}
-        user={sidebarUser}
-        onSignOut={handleSignOut}
-      />
-
-      {/*
-        The room for the fixed menu is set in CSS, so the server's page
-        already has it. It used to start at 0 and slide to 272px for half a
-        second after every page load, pushing the whole page sideways. It
-        slides only when someone opens or closes the menu. For staff who
-        chose icons, data-admin-main takes the narrow room before the page
-        comes alive (lib/menu-choice.ts).
-      */}
-      <main
-        data-admin-main
-        className={cn(
-          "flex-1 min-w-0",
-          isCollapsed ? "md:ml-[88px]" : "md:ml-[272px]",
-          mounted && "transition-[margin-left] duration-500 ease-in-out",
-        )}
-      >
-        <AdminTopbar
-          user={topbarUser}
-          onMenuClick={() => handleSetMobileMenuOpen(true)}
+    <LazyMotion features={loadMotionFeatures}>
+      <div className="flex min-h-screen bg-background text-foreground">
+        <AdminSidebar
+          collapsed={isCollapsed}
+          setCollapsed={setSidebarCollapsed}
           isMobile={isMobile}
-          onOpenCommandPalette={commandPalette.open}
-          pageName={pageName}
+          mobileMenuOpen={mobileMenuOpen}
+          setMobileMenuOpen={handleSetMobileMenuOpen}
+          user={sidebarUser}
+          onSignOut={handleSignOut}
         />
 
-        <div className="max-w-[1800px] mx-auto">
-          <AccessCheckNotice />
-          {children}
-        </div>
-      </main>
+        {/*
+          The room for the fixed menu is set in CSS, so the server's page
+          already has it. It used to start at 0 and slide to 272px for half a
+          second after every page load, pushing the whole page sideways. It
+          slides only when someone opens or closes the menu. For staff who
+          chose icons, data-admin-main takes the narrow room before the page
+          comes alive (lib/menu-choice.ts).
+        */}
+        <main
+          data-admin-main
+          className={cn(
+            "flex-1 min-w-0",
+            isCollapsed ? "md:ml-[88px]" : "md:ml-[272px]",
+            mounted && "transition-[margin-left] duration-500 ease-in-out",
+          )}
+        >
+          <AdminTopbar
+            user={topbarUser}
+            onMenuClick={() => handleSetMobileMenuOpen(true)}
+            isMobile={isMobile}
+            onOpenCommandPalette={commandPalette.open}
+            pageName={pageName}
+          />
 
-      <CommandPalette
-        isOpen={commandPalette.isOpen}
-        onClose={commandPalette.close}
-      />
-      <WatchlistSync />
-    </div>
+          <div className="max-w-[1800px] mx-auto">
+            <AccessCheckNotice />
+            {children}
+          </div>
+        </main>
+
+        <CommandPalette
+          isOpen={commandPalette.isOpen}
+          onClose={commandPalette.close}
+        />
+        <WatchlistSync />
+      </div>
+    </LazyMotion>
   );
 }

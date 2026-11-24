@@ -297,7 +297,7 @@ export const en: Record<string, string> = {
     "finances.hero.cashIn": "Cash In",
     "finances.hero.cashInSub": "Delivered & collected",
     "finances.hero.float": "Cash Float",
-    "finances.hero.floatSub": "Confirmed · In transit",
+    "finances.hero.floatSub": "Confirmed · In transit · now",
     "finances.hero.aov": "Avg Order Value",
     "finances.hero.orders": "{count} orders",
     "finances.hero.orders.one": "{count} order",

@@ -36,8 +36,8 @@ describe("StatsGrid", () => {
     it("names the two work queues as now, with separators", () => {
         renderGrid(0);
         const titles = [...document.querySelectorAll("h3")].map((h) => h.textContent ?? "");
-        expect(titles[0]).toMatch(/بانتظار المراجعة.*الآن/);
-        expect(titles[1]).toMatch(/جاهز للتغليف.*الآن/);
+        expect(titles[0]).toMatch(/بانتظار المراجعة.*هسه/);
+        expect(titles[1]).toMatch(/جاهز للتغليف.*هسه/);
         expect(document.body.textContent).toContain("1,250");
     });
 

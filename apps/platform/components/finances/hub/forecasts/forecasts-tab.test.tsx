@@ -8,9 +8,6 @@ import type { Order } from "@/lib/supabase";
 import type { Expense } from "@/types/expense";
 import { ForecastsTab } from "./forecasts-tab";
 
-// The status-history lookup needs a database; the tab only needs its result.
-vi.mock("@/hooks/use-in-transit-since", () => ({ useInTransitSince: () => new Map<string, string>() }));
-
 // jsdom has no layout engine; recharts' ResponsiveContainer only needs the constructor.
 class ResizeObserverStub {
     observe() {}
@@ -35,7 +32,7 @@ const order = (id: string, status: string, price: number): Order =>
 
 describe("ForecastsTab", () => {
     it("reads in Arabic with no English headings left", () => {
-        render(<ForecastsTab orders={[order("a", "delivered", 50000), order("b", "in_transit", 30000)]} expenses={[]} period={period} />);
+        render(<ForecastsTab orders={[order("a", "delivered", 50000), order("b", "in_transit", 30000)]} cashInTransit={30000} expenses={[]} period={period} />);
         expect(screen.getByText("توقّع المقبوضات")).toBeTruthy();
         expect(screen.getByText("تغطية المصروفات")).toBeTruthy();
         expect(screen.queryByText("Cash cover")).toBeNull();
@@ -43,7 +40,7 @@ describe("ForecastsTab", () => {
     });
 
     it("renders without orders or expenses", () => {
-        render(<ForecastsTab orders={[]} expenses={[] as Expense[]} period={period} />);
+        render(<ForecastsTab orders={[]} cashInTransit={0} expenses={[] as Expense[]} period={period} />);
         expect(screen.getByText("توقّع المقبوضات")).toBeTruthy();
     });
 });

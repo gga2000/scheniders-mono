@@ -76,9 +76,9 @@ describe("Prime lines in the feed", () => {
             notice("prime.returning", { customer: "مريم سعد" }, { entity_type: "order", entity_id: "o1", entity_label: "#4261103016" }),
             notice("prime.price_changed", { customer: null }, { entity_type: "order", entity_id: "o2", entity_label: "#4261103017" }),
         ]);
-        expect(screen.getByText("سُلّمت 5 طلبات في بغداد · نُقلت إلى «تم التوصيل»")).toBeTruthy();
+        expect(screen.getByText("تسلّمت 5 طلبات بـبغداد · انتقلت لـ«تم التوصيل»")).toBeTruthy();
         expect(screen.getByText("طرد مريم سعد راجع")).toBeTruthy();
-        expect(screen.getByText("سُلّم طلب #4261103017 بسعر جديد · راجعه")).toBeTruthy();
+        expect(screen.getByText("تسلّم طلب #4261103017 بسعر جديد · راجعه")).toBeTruthy();
         // Prime, not "Automation", did it.
         expect(screen.getAllByText("برايم")).toHaveLength(3);
     });
@@ -99,7 +99,7 @@ describe("Prime lines in the feed", () => {
         ];
         show(items);
         expect(screen.getByText(/وصلت دفعة من برايم: .*\u20671,284,250 د.ع\u2069 · 39 مطابق · 1 مختلف/)).toBeTruthy();
-        expect(screen.getByText(/يومك مع برايم: سُلّم 37 · راجع 6 · حُصّل .*1,361,250/)).toBeTruthy();
+        expect(screen.getByText(/يومك مع برايم: تسلّم 37 · راجع 6 · انحصّل .*1,361,250/)).toBeTruthy();
 
         cleanup();
         visibility.revealed = false;

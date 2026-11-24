@@ -62,6 +62,6 @@ describe("ProductsFinanceTab", () => {
 
     it("shows the Arabic empty state when nothing sold", () => {
         render(<ProductsFinanceTab products={products} period={period} granularity="week" orders={[]} />);
-        expect(screen.getByText("لا نشاط للمنتجات في هذه الفترة.")).toBeTruthy();
+        expect(screen.getByText("ماكو نشاط للمنتجات بهاي الفترة.")).toBeTruthy();
     });
 });

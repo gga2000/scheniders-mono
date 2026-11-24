@@ -21,8 +21,8 @@ describe("PrimeDeskStrip", () => {
             <LanguageProvider><PrimeDeskStrip counts={{ sent: 0, waiting: 0, fix: 0 }} failed onRetry={retry} /></LanguageProvider>,
         );
         expect(container.querySelector("[data-prime-count]")).toBeNull();
-        expect(screen.getByRole("alert").textContent).toContain("تعذّر فحص الطلبات مع برايم");
-        fireEvent.click(screen.getByText("أعد المحاولة"));
+        expect(screen.getByRole("alert").textContent).toContain("ما كدرنا نفحص الطلبات ويا برايم");
+        fireEvent.click(screen.getByText("جرّب مرة ثانية"));
         expect(retry).toHaveBeenCalledOnce();
     });
 });

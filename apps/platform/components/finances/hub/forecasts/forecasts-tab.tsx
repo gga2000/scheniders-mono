@@ -9,8 +9,6 @@ import { Target, TrendingUp, Calendar, Wallet, AlertTriangle } from "lucide-reac
 import type { Order } from "@/lib/supabase";
 import type { Expense } from "@/types/expense";
 import type { FinancePeriod } from "@/hooks/use-finance-period";
-import { useCashPosition } from "@/hooks/use-cash-position";
-import { useInTransitSince } from "@/hooks/use-in-transit-since";
 import { useLanguage } from "@/hooks/use-language";
 import { SectionCard } from "../primitives/section-card";
 import { FinanceValue } from "../primitives/finance-value";
@@ -21,12 +19,13 @@ import { buildForecast, coverDays, daysBetween } from "@/lib/finance/forecast";
 
 interface Props {
     orders: Order[];
+    /** In-transit cash from the page's cash position, so this card and the cash card agree. */
+    cashInTransit: number;
     expenses: Expense[];
     period: FinancePeriod;
 }
 
-export function ForecastsTab({ orders, expenses, period }: Props) {
-    const cash = useCashPosition(orders, useInTransitSince(orders));
+export function ForecastsTab({ orders, cashInTransit, expenses, period }: Props) {
 
     const forecast = useMemo(() => buildForecast(orders), [orders]);
 
@@ -34,8 +33,8 @@ export function ForecastsTab({ orders, expenses, period }: Props) {
     const runway = useMemo(() => {
         const periodExpenses = expenses.reduce((s, e) => s + (Number(e.amount) || 0), 0);
         const days = daysBetween(baghdadDayKey(period.start), baghdadDayKey(period.end));
-        return { ...coverDays(cash.cashInTransit, periodExpenses, days), inTransit: cash.cashInTransit };
-    }, [cash.cashInTransit, expenses, period.start, period.end]);
+        return { ...coverDays(cashInTransit, periodExpenses, days), inTransit: cashInTransit };
+    }, [cashInTransit, expenses, period.start, period.end]);
 
     const chart = useMemo(() => forecast.chart.map((p) => ({
         label: shortDay(p.day),

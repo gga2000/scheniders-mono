@@ -292,6 +292,24 @@ function listPage(tenantId: string, window: OrderWindow, i: number, withCount = 
         .range(i * PAGE, i * PAGE + PAGE - 1);
 }
 
+/** Every live order in one of `statuses`, whatever day it arrived. Paged so a long tail never truncates at the server's row cap. */
+async function readAllInStatus(tenantId: string, statuses: Order["status"][]): Promise<Order[]> {
+    const rows: Order[] = [];
+    for (let i = 0; ; i++) {
+        const page = await readPage(() =>
+            listQuery(tenantId, null, LIST_COLUMNS)
+                .in("status", statuses)
+                .order("created_at", { ascending: false })
+                .order("id", { ascending: false })
+                .range(i * PAGE, i * PAGE + PAGE - 1),
+        );
+        const got = pageRows([page]);
+        rows.push(...got);
+        if (got.length < PAGE) break;
+    }
+    return rows;
+}
+
 /** Every row of settled list reads, normalized, in order. Throws the first error. */
 function pageRows(pages: ReadonlyArray<{ data: unknown; error: unknown }>): Order[] {
     const rows: Order[] = [];
@@ -840,20 +858,17 @@ export const orderRepository = {
      * parcels never truncates at the server's row cap.
      */
     async findInTransit(tenantId: string): Promise<Order[]> {
-        const rows: Order[] = [];
-        for (let i = 0; ; i++) {
-            const page = await readPage(() =>
-                listQuery(tenantId, null, LIST_COLUMNS)
-                    .eq("status", "in_transit")
-                    .order("created_at", { ascending: false })
-                    .order("id", { ascending: false })
-                    .range(i * PAGE, i * PAGE + PAGE - 1),
-            );
-            const got = pageRows([page]);
-            rows.push(...got);
-            if (got.length < PAGE) break;
-        }
-        return withRiskData(tenantId, rows);
+        return withRiskData(tenantId, await readAllInStatus(tenantId, ["in_transit"]));
+    },
+
+    /**
+     * Every live order still owed by the road, confirmed or in transit,
+     * whatever day it arrived: the cash a shop is waiting for now. Advanced
+     * Finances reads it apart from its period, so the money on the road, the
+     * in-transit part and the stuck part all come from the same rows.
+     */
+    async findOnTheRoad(tenantId: string): Promise<Order[]> {
+        return readAllInStatus(tenantId, ["confirmed", "in_transit"]);
     },
 
     /** Fetch a single order by ID (all columns for detail view). */

@@ -39,7 +39,7 @@ describe("ReplaceSheet", () => {
         const createButton = () => screen.getByRole("button", { name: /create replacement|إنشاء الاستبدال/i }) as HTMLButtonElement;
         expect(createButton().disabled).toBe(true);
 
-        fireEvent.click(screen.getByText(/add the new item|أضف المنتج الجديد/i));
+        fireEvent.click(screen.getByText(/add the new item|ضيف المنتج الجديد/i));
         fireEvent.click(await screen.findByText("pick-new"));
         await waitFor(() => expect(screen.getByText("New perfume")).toBeTruthy());
 
@@ -68,7 +68,7 @@ describe("ReplaceSheet", () => {
             />,
         );
         fireEvent.click(screen.getByText(/store pays|يدفعها المتجر/i));
-        fireEvent.click(screen.getByText(/add the new item|أضف المنتج الجديد/i));
+        fireEvent.click(screen.getByText(/add the new item|ضيف المنتج الجديد/i));
         fireEvent.click(await screen.findByText("pick-new"));
         const sheet = screen.getByTestId("replace-sheet");
         await waitFor(() => expect(sheet.textContent).toMatch(/courier pays the customer|يدفع المندوب للزبون/i));

@@ -22,7 +22,7 @@ const EMAIL = process.env.E2E_EMAIL;
 const NO_ORDERS_PHONE = "07000000009";
 /** The profile lists this many orders; the rest are a link to the orders page. */
 const HISTORY_ROWS = 20;
-const LOAD_FAILED = /تعذّر تحميل بيانات العميل|Couldn't load this customer/;
+const LOAD_FAILED = /ما كدرنا نحمّل بيانات العميل|Couldn't load this customer/;
 
 interface ProfileCase {
     label: string;
