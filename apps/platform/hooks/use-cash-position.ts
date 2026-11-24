@@ -115,7 +115,8 @@ export function useCashPosition(
         // Refund and return rows are money going back to the customer. They are
         // not sales in flight, so no cash figure, aging bucket, or delivery rate
         // may count them (a live return row in transit read as -44,750 IQD).
-        const sales = orders.filter((o) => !o.is_return);
+        // A test order is never a sale either, as on the rest of Finances.
+        const sales = orders.filter((o) => !o.is_return && !o.is_test);
         const now = Date.now();
         // The chart covers the last 30 Baghdad days, whatever the viewer's own time zone.
         const firstDay = addDaysToDayKey(baghdadDayKey(now), -29);

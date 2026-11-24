@@ -1,6 +1,6 @@
 /// <reference types="vitest/globals" />
 // @vitest-environment jsdom
-import { describe, it, expect, afterEach, vi } from "vitest";
+import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import { render as rtlRender, screen, cleanup } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { LanguageProvider } from "@/components/providers/language-provider";
@@ -22,7 +22,16 @@ vi.mock("@/hooks/use-finance-customer-aggregates", () => ({
 vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
 
 const render = (ui: ReactElement) => rtlRender(ui, { wrapper: LanguageProvider });
-afterEach(cleanup);
+// The period's last day: on the real clock, from mid-November, Ahmed's last
+// order is 30+ days old and he shows a second time on the dormant list.
+beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-31T09:00:00.000Z"));
+});
+afterEach(() => {
+    cleanup();
+    vi.useRealTimers();
+});
 
 const period = {
     start: new Date("2026-09-30T21:00:00.000Z"),

@@ -15,7 +15,7 @@ vi.mock("@/lib/repositories/order-repository", () => ({
     },
 }));
 
-import { useFinanceOrders } from "./use-finance-orders";
+import { useFinanceOrders, withOnTheRoad } from "./use-finance-orders";
 
 const wrapper = ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>{children}</QueryClientProvider>
@@ -75,5 +75,24 @@ describe("useFinanceOrders", () => {
 
         expect(result.current.orders.map((o) => o.id)).toEqual(["a", "r-new", "r-old"]);
         expect(findRefundsPaidBetween.mock.calls[0]).toEqual(["tenant-1", "2026-10-01", "2026-10-31"]);
+    });
+});
+
+describe("withOnTheRoad", () => {
+    const row = (id: string, status: string, price = 1000) => ({ id, status, price }) as unknown as Order;
+
+    it("takes the money on the road from every open order, not only the period's", () => {
+        const period = [row("delivered", "delivered"), row("open-in-period", "in_transit"), row("refused", "rejected")];
+        // A parcel out for 40 days is outside a 7-day period but still on the road.
+        const open = [row("open-in-period", "in_transit"), row("out-40-days", "in_transit", 5000), row("waiting", "confirmed")];
+        expect(withOnTheRoad(period, open).map((o) => o.id)).toEqual(["delivered", "refused", "open-in-period", "out-40-days", "waiting"]);
+    });
+
+    it("drops a period row that was open when read but is not open any more", () => {
+        expect(withOnTheRoad([row("x", "in_transit")], []).map((o) => o.id)).toEqual([]);
+    });
+
+    it("keeps the period's settled copy when the open list read the order before it settled", () => {
+        expect(withOnTheRoad([row("x", "delivered")], [row("x", "in_transit")]).map((o) => o.status)).toEqual(["delivered"]);
     });
 });

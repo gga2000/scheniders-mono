@@ -47,6 +47,17 @@ describe("useCashPosition", () => {
         expect(result.stuckCount).toBe(1);
     });
 
+    it("never counts a test order as cash on the road or at risk", () => {
+        const result = run([
+            order({ id: "real", price: 4000, updated_at: ago(20) }),
+            order({ id: "test", price: 9000, updated_at: ago(20), is_test: true }),
+            order({ id: "test-confirmed", status: "confirmed", price: 9000, is_test: true }),
+        ]);
+        expect(result.cashInTransit).toBe(4000);
+        expect(result.cashAtRisk).toBe(4000);
+        expect(result.cashConfirmed).toBe(0);
+    });
+
     it("collects delivered and completed alike, and holds confirmed back as not shipped", () => {
         const result = run([
             order({ id: "a", status: "delivered", price: 4000, delivered_at: ago(2) }),
