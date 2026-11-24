@@ -107,7 +107,8 @@ DECLARE
     _city text := 'tt-city-' || left(gen_random_uuid()::text, 8);
     _place text := 'tt-place-' || left(gen_random_uuid()::text, 8);
     _src text := 'tt-src-' || left(gen_random_uuid()::text, 8);
-    _d0 jsonb; _d1 jsonb;
+    _o uuid := gen_random_uuid();
+    _d0 jsonb; _d1 jsonb; _d2 jsonb;
     _u0 jsonb; _u1 jsonb; _ua jsonb;
     _i0 jsonb; _i1 jsonb;
     _shop jsonb;
@@ -287,6 +288,32 @@ BEGIN
         - (SELECT coalesce(sum((e->>'count')::int), 0) FROM jsonb_array_elements(_d0->'hours90') AS e WHERE e @> '{"dow": 1, "hour": 0}'::jsonb) = 1
         AND (SELECT coalesce(sum((e->>'count')::int), 0) FROM jsonb_array_elements(_d1->'hours90') AS e WHERE e @> '{"dow": 0, "hour": 21}'::jsonb)
         - (SELECT coalesce(sum((e->>'count')::int), 0) FROM jsonb_array_elements(_d0->'hours90') AS e WHERE e @> '{"dow": 0, "hour": 21}'::jsonb) = 0);
+
+    -- Old orders: the 90-day part reads only orders made or earned in those
+    -- 90 days, so a shop whose orders are all older is still listed with its
+    -- all-time count, and an order made long ago but delivered inside the 90
+    -- days is still money in them.
+    INSERT INTO public.tenants (id, business_name, slug, plan, status, created_at) VALUES
+        (_o, 'tt shop old', 'tt-o-' || _o, 'starter', 'active', '2025-01-01 10:00:00+03');
+    INSERT INTO public.orders (tenant_id, order_id, customer_name, phone, items, price, status, created_at, delivered_at)
+    VALUES
+        (_o, 'TT-' || _o || '-1', 'tt', '0', '[]', 3000, 'cancelled', '2025-02-01 10:00:00+03', NULL),
+        -- Made 1 July, delivered 20 August: the first day inside the 90 days is 19 August.
+        (_o, 'TT-' || _o || '-2', 'tt', '0', '[]', 8000, 'delivered', '2026-07-01 10:00:00+03', '2026-08-20 10:00:00+03'),
+        -- Delivered 18 August: one day before the 90 days.
+        (_o, 'TT-' || _o || '-3', 'tt', '0', '[]', 500, 'delivered', '2026-07-01 11:00:00+03', '2026-08-18 23:00:00+03');
+    _d2 := public.admin_dashboard_stats(_now);
+    _shop := pg_temp.pick(_d2->'shops', 'tenantId', _o::text);
+    PERFORM pg_temp.check('old shop: listed with its all-time orders and first order',
+        (_shop->>'ordersAll')::int = 3 AND (_shop->>'firstOrderAt')::timestamptz = '2025-02-01 10:00:00+03');
+    PERFORM pg_temp.check('old shop: no orders in 90 days, money earned inside them',
+        (_shop->>'orders90')::int = 0 AND (_shop->>'sales90')::numeric = 8000
+        AND _shop->'daily7' = '[0, 0, 0, 0, 0, 0, 0]'::jsonb);
+    PERFORM pg_temp.check('old orders: all time counts them, the 90-day money only the one inside',
+        pg_temp.num(_d2, 'orders', 'allTime') - pg_temp.num(_d1, 'orders', 'allTime') = 3
+        AND pg_temp.num(_d2, 'sales', 'sum90') - pg_temp.num(_d1, 'sales', 'sum90') = 8000
+        AND pg_temp.num(_d2, 'sales', 'count90') - pg_temp.num(_d1, 'sales', 'count90') = 1
+        AND pg_temp.num(_d2, 'orders', 'month') - pg_temp.num(_d1, 'orders', 'month') = 0);
 
     -- Usage ---------------------------------------------------------------------
     PERFORM pg_temp.check('usage: one shop, 365 Baghdad days', (_ua->>'total')::int = 11);
