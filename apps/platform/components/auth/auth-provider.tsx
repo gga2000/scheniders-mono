@@ -11,13 +11,11 @@ import { clearPersistedBooks } from "@/lib/orders/persisted-book";
 import { reportOrderError } from "@/lib/order-telemetry";
 import { sentryIdentityFor } from "@/lib/sentry-identity";
 import { setReportIdentity } from "@/lib/report-error";
-import {
-    applyPermissionOverrides,
-    resolveEffectiveRole,
-    SUPPORT_VIEW_PERMISSIONS,
-    type UserRole,
-} from "@/lib/permissions";
+import type { UserRole } from "@/lib/permissions";
 import { revokeDevicePush } from "@/lib/chat/revoke-device-push";
+import { readProfileRow, readTenantAccess } from "@/lib/session-context";
+import { hydrateBootQueries, takeBoot, type TakenBoot } from "@/lib/boot/take";
+import { getQueryClient } from "@/lib/query-client";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -66,26 +64,10 @@ async function signOutDevice(): Promise<void> {
     }
 }
 
-/**
- * The look-only support session of this sign-in, or null when the sign-in is
- * not a support viewer (the token's app_metadata says, set only by the staff
- * console). A viewer with no live session on this shop gets expiresAt null.
- */
-async function readSupportView(tenantId: string | null): Promise<SupportViewState | null> {
+/** Whether this sign-in is a support look-only viewer (the token's app_metadata says, set only by the staff console). */
+async function isSupportViewerSession(): Promise<boolean> {
     const { data: { session } } = await supabase.auth.getSession();
-    if (session?.user.app_metadata?.support_viewer !== true) return null;
-    if (!tenantId) return { expiresAt: null };
-    const { data, error } = await supabase
-        .from('support_view_sessions')
-        .select('expires_at')
-        .eq('tenant_id', tenantId)
-        .is('ended_at', null)
-        .gt('expires_at', new Date().toISOString())
-        .order('started_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-    if (error) throw new Error(`Support view read failed: ${error.message}`);
-    return { expiresAt: (data as { expires_at: string } | null)?.expires_at ?? null };
+    return session?.user.app_metadata?.support_viewer === true;
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -117,14 +99,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // ── Fetch profile, role, and permissions ──
     // Resolves to the user's current tenant id (null when there is none or the
-    // profile could not be loaded).
-    const fetchProfile = useCallback(async (userId: string): Promise<string | null> => {
+    // profile could not be loaded). `boot` is this page load's answer from the
+    // server (lib/boot): only the first session of a load passes it.
+    const fetchProfile = useCallback(async (userId: string, boot: Promise<TakenBoot | null> | null = null): Promise<string | null> => {
         try {
-            const { data: profileData } = await supabase
-                .from('user_profiles')
-                .select('*')
-                .eq('id', userId)
-                .single();
+            // The server read who this user is, and the page's first figures,
+            // while the page's code was still downloading. Taken only when it
+            // is about this same user; else the reads below run as before.
+            const booted = boot ? await boot : null;
+            const seeded = booted?.payload.session?.userId === userId ? booted.payload.session : null;
+            if (booted && seeded) hydrateBootQueries(getQueryClient(), booted);
+
+            // A profile read that fails is treated as no profile, as it always was.
+            const profileData = seeded ? seeded.profile : await readProfileRow(supabase, userId)
+                .then((read) => (read.kind === "row" ? read.profile : null));
 
             if (!profileData) {
                 diag.error(`[Auth] NO PROFILE for userId=${userId} — unprovisioned (invite-only)`);
@@ -137,7 +125,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
 
             const currentTenantId: string | null = profileData.current_tenant_id ?? null;
-            perfTrace.mark('auth:profile-row');
+            perfTrace.mark('auth:profile-row', { boot: !!seeded });
             // The tenant is known from this row alone, so publish it now: the
             // order book and every other tenant-scoped read start while the
             // role and permissions below are still loading, instead of two
@@ -160,55 +148,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setTenantId(currentTenantId);
             perfTrace.mark('auth:tenant', { hasTenant: !!currentTenantId });
 
-            // The role that governs what this user may do is their role in the
-            // current tenant (tenant_members.role), the same row RLS reads.
-            // user_profiles.role only contributes super_admin (platform staff).
-            // Membership, the role table and this tenant's user overrides are
-            // read together: role_permissions is a few dozen rows readable by
-            // any signed-in user, so taking all of it saves the round trip that
-            // used to wait for the role first (audit R1 speed #5). Overrides are
-            // per tenant: one granted in another store grants nothing here
-            // (has_tenant_permission applies the same rule).
-            const [membershipResult, rolePermsResult, userOverridesResult] = await Promise.all([
-                currentTenantId
-                    ? supabase
-                        .from('tenant_members')
-                        .select('role')
-                        .eq('tenant_id', currentTenantId)
-                        .eq('user_id', userId)
-                        .eq('status', 'active')
-                        .maybeSingle()
-                    : Promise.resolve({ data: null }),
-                supabase.from('role_permissions').select('role, permission'),
-                currentTenantId
-                    ? supabase.from('user_permissions').select('permission, is_granted')
-                        .eq('tenant_id', currentTenantId)
-                        .eq('user_id', userId)
-                    : Promise.resolve({ data: null }),
-            ]);
-            const memberRole = resolveEffectiveRole(profileData.role, membershipResult.data?.role);
+            // The server read the role, permissions and support look with the
+            // same function (lib/session-context.ts) for this tenant.
+            const access = seeded && seeded.tenantId === currentTenantId
+                ? seeded
+                : await readTenantAccess(supabase, {
+                    userId,
+                    tenantId: currentTenantId,
+                    platformRole: profileData.role,
+                    isSupportViewer: isSupportViewerSession,
+                });
             perfTrace.mark('auth:membership');
 
-            // A support look-only sign-in has no membership: it reads as a
-            // viewer while its 30-minute session on this shop is live.
-            const look = memberRole ? null : await readSupportView(currentTenantId);
-            setSupportView(look);
-            const effectiveRole: UserRole | null = memberRole ?? (look?.expiresAt ? 'viewer' : null);
-
-            const perms = memberRole
-                ? applyPermissionOverrides(
-                    (rolePermsResult.data ?? []).filter(p => p.role === memberRole).map(p => p.permission),
-                    userOverridesResult.data ?? [],
-                )
-                : effectiveRole ? [...SUPPORT_VIEW_PERMISSIONS] : [];
-
+            setSupportView(access.supportView);
             setProfileMissing(false);
-            setRole(effectiveRole);
-            setProfile(profileData as UserProfile);
-            setPermissions(perms);
+            setRole(access.role);
+            setProfile(profileData);
+            setPermissions(access.permissions);
             markProfileLoaded(true);
-            perfTrace.mark('auth:profile-loaded', { role: effectiveRole ?? 'none', perms: perms.length });
-            diag.log(`[Auth] PROFILE_OK userId=${userId} role=${effectiveRole ?? 'none'} perms=${perms.length}`);
+            perfTrace.mark('auth:profile-loaded', { role: access.role ?? 'none', perms: access.permissions.length });
+            diag.log(`[Auth] PROFILE_OK userId=${userId} role=${access.role ?? 'none'} perms=${access.permissions.length} boot=${!!seeded}`);
             return currentTenantId;
         } catch (err) {
             diag.error(`[Auth] PROFILE_ERR userId=${userId}:`, err);
@@ -333,8 +292,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         return;
                     }
 
-                    // Fetch profile in background
-                    const profileTenant = fetchProfile(currentSession.user.id);
+                    // Fetch profile in background. The page load's first
+                    // session may use the server's answer read during load
+                    // (lib/boot); a later sign-in or refresh always reads.
+                    const profileTenant = fetchProfile(
+                        currentSession.user.id,
+                        event === 'INITIAL_SESSION' ? takeBoot() : null,
+                    );
 
                     // Activity logging on sign-in. A support look-only sign-in
                     // writes nothing (the database refuses it), so it logs nothing.

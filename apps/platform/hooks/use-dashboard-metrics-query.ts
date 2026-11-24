@@ -10,7 +10,7 @@ import { diag } from "@/lib/diag";
 import { perfTrace } from "@/lib/perf-trace";
 import type { DashboardMetrics } from "@/lib/analytics/dashboard-metrics-schema";
 import type { DateRangeKey } from "@/lib/analytics/dashboard-calculations";
-import { dashboardMetricsSchema } from "@/lib/analytics/dashboard-metrics-schema";
+import { dashboardMetricsKey, DashboardMetricsContractError, readDashboardMetrics } from "@/lib/analytics/dashboard-metrics-read";
 
 /** How long to wait after the orders cache settles before refreshing metrics. */
 const METRICS_REFRESH_DEBOUNCE_MS = 1_500;
@@ -81,51 +81,29 @@ export function useDashboardMetricsQuery(range: DateRangeKey = "all") {
     }, [queryClient, range]);
 
     return useQuery<DashboardMetrics>({
-        queryKey: ["dashboard-metrics", range, tenantId],
+        queryKey: dashboardMetricsKey(range, tenantId),
         queryFn: async () => {
             if (!tenantId) throw new Error("dashboard metrics requested without a shop");
             const _t = performance.now();
             perfTrace.markRepeat("dashboard-metrics:fetch-start", { range });
             diag.log(`[Diag:RQ:Metrics] get_dashboard_metrics START range=${range}`);
-
-            // Named shop: a member of two shops must see only the one open (audit R2 N4).
-            const { data, error } = await supabase.rpc("get_dashboard_metrics", {
-                p_range: range,
-                p_tenant_id: tenantId,
-            });
-
-            if (error) {
-                diag.error(`[Diag:RQ:Metrics] get_dashboard_metrics ERR err=${error.message}`);
-                throw error;
+            try {
+                const metrics = await readDashboardMetrics(supabase, range, tenantId);
+                perfTrace.mark("dashboard-metrics:fetch-done", { range });
+                diag.log(`[Diag:RQ:Metrics] get_dashboard_metrics OK range=${range} took=${(performance.now() - _t).toFixed(1)}ms`);
+                return metrics;
+            } catch (err) {
+                diag.error(`[Diag:RQ:Metrics] get_dashboard_metrics ERR err=${err instanceof Error ? err.message : String(err)}`);
+                // A shape the schema refuses is reported to Sentry; the page then
+                // shows an error with a retry rather than a number it cannot vouch for.
+                if (err instanceof DashboardMetricsContractError) {
+                    reportError(err, {
+                        tags: { area: "dashboard", rpc: "get_dashboard_metrics", range, kind: "contract" },
+                        extra: { issues: err.issues.slice(0, 20) },
+                    });
+                }
+                throw err;
             }
-
-            perfTrace.mark("dashboard-metrics:fetch-done", { range });
-            diag.log(`[Diag:RQ:Metrics] get_dashboard_metrics OK range=${range} took=${(performance.now() - _t).toFixed(1)}ms`);
-
-            // ARCH-D3: parse, do not assert. This used to be
-            // `data as unknown as DashboardMetrics` — a double cast over a shape
-            // nobody checked, so any drift between the SQL function and the TS type
-            // would arrive as `undefined` inside widgets and render as blanks or
-            // NaN. Failing here instead routes through the same path as any other
-            // RPC error: reported to Sentry, and the page shows an error with a
-            // retry rather than a number it cannot vouch for.
-            const parsed = dashboardMetricsSchema.safeParse(data);
-            if (!parsed.success) {
-                const contractError = new Error(
-                    `get_dashboard_metrics returned an unexpected shape: ${parsed.error.issues
-                        .slice(0, 5)
-                        .map((i) => `${i.path.join(".")} ${i.message}`)
-                        .join("; ")}`,
-                );
-                diag.error(`[Diag:RQ:Metrics] contract mismatch — ${contractError.message}`);
-                reportError(contractError, {
-                    tags: { area: "dashboard", rpc: "get_dashboard_metrics", range, kind: "contract" },
-                    extra: { issues: parsed.error.issues.slice(0, 20) },
-                });
-                throw contractError;
-            }
-
-            return parsed.data;
         },
         // Same auth gate as orders: wait for the client's session to be ready.
         enabled: !!session && clientReady && !!tenantId,
