@@ -2,10 +2,13 @@
 
 import { useState } from "react";
 import { Loader2, Save } from "lucide-react";
+import { SettingsPreviewPane, SettingsWithPreview } from "@/components/settings/settings-preview";
 import { useLanguage } from "@/hooks/use-language";
+import { usePrimeConnection } from "@/hooks/use-prime-link";
 import { readSetting, useSettings, type SettingValue } from "@/hooks/use-settings";
 import { toast } from "@/hooks/use-toast";
-import { LABEL_FRAGILE_TEXT, LABEL_GLASS_PREFIX, LABEL_PERFUME_TEXT } from "@/lib/dispatch-label";
+import { SETTINGS_SAMPLE_ORDER } from "@/lib/settings-sample-order";
+import { LABEL_PREVIEW_PX, shippingLabelsDocument, type LabelBrand } from "@/lib/shipping-labels";
 import { cn } from "@/lib/utils";
 
 /**
@@ -16,6 +19,7 @@ import { cn } from "@/lib/utils";
 export function PrintingSettings() {
     const { settings, updateSetting, loading } = useSettings();
     const { t } = useLanguage();
+    const prime = usePrimeConnection();
     // The switches as edited; null = nothing changed, so they show what is saved.
     const [draft, setDraft] = useState<SettingValue<"print_settings"> | null>(null);
     const [isSaving, setIsSaving] = useState(false);
@@ -51,8 +55,18 @@ export function PrintingSettings() {
                 <p className="text-sm text-muted-foreground">{t("settings.print.subtitle")}</p>
             </div>
 
-            <div className="flex flex-wrap items-start gap-4">
-                <div className="pastel-card min-w-0 flex-1 basis-96 p-2">
+            <SettingsWithPreview
+                preview={
+                    <SettingsPreviewPane
+                        title={t("settings.preview.courier")}
+                        hint={t("settings.preview.live")}
+                        caption={t("settings.preview.labelCaption")}
+                    >
+                        <LabelPreview brand={{ primeLogo: prime.connected, fragileWarning: fragile, perfumeWarning: perfume }} />
+                    </SettingsPreviewPane>
+                }
+            >
+                <div className="pastel-card p-2">
                     <LabelSwitch
                         id="print-fragile-warning"
                         focus="label-fragile"
@@ -82,9 +96,7 @@ export function PrintingSettings() {
                         </button>
                     </div>
                 </div>
-
-                <LabelPreview fragile={fragile} perfume={perfume} />
-            </div>
+            </SettingsWithPreview>
         </div>
     );
 }
@@ -132,25 +144,22 @@ function LabelSwitch({
     );
 }
 
-/** A drawing of the label, so the merchant sees where each line lands before printing. */
-function LabelPreview({ fragile, perfume }: { fragile: boolean; perfume: boolean }) {
+/** The real label for a sample order: the same document the printer and the PDF get, at 90%. */
+function LabelPreview({ brand }: { brand: LabelBrand }) {
+    const { t } = useLanguage();
+    const scale = 0.9;
     return (
-        <div aria-hidden className="w-60 shrink-0 space-y-2 rounded-xl border border-(--card-border) bg-white p-3 text-[11px] text-neutral-900">
-            <div className="h-2 w-1/3 rounded bg-neutral-300" />
-            <div className="h-1.5 rounded bg-neutral-200" />
-            <div className="h-1.5 w-2/3 rounded bg-neutral-200" />
-            {fragile && (
-                <div className="rounded bg-neutral-900 px-2 py-1 text-center font-bold text-white">
-                    <bdi>{perfume ? LABEL_GLASS_PREFIX : ""}{LABEL_FRAGILE_TEXT}</bdi>
-                </div>
-            )}
-            {perfume && (
-                <div className="rounded border border-neutral-900 px-2 py-1 text-center font-bold">
-                    <bdi>{LABEL_PERFUME_TEXT}</bdi>
-                </div>
-            )}
-            <div className="h-1.5 w-1/2 rounded bg-neutral-200" />
-            <div className="ml-auto h-10 w-10 rounded-sm bg-[repeating-linear-gradient(90deg,#171717_0_3px,#fff_3px_6px)]" />
+        <div
+            className="relative mx-auto overflow-hidden rounded-md bg-white shadow-[0_18px_40px_-18px_rgba(40,30,10,0.35)]"
+            style={{ width: LABEL_PREVIEW_PX.width * scale, height: LABEL_PREVIEW_PX.height * scale }}
+        >
+            <iframe
+                title={t("settings.preview.labelTitle")}
+                srcDoc={shippingLabelsDocument([SETTINGS_SAMPLE_ORDER], brand)}
+                sandbox=""
+                className="pointer-events-none absolute left-0 top-0 origin-top-left border-0"
+                style={{ width: LABEL_PREVIEW_PX.width, height: LABEL_PREVIEW_PX.height, transform: `scale(${scale})` }}
+            />
         </div>
     );
 }

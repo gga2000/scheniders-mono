@@ -130,7 +130,7 @@ function afterSaleLines(order: Order, items: { name: string; qty: number }[], pi
     return `<div class="dl-as">${lines}</div>`;
 }
 
-/** The tape and perfume words as printed; Settings draws its label preview from these. */
+/** The tape and perfume words as printed. */
 export const LABEL_FRAGILE_TEXT = "قابل للكسر · يُحمل بعناية";
 export const LABEL_GLASS_PREFIX = "زجاج · ";
 export const LABEL_PERFUME_TEXT = "يمنع فتح العطر منعاً باتاً";

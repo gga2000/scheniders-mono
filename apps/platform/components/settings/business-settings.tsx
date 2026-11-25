@@ -26,6 +26,8 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { toast } from "@/hooks/use-toast";
 import { useLanguage } from "@/hooks/use-language";
 import { ContactSupportButton } from "@/components/support/contact-support-button";
+import { SettingsPreviewPane, SettingsWithPreview } from "@/components/settings/settings-preview";
+import { StorefrontPreview } from "@/components/settings/storefront-preview";
 
 /** Where the store's colours are edited: the store editor's brand screen, the one the storefront reads. */
 export const STORE_COLORS_EDIT_HREF = "/store/edit?screen=brand_kit";
@@ -209,7 +211,17 @@ function BusinessSettingsForm({ tenant, tenantId }: { tenant: TenantData; tenant
                 </button>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <SettingsWithPreview
+                preview={
+                    <SettingsPreviewPane
+                        title={t("settings.preview.store")}
+                        hint={t("settings.preview.live")}
+                        caption={t("settings.preview.storeCaption")}
+                    >
+                        <StorefrontPreview name={businessName} logoUrl={logoUrl} whatsapp={whatsappNumber} accent={colors[0] ?? null} />
+                    </SettingsPreviewPane>
+                }
+            >
                 <div className="pastel-card p-6">
                     <div className="flex items-center gap-2 mb-5">
                         <div className="w-8 h-8 rounded-lg bg-(--pastel-blue) flex items-center justify-center">
@@ -397,7 +409,7 @@ function BusinessSettingsForm({ tenant, tenantId }: { tenant: TenantData; tenant
                         </div>
                     </div>
                 </div>
-            </div>
+            </SettingsWithPreview>
         </div>
     );
 }

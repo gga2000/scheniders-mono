@@ -22,6 +22,9 @@ export interface LabelBrand {
     perfumeWarning: boolean;
 }
 
+/** One 80x120 mm label in CSS pixels (96 dpi), for on-screen previews. */
+export const LABEL_PREVIEW_PX = { width: 302, height: 454 } as const;
+
 const LABEL_FONT_LINK = `<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?${DISPATCH_LABEL_FONTS}&display=swap" rel="stylesheet">`;
 
 // Opens the print dialog once the label fonts are in, then closes the window.

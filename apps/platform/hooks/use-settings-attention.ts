@@ -9,6 +9,8 @@ import { supabase } from "@/lib/supabase";
 import { settingsAttention, type SettingsAttentionItem } from "@/lib/settings-attention";
 
 export interface StoreSnapshot {
+    /** The shop's name as the storefront and WhatsApp chats show it. */
+    name: string;
     city: string | null;
     logoUrl: string | null;
     /** "" when the shop has no storefront WhatsApp number. */
@@ -16,7 +18,7 @@ export interface StoreSnapshot {
 }
 
 /**
- * The few shop fields the Settings overview and the gear badge show. Under the
+ * The few shop fields the Settings overview, the gear badge and the previews show. Under the
  * ["tenant", tenantId] prefix, so saving Store info (which invalidates that
  * prefix) refreshes it.
  */
@@ -29,12 +31,13 @@ export function useStoreSnapshot(enabled = true) {
         queryFn: async (): Promise<StoreSnapshot> => {
             const { data, error } = await supabase
                 .from("tenants")
-                .select("city, logo:branding->>logo_url, whatsapp:store_config->contact->>whatsapp_number")
+                .select("business_name, city, logo:branding->>logo_url, whatsapp:store_config->contact->>whatsapp_number")
                 .eq("id", tenantId!)
                 .maybeSingle();
             if (error) throw error;
-            const row = data as { city: string | null; logo: string | null; whatsapp: string | null } | null;
+            const row = data as { business_name: string | null; city: string | null; logo: string | null; whatsapp: string | null } | null;
             return {
+                name: row?.business_name?.trim() ?? "",
                 city: row?.city?.trim() || null,
                 logoUrl: row?.logo?.trim() || null,
                 whatsappNumber: row?.whatsapp?.trim() ?? "",
