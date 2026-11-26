@@ -8,7 +8,7 @@ import { useAuth } from "@/components/auth/auth-provider";
 
 /**
  * A shop's own paid wording for Fermi's automatic order messages
- * (migration 20261126133000_custom_whatsapp_templates). The database decides
+ * (migration 20261126142528_custom_whatsapp_templates). The database decides
  * the price, checks the text again, charges the wallet and refunds it; this
  * reads its answers and sends the shop's asks.
  */

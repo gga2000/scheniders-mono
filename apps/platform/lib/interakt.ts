@@ -488,7 +488,7 @@ const customRowSchema = z.object({
 
 /**
  * The shop's approved custom wording for this message, when it has one
- * switched on (whatsapp_custom_templates, migration 20261126133000), else
+ * switched on (whatsapp_custom_templates, migration 20261126142528), else
  * null and Fermi's own message goes.
  */
 export async function loadCustomTemplate(tenantId: string, templateType: TemplateType): Promise<CustomOrderTemplate | null> {

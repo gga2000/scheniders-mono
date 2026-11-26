@@ -1,6 +1,6 @@
 /**
  * A shop's own wording for one of Fermi's three automatic order messages
- * (paid extra, 15,000 IQD; migration 20261126133000_custom_whatsapp_templates).
+ * (paid extra, 15,000 IQD; migration 20261126142528_custom_whatsapp_templates).
  *
  * The body is kept in "key form": the shop's text with fields written as
  * {customer_name}, {store_name}… Interakt wants them numbered {{1}} {{2}}… in

@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS public.whatsapp_custom_templates (
     CONSTRAINT whatsapp_custom_templates_live_category CHECK (status <> 'live' OR category IS NOT NULL)
 );
 COMMENT ON TABLE public.whatsapp_custom_templates IS
-    'A shop''s own wording for one of Fermi''s automatic WhatsApp order messages, paid from its wallet (custom_whatsapp_template_price). Written only by the functions in 20261126133000_custom_whatsapp_templates.sql.';
+    'A shop''s own wording for one of Fermi''s automatic WhatsApp order messages, paid from its wallet (custom_whatsapp_template_price). Written only by the functions of the custom_whatsapp_templates migration.';
 
 -- One request in flight and one approved text per message per shop.
 CREATE UNIQUE INDEX IF NOT EXISTS whatsapp_custom_templates_one_open

@@ -12,7 +12,7 @@ import {
 
 /**
  * Shops' paid custom WhatsApp messages (migration
- * 20261126133000_custom_whatsapp_templates) as the staff console reads them,
+ * 20261126142528_custom_whatsapp_templates) as the staff console reads them,
  * and what staff type into Interakt for one. Staff submit each by hand: copy
  * it in, mark it sent to Meta, then approved (with the category Meta chose)
  * or rejected with the reason the shop reads, which refunds the shop.
