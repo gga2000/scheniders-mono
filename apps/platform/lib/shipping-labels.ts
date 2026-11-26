@@ -13,13 +13,25 @@ export type LabelPickups = Record<string, AfterSalePickup>;
 
 /**
  * What a shop's own labels carry beyond the order: the Prime mark only when it
- * ships through Prime, the "handle with care" tape when its goods can break,
- * the sealed-perfume line when it sells perfume.
+ * ships through Prime, its own logo, the "handle with care" tape when its goods
+ * can break, the "do not open" box in its own words, and its note to customers.
  */
 export interface LabelBrand {
     primeLogo: boolean;
+    /** The shop's logo as an image data URL (see lib/label-logo.ts); null = none on the label. */
+    shopLogo: string | null;
     fragileWarning: boolean;
-    perfumeWarning: boolean;
+    noOpen: { text: string; subtext: string } | null;
+    customerNote: string;
+}
+
+// The logo goes into the stylesheet once, so it must be a plain base64 image:
+// anything else could close the CSS string, and the PDF server fetches no URLs.
+const LOGO_DATA_URL = /^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/;
+
+/** The shop logo's stylesheet rule, or "" when there is no usable logo. */
+function shopLogoCss(logo: string | null): string {
+    return logo && LOGO_DATA_URL.test(logo) ? `.dl-shop { background-image: url("${logo}"); }` : "";
 }
 
 /** One 80x120 mm label in CSS pixels (96 dpi), for on-screen previews. */
@@ -43,7 +55,9 @@ export function shippingLabelHTML(order: Order, brand: LabelBrand, pickups: Labe
         pickup: pickups[order.id],
         courierLogo: { show: brand.primeLogo },
         fragileWarning: brand.fragileWarning,
-        perfumeWarning: brand.perfumeWarning,
+        noOpen: brand.noOpen,
+        customerNote: brand.customerNote,
+        shopLogo: Boolean(shopLogoCss(brand.shopLogo)),
     });
 }
 
@@ -72,6 +86,7 @@ export function shippingLabelsDocument(
         .label-page { page-break-after: always; width: 80mm; height: 120mm; }
         .label-page:last-child { page-break-after: avoid; }
         ${DISPATCH_LABEL_CSS}
+        ${shopLogoCss(brand.shopLogo)}
         @media print {
             body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
         }

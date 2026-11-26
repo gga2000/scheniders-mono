@@ -1,30 +1,41 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
+import Link from "next/link";
 import { Loader2, Save } from "lucide-react";
 import { SettingsPreviewPane, SettingsWithPreview } from "@/components/settings/settings-preview";
+import { labelBrandFromSettings, useLabelLogo } from "@/hooks/use-label-brand";
 import { useLanguage } from "@/hooks/use-language";
 import { usePrimeConnection } from "@/hooks/use-prime-link";
+import { useStoreSnapshot } from "@/hooks/use-settings-attention";
 import { readSetting, useSettings, type SettingValue } from "@/hooks/use-settings";
 import { toast } from "@/hooks/use-toast";
+import { LABEL_NO_OPEN_TEXT, LABEL_TEXT_LIMITS } from "@/lib/dispatch-label";
+import { settingsHref } from "@/lib/settings-sections";
 import { SETTINGS_SAMPLE_ORDER } from "@/lib/settings-sample-order";
 import { LABEL_PREVIEW_PX, shippingLabelsDocument, type LabelBrand } from "@/lib/shipping-labels";
 import { cn } from "@/lib/utils";
 
+const INPUT =
+    "w-full rounded-xl border border-(--card-border) bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-(--ink) focus:outline-none";
+
 /**
- * The two shipping-label lines a shop can switch on. They are the only print
- * settings the label reads (useLabelBrand); size, phone, price and batch
- * grouping used to sit here but printing never read them.
+ * What the shipping label carries beyond the order: the tape, the "do not open"
+ * box in the shop's words, its logo and its note to customers. These are the
+ * only print settings the label reads (useLabelBrand).
  */
 export function PrintingSettings() {
     const { settings, updateSetting, loading } = useSettings();
     const { t } = useLanguage();
     const prime = usePrimeConnection();
-    // The switches as edited; null = nothing changed, so they show what is saved.
+    const store = useStoreSnapshot();
+    const logoUrl = store.data?.logoUrl ?? null;
+    const logo = useLabelLogo(logoUrl);
+    // The fields as edited; null = nothing changed, so they show what is saved.
     const [draft, setDraft] = useState<SettingValue<"print_settings"> | null>(null);
     const [isSaving, setIsSaving] = useState(false);
     const printSettings = draft ?? readSetting(settings, "print_settings");
-    const setPrintSettings = (next: SettingValue<"print_settings">) => setDraft(next);
+    const change = (patch: Partial<SettingValue<"print_settings">>) => setDraft({ ...printSettings, ...patch });
 
     const handleSave = async () => {
         setIsSaving(true);
@@ -46,7 +57,14 @@ export function PrintingSettings() {
     }
 
     const fragile = printSettings.fragile_warning === true;
-    const perfume = printSettings.perfume_warning === true;
+    const noOpen = printSettings.no_open_warning === true;
+    const shopLogo = printSettings.shop_logo === true;
+    const brand = labelBrandFromSettings(printSettings, { primeLinked: prime.connected, shopLogo: logo.data ?? null });
+    const logoHint = !logoUrl
+        ? t("settings.print.shopLogoNone")
+        : logo.isError
+          ? t("settings.print.shopLogoUnreadable")
+          : t("settings.print.shopLogoHint");
 
     return (
         <div className="space-y-4">
@@ -62,28 +80,83 @@ export function PrintingSettings() {
                         hint={t("settings.preview.live")}
                         caption={t("settings.preview.labelCaption")}
                     >
-                        <LabelPreview brand={{ primeLogo: prime.connected, fragileWarning: fragile, perfumeWarning: perfume }} />
+                        <LabelPreview brand={brand} />
                     </SettingsPreviewPane>
                 }
             >
                 <div className="pastel-card p-2">
+                    <LabelSwitch
+                        id="print-shop-logo"
+                        focus="label-shop-logo"
+                        label={t("settings.print.shopLogo")}
+                        hint={logoHint}
+                        checked={shopLogo && Boolean(logoUrl)}
+                        disabled={!logoUrl}
+                        onToggle={() => change({ shop_logo: !shopLogo })}
+                    >
+                        {!logoUrl && (
+                            <Link href={settingsHref("business")} className="text-xs font-semibold text-foreground underline underline-offset-2">
+                                <bdi>{t("settings.print.shopLogoAdd")}</bdi>
+                            </Link>
+                        )}
+                    </LabelSwitch>
+                    <Divider />
                     <LabelSwitch
                         id="print-fragile-warning"
                         focus="label-fragile"
                         label={t("settings.print.fragileWarning")}
                         hint={t("settings.print.fragileWarningHint")}
                         checked={fragile}
-                        onToggle={() => setPrintSettings({ ...printSettings, fragile_warning: !fragile })}
+                        onToggle={() => change({ fragile_warning: !fragile })}
                     />
-                    <div className="mx-4 border-t border-(--card-border)" />
+                    <Divider />
                     <LabelSwitch
-                        id="print-perfume-warning"
-                        focus="label-perfume"
-                        label={t("settings.print.perfumeWarning")}
-                        hint={t("settings.print.perfumeWarningHint")}
-                        checked={perfume}
-                        onToggle={() => setPrintSettings({ ...printSettings, perfume_warning: !perfume })}
+                        id="print-no-open-warning"
+                        focus="label-no-open"
+                        label={t("settings.print.noOpenWarning")}
+                        hint={t("settings.print.noOpenWarningHint")}
+                        checked={noOpen}
+                        onToggle={() => change({ no_open_warning: !noOpen })}
                     />
+                    {noOpen && (
+                        <div className="grid gap-3 px-4 pb-3 sm:grid-cols-2">
+                            <TextField
+                                id="print-no-open-text"
+                                label={t("settings.print.noOpenText")}
+                                value={printSettings.no_open_text ?? ""}
+                                placeholder={LABEL_NO_OPEN_TEXT}
+                                maxLength={LABEL_TEXT_LIMITS.noOpenText}
+                                onChange={(value) => change({ no_open_text: value })}
+                            />
+                            <TextField
+                                id="print-no-open-subtext"
+                                label={t("settings.print.noOpenSubtext")}
+                                value={printSettings.no_open_subtext ?? ""}
+                                placeholder={t("settings.print.noOpenSubtextPlaceholder")}
+                                maxLength={LABEL_TEXT_LIMITS.noOpenSubtext}
+                                onChange={(value) => change({ no_open_subtext: value })}
+                            />
+                        </div>
+                    )}
+                    <Divider />
+                    <div data-setting="label-customer-note" className="space-y-2 px-4 py-3">
+                        <div>
+                            <label htmlFor="print-customer-note" className="text-sm font-semibold text-foreground">
+                                <bdi>{t("settings.print.customerNote")}</bdi>
+                            </label>
+                            <p className="text-xs text-muted-foreground"><bdi>{t("settings.print.customerNoteHint")}</bdi></p>
+                        </div>
+                        <textarea
+                            id="print-customer-note"
+                            dir="rtl"
+                            rows={2}
+                            value={printSettings.customer_note ?? ""}
+                            placeholder={t("settings.print.customerNotePlaceholder")}
+                            maxLength={LABEL_TEXT_LIMITS.customerNote}
+                            onChange={(e) => change({ customer_note: e.target.value })}
+                            className={cn(INPUT, "resize-none leading-relaxed")}
+                        />
+                    </div>
                     <div className="flex justify-end px-4 pb-3 pt-2">
                         <button
                             type="button"
@@ -101,35 +174,70 @@ export function PrintingSettings() {
     );
 }
 
+function Divider() {
+    return <div className="mx-4 border-t border-(--card-border)" />;
+}
+
+function TextField({
+    id,
+    label,
+    value,
+    placeholder,
+    maxLength,
+    onChange,
+}: {
+    id: string;
+    label: string;
+    value: string;
+    placeholder: string;
+    maxLength: number;
+    onChange: (value: string) => void;
+}) {
+    return (
+        <div>
+            <label htmlFor={id} className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                <bdi>{label}</bdi>
+            </label>
+            <input id={id} dir="rtl" value={value} placeholder={placeholder} maxLength={maxLength} onChange={(e) => onChange(e.target.value)} className={INPUT} />
+        </div>
+    );
+}
+
 function LabelSwitch({
     id,
     focus,
     label,
     hint,
     checked,
+    disabled = false,
     onToggle,
+    children,
 }: {
     id: string;
     focus: string;
     label: string;
     hint: string;
     checked: boolean;
+    disabled?: boolean;
     onToggle: () => void;
+    children?: ReactNode;
 }) {
     return (
         <div data-setting={focus} className="flex items-center justify-between gap-4 rounded-xl px-4 py-3">
             <div className="min-w-0">
                 <p id={id} className="text-sm font-semibold text-foreground"><bdi>{label}</bdi></p>
                 <p className="text-xs text-muted-foreground"><bdi>{hint}</bdi></p>
+                {children}
             </div>
             <button
                 type="button"
                 role="switch"
                 aria-checked={checked}
                 aria-labelledby={id}
+                disabled={disabled}
                 onClick={onToggle}
                 className={cn(
-                    "relative h-6 w-11 shrink-0 rounded-full transition-colors",
+                    "relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-50",
                     checked ? "bg-(--button-success)" : "bg-neutral-300 dark:bg-neutral-600",
                 )}
             >
