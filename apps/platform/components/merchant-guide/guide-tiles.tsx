@@ -7,11 +7,10 @@ import { cn } from "@/lib/utils";
 export interface GuideTileOption<T extends string> {
     id: T;
     label: string;
-    hint: string;
     icon: LucideIcon;
 }
 
-/** Two big answer tiles with an icon and a short line under each. */
+/** Two answer tiles side by side, each an icon and a short answer. */
 export function GuideTiles<T extends string>({
     options,
     value,
@@ -38,18 +37,15 @@ export function GuideTiles<T extends string>({
                         onClick={() => onChange(o.id)}
                         data-testid={`merchant-guide-tile-${o.id}`}
                         className={cn(
-                            "grid gap-1.5 rounded-xl border-[1.5px] p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900",
+                            "flex min-h-12 items-center gap-2.5 rounded-xl border-[1.5px] px-3 py-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900",
                             on
                                 ? "border-neutral-900 bg-[#FBFFD1] text-neutral-900 shadow-[inset_0_0_0_2px_#EFFF00]"
                                 : "border-[var(--card-border)] bg-[var(--background)] text-foreground hover:border-neutral-400",
                         )}
                     >
-                        <Icon className="h-5 w-5" aria-hidden="true" />
+                        <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />
                         <span dir={dir} className="text-sm font-bold">
                             {o.label}
-                        </span>
-                        <span dir={dir} className={cn("text-xs", on ? "text-neutral-600" : "text-muted-foreground")}>
-                            {o.hint}
                         </span>
                     </button>
                 );

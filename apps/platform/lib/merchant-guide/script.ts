@@ -15,17 +15,13 @@ export interface GuideLine {
 }
 
 export const GUIDE_LINES = {
-    "welcome.hello": {
-        ar: "راح نجهز محلك سوه. جاوبني على سؤالين، وأرسملك طريقك.",
-        en: "Let's set up your shop together. Answer two questions and I'll draw your path.",
-    },
     "welcome.channel": {
-        ar: "تشتغل بس أونلاين، لو عندك محل هم؟",
-        en: "Do you sell online only, or in a shop too?",
+        ar: "عندك محل؟",
+        en: "Do you have a shop?",
     },
     "welcome.staff": {
-        ar: "منو يشتغل وياك؟ بس إنت، لو عندك موظفين؟",
-        en: "Who works with you? Just you, or do you have staff?",
+        ar: "عندك موظفين؟",
+        en: "Do you have staff?",
     },
     "welcome.go": {
         ar: "تمام، يلا نبدي بالأساس. أربع خطوات وتخلص.",
