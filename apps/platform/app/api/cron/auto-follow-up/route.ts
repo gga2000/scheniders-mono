@@ -175,7 +175,7 @@ async function runFollowUp(request: Request) {
         order_id: order.order_id,
         order_uuid: order.id,
         phone: order.phone,
-        template_name: TEMPLATE_NAMES[templateType],
+        template_name: result.templateName ?? TEMPLATE_NAMES[templateType],
         direction: "outbound",
         status: "sent",
         interakt_message_id: result.messageId || null,

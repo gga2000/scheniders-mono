@@ -113,6 +113,7 @@ export const SETTINGS_SEARCH: readonly SettingsSearchEntry[] = [
     { focus: "order-reasons", section: "order-reasons", label: "settings.orders.reasons", keywords: ["cancel", "reject", "reason", "الغاء", "رفض", "سبب", "اسباب"] },
     { focus: "templates", section: "messages", label: "settings.orders.templates", keywords: ["template", "message", "whatsapp", "قالب", "قوالب", "رسالة", "رسائل", "واتساب"] },
     { focus: "reminder", section: "messages", label: "settings.orders.reminder", keywords: ["reminder", "follow up", "تذكير", "متابعة"] },
+    { focus: "custom-whatsapp", section: "messages", label: "customWa.title", keywords: ["custom", "own wording", "interakt", "خاصة", "بكلامك", "رسالتك", "تأكيد", "خصم"] },
     { focus: "delivery-fees", section: "delivery-fees", label: "settings.orders.fees", keywords: ["delivery", "fee", "shipping", "free delivery", "توصيل", "اجور", "شحن", "مجاني"] },
     { focus: "blacklist", section: "blacklist", label: "settings.nav.blacklist", keywords: ["block", "ban", "blacklist", "fraud", "حظر", "سوداء", "محظور"] },
     { focus: "waseet", section: "waseet", label: "waseet.title", keywords: ["waseet", "alwaseet", "courier", "sync", "الوسيط", "مندوب", "مزامنة", "شركة توصيل"] },

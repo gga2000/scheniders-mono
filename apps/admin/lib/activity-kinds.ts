@@ -28,7 +28,7 @@ export const ACTIVITY_KINDS: readonly KindRule[] = [
       "extend_trial", "extend_subscription", "convert_trial", "trial_withheld",
       "add_lock_orders", "force_unlock", "pause_tenant", "unpause_tenant",
       "suspend", "bulk_suspend", "reactivate", "pause_whatsapp", "resume_whatsapp", "update_tags",
-      "import_products", "import_product_images",
+      "import_products", "import_product_images", "custom_wa_step",
     ],
     prefixes: ["trial_check_"],
   },

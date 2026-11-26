@@ -152,6 +152,22 @@ export function changeTitle(action: string, details: Record<string, unknown> | n
       return "WhatsApp messages paused";
     case "resume_whatsapp":
       return "WhatsApp messages back on";
+    case "custom_wa_step": {
+      // A shop's paid custom WhatsApp message moved along (whatsapp/custom-templates).
+      const message = text(d.purpose) ?? "WhatsApp";
+      switch (text(d.step)) {
+        case "at_meta":
+          return `Custom ${message} message sent to Meta`;
+        case "live":
+          return `Custom ${message} message approved${text(d.category) ? ` (${text(d.category)})` : ""}`;
+        case "rejected":
+          return `Custom ${message} message rejected by Meta, refunded`;
+        case "declined":
+          return `Custom ${message} message declined by us, refunded`;
+        default:
+          return `Custom ${message} message changed`;
+      }
+    }
     case "update_tags":
       return "Tags changed";
     case "impersonate":

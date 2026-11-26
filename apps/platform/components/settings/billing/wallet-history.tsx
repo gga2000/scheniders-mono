@@ -32,6 +32,10 @@ export function transactionLabel(
     if (addon) return t("billing.tx.addon", { name: t(`addons.${addon[1]}`), count: addon[2] });
     const waTyped = /^WhatsApp (confirmation|offer) (\S*)$/.exec(description);
     if (waTyped) return t(waTyped[1] === "offer" ? "billing.tx.whatsappOffer" : "billing.tx.whatsappConfirm", { id: waTyped[2] });
+    const custom = /^Custom WhatsApp message (confirmation|reminder|discount)( refunded)?$/.exec(description);
+    if (custom) {
+        return t(custom[2] ? "billing.tx.customWhatsappRefund" : "billing.tx.customWhatsapp", { message: t(`customWa.purpose.${custom[1]}`) });
+    }
     const whatsapp = /^WhatsApp message (\S*)$/.exec(description);
     if (whatsapp) return whatsapp[1] ? t("billing.tx.whatsappOrder", { id: whatsapp[1] }) : t("billing.tx.whatsapp");
     if (description.startsWith("Monthly subscription")) return t("billing.tx.monthly");

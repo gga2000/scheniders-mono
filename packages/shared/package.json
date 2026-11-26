@@ -21,6 +21,7 @@
     "./safe-redirect-path": "./src/safe-redirect-path.ts",
     "./sentry-scrub": "./src/sentry-scrub.ts",
     "./whatsapp-templates": "./src/whatsapp-templates.ts",
+    "./whatsapp-custom-templates": "./src/whatsapp-custom-templates.ts",
     "./store-address": "./src/store-address.ts",
     "./plans": "./src/plans.ts",
     "./support-hours": "./src/support-hours.ts",

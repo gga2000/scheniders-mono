@@ -26,6 +26,7 @@ import { toast } from "@/hooks/use-toast";
 import { useLanguage } from "@/components/providers/language-provider";
 import { usePrimeConnection } from "@/hooks/use-prime-link";
 import { billingNotificationPath } from "@/lib/billing/lock-routes";
+import { CUSTOM_WHATSAPP_SETTINGS_PATH } from "@/hooks/use-custom-whatsapp-templates";
 
 interface NotificationsDropdownProps {
     onOpenChange?: (open: boolean) => void;
@@ -108,6 +109,12 @@ export function NotificationsDropdown({ onOpenChange, ownsTitleBadge = false }: 
         const billingPath = billingNotificationPath(n);
         if (billingPath) {
             router.push(billingPath);
+            return;
+        }
+
+        // The shop's own wording for an order message was approved or refused: open where it is managed.
+        if (n.type.startsWith("whatsapp.custom_")) {
+            router.push(CUSTOM_WHATSAPP_SETTINGS_PATH);
             return;
         }
 

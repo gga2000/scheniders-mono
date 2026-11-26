@@ -16,7 +16,7 @@ export interface InvoiceTransaction {
     created_at: string;
 }
 
-export type InvoiceLineKind = "monthly" | "planChange" | "delivered" | "whatsappConfirm" | "whatsappOffer" | "whatsapp" | "orderCharge" | "other";
+export type InvoiceLineKind = "monthly" | "planChange" | "delivered" | "whatsappConfirm" | "whatsappOffer" | "whatsapp" | "whatsappCustom" | "orderCharge" | "other";
 
 export interface InvoiceLine {
     kind: InvoiceLineKind;
@@ -90,6 +90,7 @@ export function chargeKind(description: string | null): InvoiceLineKind {
     if (d.startsWith("WhatsApp confirmation")) return "whatsappConfirm";
     if (d.startsWith("WhatsApp offer")) return "whatsappOffer";
     if (d.startsWith("WhatsApp message")) return "whatsapp";
+    if (d.startsWith("Custom WhatsApp message")) return "whatsappCustom";
     if (d === "Order charge") return "orderCharge";
     return "other";
 }
@@ -97,7 +98,7 @@ export function chargeKind(description: string | null): InvoiceLineKind {
 /** The note charge_delivered_order writes when it gives a delivery's fee back. */
 const DELIVERY_UNDONE = /^Delivered order \S+ undone$/;
 
-const LINE_ORDER: InvoiceLineKind[] = ["monthly", "planChange", "delivered", "whatsappConfirm", "whatsappOffer", "whatsapp", "orderCharge", "other"];
+const LINE_ORDER: InvoiceLineKind[] = ["monthly", "planChange", "delivered", "whatsappConfirm", "whatsappOffer", "whatsapp", "whatsappCustom", "orderCharge", "other"];
 
 /**
  * Sums one month of wallet rows. `before` is the shop's balance when the month
@@ -187,6 +188,8 @@ function lineLabel(line: InvoiceLine): string {
             return `رسائل واتساب عروض وتذكير (${n})`;
         case "whatsapp":
             return `رسائل واتساب (${n})`;
+        case "whatsappCustom":
+            return `رسائل واتساب خاصة بالمتجر (${n})`;
         case "orderCharge":
             return `رسوم طلبات (${n})`;
         case "other":

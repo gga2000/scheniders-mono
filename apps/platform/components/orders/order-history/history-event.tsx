@@ -6,7 +6,7 @@ import {
     Pin, Printer, Reply, StickyNote, Truck, Undo2,
 } from "lucide-react";
 import { governorateLabel } from "@scheniders/shared";
-import { CONFIRMATION_TEMPLATE_NAMES, REMINDER_TEMPLATE_NAMES } from "@scheniders/shared/whatsapp-templates";
+import { whatsappPurposeOf } from "@scheniders/shared/whatsapp-templates";
 import { cn, formatIQD, getBaseOrderId } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import { useStatusLabel } from "@/hooks/use-status-label";
@@ -37,8 +37,6 @@ const TONES: Record<string, Tone> = {
 
 const MONEY_FIELDS = new Set(["price", "delivery_fee", "discount"]);
 /** The confirmation and reminder templates under every name they were sent as. */
-const CONFIRM_TEMPLATES = new Set(CONFIRMATION_TEMPLATE_NAMES);
-const REMINDER_TEMPLATES = new Set(REMINDER_TEMPLATE_NAMES);
 
 function StatusPill({ status, isReturn }: { status: string; isReturn: boolean }) {
     const statusLabel = useStatusLabel();
@@ -234,7 +232,9 @@ function EventBody({ e, order, isReturn }: { e: ActivityEvent; order: OrderActiv
                 </div>
             );
         case "whatsapp": {
-            const name = CONFIRM_TEMPLATES.has(e.template ?? "") ? t("orders.history.wa.confirm") : REMINDER_TEMPLATES.has(e.template ?? "") ? t("orders.history.wa.reminder") : t("orders.history.wa");
+            // Any name it was sent under, the shop's paid custom wording too.
+            const purpose = whatsappPurposeOf(e.template);
+            const name = purpose === "confirmation" ? t("orders.history.wa.confirm") : purpose === "reminder" ? t("orders.history.wa.reminder") : t("orders.history.wa");
             const tone = e.state === "failed"
                 ? "bg-rose-100 text-rose-800 dark:bg-rose-500/15 dark:text-rose-200"
                 : e.state === "read"

@@ -10,7 +10,7 @@ import { monthOf } from "@/lib/baghdad-day";
  * plan and status were printed as stored keys ("growth · limited").
  */
 
-vi.mock("@/hooks/use-admin-auth", () => ({ useAdminAuth: () => ({ role: "support_staff" }) }));
+vi.mock("@/hooks/use-admin-auth", () => ({ useAdminAuth: () => ({ role: "support_staff" }), useCan: () => () => false }));
 
 const { default: WhatsAppPage } = await import("./page");
 

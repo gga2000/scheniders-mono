@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { maskIraqiMobile, normalizeIraqiMobile } from "@scheniders/shared";
-import { CONFIRMATION_TEMPLATE_NAMES } from "@scheniders/shared/whatsapp-templates";
+import { whatsappPurposeOf } from "@scheniders/shared/whatsapp-templates";
 import { createSupabaseServiceClient } from "@/lib/supabase/server";
 import {
   UPSELL_WINDOW_MS,
@@ -106,6 +106,10 @@ function acceptsBackup(order: ContactOrder, nowMs: number): boolean {
   );
 }
 
+/** An order's sent messages are a handful (confirmation, reminder, offer, each
+ *  to one or two numbers); this bounds the read without missing one. */
+const SENT_LOGS_READ = 50;
+
 /** True once the platform's dispatcher logged the confirmation as SENT for
  *  this order of this tenant. */
 async function confirmationSent(
@@ -115,15 +119,15 @@ async function confirmationSent(
 ): Promise<boolean> {
   const { data, error } = await svc
     .from("whatsapp_logs")
-    .select("id")
+    .select("template_name")
     .eq("order_uuid", orderId)
     .eq("tenant_id", tenantId)
     .eq("direction", "outbound")
-    .in("template_name", [...CONFIRMATION_TEMPLATE_NAMES])
     .eq("status", "sent")
-    .limit(1);
+    .limit(SENT_LOGS_READ);
   if (error) throw new ContactReadError(`send log read failed: ${error.message}`);
-  return (data ?? []).length > 0;
+  // Fermi's confirmation under any name it had, or the shop's paid custom one.
+  return (data ?? []).some((row) => whatsappPurposeOf(row.template_name) === "confirmation");
 }
 
 export async function GET(req: Request, { params }: Ctx): Promise<NextResponse> {

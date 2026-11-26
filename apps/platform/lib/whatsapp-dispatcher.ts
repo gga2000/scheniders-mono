@@ -84,10 +84,10 @@ export async function dispatchWhatsAppEvent({
         return { success: true, skipped: true };
     }
 
-    // 3. Send the template
-    const templateName = TEMPLATE_NAMES[templateType];
+    // 3. Send the template (the shop's paid custom wording when it has one on)
     console.log(`[WhatsApp Dispatcher] Sending ${templateType} for order ${orderId}...`);
     const result = await sendTemplateMessage(order, templateType, overridePhone);
+    const templateName = result.templateName ?? TEMPLATE_NAMES[templateType];
 
     // 4. Log the action
     try {
@@ -133,7 +133,7 @@ export async function dispatchWhatsAppEvent({
                 order_uuid: order.id,
                 tenant_id: order.tenant_id ?? null,
                 phone: order.secondary_phone,
-                template_name: templateName,
+                template_name: secondaryResult.templateName ?? templateName,
                 direction: "outbound",
                 status: secondaryResult.success ? "sent" : "failed",
                 interakt_message_id: secondaryResult.messageId || null,

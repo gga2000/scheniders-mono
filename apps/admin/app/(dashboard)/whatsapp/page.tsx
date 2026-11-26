@@ -6,6 +6,7 @@ import { z } from "zod";
 import { ChevronLeft, ChevronRight, Loader2, MessageCircleOff } from "lucide-react";
 import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
 import { ShopNameLink } from "@/components/shared/shop-name-link";
+import { CustomMessagesQueue } from "@/components/whatsapp/custom-messages-queue";
 import { adminFetch } from "@/lib/admin-fetch";
 import { answerLostWords } from "@/lib/answer-lost";
 import { sendStep } from "@/lib/send-json";
@@ -301,6 +302,9 @@ export default function WhatsAppPage() {
           </p>
         </>
       )}
+
+      {/* Shops' paid custom wording for the order messages, submitted in Interakt by hand */}
+      <CustomMessagesQueue />
     </div>
   );
 }
