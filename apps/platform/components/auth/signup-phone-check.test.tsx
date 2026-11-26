@@ -4,7 +4,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { SignupPhoneCheck } from "./signup-phone-check";
 
 const fetchMock = vi.fn();
-const captcha = { enabled: true, ready: true, token: "tok-1", failed: false, reset: vi.fn(), fresh: vi.fn(), ref: { current: null }, onToken: vi.fn(), onFailure: vi.fn() };
+const captcha = { enabled: true, ready: true, token: "tok-1", failed: null, reset: vi.fn(), fresh: vi.fn(), ref: { current: null }, onToken: vi.fn(), onFailure: vi.fn() };
 const t = (key: string, vars?: unknown) => (vars && typeof vars === "object" ? `${key} ${Object.values(vars).join(" ")}` : key);
 
 function json(status: number, body: unknown) {

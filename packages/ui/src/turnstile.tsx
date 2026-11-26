@@ -1,6 +1,7 @@
 "use client";
 
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { turnstileErrorKind, type TurnstileErrorKind } from "@scheniders/shared/turnstile-errors";
 
 /**
  * Cloudflare Turnstile box for auth forms. Supabase Auth's CAPTCHA protection
@@ -49,8 +50,13 @@ export type TurnstileBoxProps = {
     siteKey: string;
     /** Called with a token when solved, and with null when it expires or fails. */
     onToken: (token: string | null) => void;
-    /** Called when the check cannot run (script blocked, browser refused). */
-    onFailure?: () => void;
+    /**
+     * Called when the check cannot run: the script did not load (`kind`
+     * "transient", no code) or Cloudflare reported an error code. On a
+     * `setup` or `browser` error the box is taken down, since Cloudflare's
+     * own retries cannot fix those and each one downloads the challenge again.
+     */
+    onFailure?: (failure: { kind: TurnstileErrorKind; code: string | null }) => void;
     /** "ar" or "en"; Turnstile shows its own small text in this language. */
     language?: string;
     className?: string;
@@ -103,15 +109,22 @@ export const TurnstileBox = forwardRef<TurnstileHandle, TurnstileBoxProps>(funct
                     theme: "light",
                     callback: (token: string) => onTokenRef.current(token),
                     "expired-callback": () => onTokenRef.current(null),
-                    "error-callback": () => {
+                    "error-callback": (code: string) => {
                         onTokenRef.current(null);
-                        onFailureRef.current?.();
+                        const kind = turnstileErrorKind(code);
+                        if (kind !== "transient" && widgetId.current) {
+                            api.remove(widgetId.current);
+                            widgetId.current = null;
+                        }
+                        onFailureRef.current?.({ kind, code: code || null });
+                        // Handled: the page says what went wrong in its own words.
+                        return true;
                     },
                 });
             })
             .catch(() => {
                 onTokenRef.current(null);
-                onFailureRef.current?.();
+                onFailureRef.current?.({ kind: "transient", code: null });
             });
         return () => {
             cancelled = true;

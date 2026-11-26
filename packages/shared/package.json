@@ -23,6 +23,7 @@
     "./whatsapp-templates": "./src/whatsapp-templates.ts",
     "./whatsapp-custom-templates": "./src/whatsapp-custom-templates.ts",
     "./store-address": "./src/store-address.ts",
+    "./turnstile-errors": "./src/turnstile-errors.ts",
     "./plans": "./src/plans.ts",
     "./support-hours": "./src/support-hours.ts",
     "./signup-whatsapp": "./src/signup-whatsapp.ts",

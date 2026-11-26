@@ -7668,8 +7668,8 @@ export const en: Record<string, string> = {
     "signup.code.sendFailed": "We couldn't send the code. Check this number has WhatsApp, then try again.",
     "signup.code.checkFailed": "We couldn't check the code. Try again.",
     "signup.code.again": "Confirm your WhatsApp number, then create the store.",
-    "signup.city": "City",
-    "signup.cityPlaceholder": "Baghdad",
+    "signup.city": "Governorate",
+    "signup.cityPlaceholder": "Pick your governorate",
     "signup.submit": "Start Free Trial",
     "signup.submitting": "Creating account...",
     "signup.haveAccount": "Already have an account?",
@@ -7685,6 +7685,7 @@ export const en: Record<string, string> = {
     // ── Password reset flow ──
     "auth.captcha.prompt": "Quick security check",
     "auth.captcha.failed": "The security check did not load. Refresh the page, or try another browser.",
+    "auth.captcha.setupFailed": "The security check has a problem on our side, not yours. We have been alerted and will fix it. Try again in a little while.",
     "pwreset.role.superAdmin": "Super admin",
     "pwreset.backToSignIn": "Back to sign in",
     "pwreset.brandFooter": "Stored encrypted. Only you know it.",
