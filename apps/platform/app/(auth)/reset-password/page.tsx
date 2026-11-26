@@ -3,26 +3,17 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
-import { Lock, Loader2, AlertCircle, CheckCircle2, Eye, EyeOff, Store, Check, KeyRound } from "lucide-react";
+import { Lock, Loader2, AlertCircle, CheckCircle2, Eye, EyeOff, Store, KeyRound } from "lucide-react";
+import { isAuthWeakPasswordError } from "@supabase/supabase-js";
 import { useAuth } from "@/hooks/use-auth";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import { AuthCardShell, AuthCardHeading } from "@/components/auth/auth-card-shell";
+import { PasswordRule } from "@/components/auth/password-rule";
+import { PasswordStrengthMeter } from "@/components/auth/password-strength-meter";
+import { PASSWORD_MIN_LENGTH, passwordRules, weakPasswordReason } from "@/lib/password-policy";
 
-// Must match Supabase Auth > Email: minimum length 8, "Letters and digits".
-const MIN_LENGTH = 8;
-const strengthColors = ["#EF4444", "#F97316", "#EAB308", "#22C55E", "#16A34A"];
-
-function getPasswordStrength(pwd: string) {
-    let score = 0;
-    if (pwd.length >= 8) score++;
-    if (pwd.length >= 12) score++;
-    if (/[a-z]/.test(pwd) && /[A-Z]/.test(pwd)) score++;
-    if (/\d/.test(pwd)) score++;
-    if (/[^a-zA-Z0-9]/.test(pwd)) score++;
-    return score;
-}
 
 /** Same role names the Team page shows, so Arabic readers see Arabic. */
 const ROLE_KEYS: Record<string, string> = {
@@ -101,20 +92,6 @@ function PasswordField({
     );
 }
 
-function Rule({ ok, children }: { ok: boolean; children: React.ReactNode }) {
-    const dir = useTextDir();
-    return (
-        <li className={`flex items-center gap-2 text-[13px] transition-colors ${ok ? "text-[#15803D]" : "text-[#8A847A]"}`}>
-            <span
-                className={`inline-flex items-center justify-center w-4 h-4 rounded-full transition-colors ${ok ? "bg-[#22C55E] text-white" : "bg-[#ECE8DD] text-transparent"}`}
-            >
-                <Check className="w-3 h-3" strokeWidth={3} />
-            </span>
-            <span dir={dir}>{children}</span>
-        </li>
-    );
-}
-
 export default function ResetPasswordPage() {
     const { t } = useLanguage();
     const dir = useTextDir();
@@ -128,9 +105,7 @@ export default function ResetPasswordPage() {
     const [error, setError] = useState<string | null>(null);
     const [isSuccess, setIsSuccess] = useState(false);
 
-    const passwordStrength = getPasswordStrength(password);
-    const longEnough = password.length >= MIN_LENGTH;
-    const hasLettersAndDigits = /[a-zA-Z]/.test(password) && /\d/.test(password);
+    const { longEnough, lettersAndDigits: hasLettersAndDigits } = passwordRules(password);
     const passwordsMatch = password === confirmPassword && confirmPassword.length > 0;
     const isFormValid = longEnough && hasLettersAndDigits && passwordsMatch;
 
@@ -153,7 +128,7 @@ export default function ResetPasswordPage() {
             return;
         }
         if (!longEnough) {
-            setError(t("pwreset.new.tooShort", { n: MIN_LENGTH }));
+            setError(t("pwreset.new.tooShort", { n: PASSWORD_MIN_LENGTH }));
             return;
         }
         if (!hasLettersAndDigits) {
@@ -165,7 +140,11 @@ export default function ResetPasswordPage() {
         try {
             const { error: updateError } = await updatePassword(password);
             if (updateError) {
-                setError(updateError.message);
+                setError(
+                    isAuthWeakPasswordError(updateError)
+                        ? t(weakPasswordReason(updateError.reasons) === "leaked" ? "signup.err.passwordLeaked" : "signup.err.passwordRules", { n: PASSWORD_MIN_LENGTH })
+                        : updateError.message,
+                );
                 setIsLoading(false);
                 return;
             }
@@ -241,38 +220,17 @@ export default function ResetPasswordPage() {
 
                             <div>
                                 <PasswordField label={t("pwreset.new.password")} value={password} onChange={setPassword} autoFocus />
-                                <div className="mt-3 flex items-center gap-3">
-                                    <div className="flex gap-1 flex-1" aria-hidden>
-                                        {[1, 2, 3, 4, 5].map((level) => (
-                                            <div
-                                                key={level}
-                                                className="h-1.5 flex-1 rounded-full transition-colors duration-300"
-                                                style={{
-                                                    backgroundColor:
-                                                        password && level <= passwordStrength
-                                                            ? strengthColors[passwordStrength - 1]
-                                                            : "#ECE8DD",
-                                                }}
-                                            />
-                                        ))}
-                                    </div>
-                                    <span
-                                        className="text-[12px] font-medium min-w-16 text-right"
-                                        style={{ color: password && passwordStrength > 0 ? strengthColors[passwordStrength - 1] : "#A8A29E" }}
-                                    >
-                                        {password && passwordStrength > 0
-                                            ? t(`pwreset.strength.${passwordStrength}`)
-                                            : t("pwreset.new.strength")}
-                                    </span>
+                                <div className="mt-3">
+                                    <PasswordStrengthMeter password={password} />
                                 </div>
                             </div>
 
                             <PasswordField label={t("pwreset.new.confirm")} value={confirmPassword} onChange={setConfirmPassword} />
 
                             <ul className="space-y-1.5">
-                                <Rule ok={longEnough}>{t("pwreset.new.ruleLength", { n: MIN_LENGTH })}</Rule>
-                                <Rule ok={hasLettersAndDigits}>{t("pwreset.new.ruleMix")}</Rule>
-                                <Rule ok={passwordsMatch}>{t("pwreset.new.ruleMatch")}</Rule>
+                                <PasswordRule ok={longEnough}>{t("pwreset.new.ruleLength", { n: PASSWORD_MIN_LENGTH })}</PasswordRule>
+                                <PasswordRule ok={hasLettersAndDigits}>{t("pwreset.new.ruleMix")}</PasswordRule>
+                                <PasswordRule ok={passwordsMatch}>{t("pwreset.new.ruleMatch")}</PasswordRule>
                             </ul>
 
                             <button

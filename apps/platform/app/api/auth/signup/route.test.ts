@@ -72,6 +72,7 @@ vi.mock("next/server", async (importOriginal) => ({
     after: (task: () => unknown) => phoneCode.later.push(task),
 }));
 
+import { AuthApiError, AuthWeakPasswordError } from "@supabase/supabase-js";
 import { NextRequest } from "next/server";
 import { POST } from "./route";
 
@@ -154,6 +155,33 @@ describe("POST /api/auth/signup", () => {
             expect(res.status).toBe(400);
         }
         expect(createUser).not.toHaveBeenCalled();
+    });
+
+    it("names a password Supabase refuses, with its reasons, so the form can say why under the field", async () => {
+        createUser.mockResolvedValue({
+            data: { user: null },
+            error: new AuthWeakPasswordError("Password is known to be weak and easy to guess", 422, ["pwned"]),
+        });
+        const res = await POST(request(base));
+        expect(res.status).toBe(422);
+        expect(await res.json()).toMatchObject({ code: "weak_password", reasons: ["pwned"] });
+        expect(tableInserts).toHaveLength(0);
+    });
+
+    it("names an email that already has an account", async () => {
+        createUser.mockResolvedValue({
+            data: { user: null },
+            error: new AuthApiError("A user with this email address has already been registered", 422, "email_exists"),
+        });
+        const res = await POST(request(base));
+        expect(res.status).toBe(409);
+        expect(await res.json()).toMatchObject({ code: "email_taken" });
+    });
+
+    it("names the field a malformed body is about, so the form can point at it", async () => {
+        const res = await POST(request({ ...base, password: "short" }));
+        expect(res.status).toBe(400);
+        expect(await res.json()).toMatchObject({ code: "invalid", field: "password" });
     });
 
     it("normalises the email before creating the account", async () => {

@@ -1,5 +1,6 @@
 import { after, NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { isAuthWeakPasswordError } from '@supabase/supabase-js';
 import { createSupabaseServiceClient } from '@/lib/supabase-server';
 import { generateSlug, ensureUniqueSlug, isSlugFree, suggestFreeSlug } from '@/lib/tenant';
 import { normalizeSlug, slugRejection } from '@/lib/tenant-slug';
@@ -92,8 +93,11 @@ async function handlePOST(request: NextRequest) {
 
         const parsed = signupSchema.safeParse(await request.json().catch(() => null));
         if (!parsed.success) {
+            const issue = parsed.error.issues[0];
+            // `field` lets the form show the problem under the field it is about.
+            const field = typeof issue?.path[0] === 'string' ? issue.path[0] : null;
             return NextResponse.json(
-                { error: parsed.error.issues[0]?.message ?? 'Invalid sign-up details' },
+                { error: issue?.message ?? 'Invalid sign-up details', code: 'invalid', field },
                 { status: 400 },
             );
         }
@@ -171,10 +175,23 @@ async function handlePOST(request: NextRequest) {
 
         if (authError) {
             await giveBackProof();
-            if (authError.message.includes('already registered') || authError.message.includes('already exists')) {
+            if (
+                authError.code === 'email_exists' ||
+                authError.code === 'user_already_exists' ||
+                authError.message.includes('already registered') ||
+                authError.message.includes('already exists')
+            ) {
                 return NextResponse.json(
-                    { error: 'An account with this email already exists' },
+                    { error: 'An account with this email already exists', code: 'email_taken' },
                     { status: 409 }
+                );
+            }
+            // Supabase's password rules (length, letters and digits) and its
+            // leaked-password check: the form shows the reason under the field.
+            if (isAuthWeakPasswordError(authError)) {
+                return NextResponse.json(
+                    { error: authError.message, code: 'weak_password', reasons: authError.reasons },
+                    { status: 422 },
                 );
             }
             return NextResponse.json({ error: authError.message }, { status: 400 });
