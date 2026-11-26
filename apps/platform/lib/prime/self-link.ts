@@ -1,7 +1,8 @@
 import { z } from "zod";
 import type { createSupabaseServiceClient } from "@/lib/supabase-server";
-import { isPrimeUnreachable, type PrimeClient, type PrimeMerchantAccount } from "@/lib/prime/client";
+import { isPrimeUnreachable, PRIME_LOGIN_TAKEN, PrimeApiError, type PrimeClient, type PrimeMerchantAccount } from "@/lib/prime/client";
 import type { PrimeLinkOutcome } from "@/lib/prime/link-outcomes";
+import { openPrimePassword, primeLoginKeyFromEnv } from "@/lib/prime/login-seal";
 
 type ServiceDb = ReturnType<typeof createSupabaseServiceClient>;
 
@@ -28,6 +29,14 @@ export type PrimeLinkResult = { outcome: "connected" } | { outcome: PrimeLinkOut
 
 /** The open request the check works on. */
 export type PrimeLinkRequestRow = { id: string; tenant_id: string; prime_phone: string };
+
+/** An approved request for a new Prime account: what to create, and the store's phone. */
+export type PrimeNewMerchantRow = PrimeLinkRequestRow & {
+    new_name: string;
+    new_state: string;
+    new_login_id: string;
+    new_shop_name: string;
+};
 
 /**
  * A Prime login or phone in the one form stores are compared by: a phone as
@@ -83,15 +92,17 @@ export async function linkPrimeRequest(
  * the link when nothing stands in the way. Prime being down is an outcome, not
  * an error: the form stays, and the cron tries again.
  */
+async function saveCheck(db: ServiceDb, requestId: string, fields: Record<string, unknown>): Promise<void> {
+    const { error } = await db
+        .from("prime_link_requests")
+        .update({ ...fields, checked_at: new Date().toISOString() })
+        .eq("id", requestId)
+        .is("linked_at", null);
+    if (error) throw new Error(`prime_link_requests update failed: ${error.message}`);
+}
+
 export async function checkPrimeLinkRequest(db: ServiceDb, client: PrimeClient, request: PrimeLinkRequestRow): Promise<PrimeLinkResult> {
-    const save = async (fields: Record<string, unknown>) => {
-        const { error } = await db
-            .from("prime_link_requests")
-            .update({ ...fields, checked_at: new Date().toISOString() })
-            .eq("id", request.id)
-            .is("linked_at", null);
-        if (error) throw new Error(`prime_link_requests update failed: ${error.message}`);
-    };
+    const save = (fields: Record<string, unknown>) => saveCheck(db, request.id, fields);
 
     let merchant: PrimeMerchantAccount | null;
     let shops: PrimeShopChoice[] = [];
@@ -137,12 +148,106 @@ export async function checkPrimeLinkRequest(db: ServiceDb, client: PrimeClient, 
     return { outcome: "connected" };
 }
 
+/** Whether Prime lists a merchant with exactly this login (not a phone match). */
+function hasPrimeLogin(merchants: PrimeMerchantAccount[], loginId: string): boolean {
+    const key = primeMerchantKey(loginId);
+    return merchants.some((m) => primeMerchantKey(m.loginId) === key);
+}
+
+/**
+ * Create the Prime account an approved new-account request asks for, then
+ * link the store to it as for an existing account. Safe to run again: an
+ * account Prime already lists under the login (made by an earlier run whose
+ * answer was lost) is linked, not created twice. Prime refusing the login
+ * (taken) waits on the store; any other refusal waits on our team
+ * (create_failed) and is thrown for the report. Prime being down waits for the
+ * next run.
+ */
+export async function createPrimeMerchantForRequest(
+    db: ServiceDb,
+    client: PrimeClient,
+    request: PrimeNewMerchantRow,
+    key: Buffer | null = primeLoginKeyFromEnv(),
+): Promise<PrimeLinkResult> {
+    const save = (fields: Record<string, unknown>) => saveCheck(db, request.id, fields);
+    // Only Prime's calls can mean "Prime is down"; our own failures are thrown.
+    const down = async (err: unknown): Promise<PrimeLinkResult> => {
+        if (!isPrimeUnreachable(err)) throw err;
+        await save({ outcome: "prime_down" });
+        return { outcome: "prime_down" };
+    };
+    const listed = async (): Promise<boolean> => hasPrimeLogin(await client.merchants(), request.new_login_id);
+
+    let exists: boolean;
+    try {
+        exists = await listed();
+    } catch (err) {
+        return down(err);
+    }
+    if (!exists) {
+        if (!key) throw new Error("PRIME_LOGIN_KEY is not set: cannot open the saved Prime password");
+        const { data: saved, error } = await db
+            .from("prime_saved_logins")
+            .select("login_id, password_sealed")
+            .eq("tenant_id", request.tenant_id)
+            .maybeSingle();
+        if (error) throw new Error(`prime_saved_logins read failed: ${error.message}`);
+        if (!saved || primeMerchantKey(saved.login_id) !== primeMerchantKey(request.new_login_id)) {
+            throw new Error("No saved Prime password for this request's login");
+        }
+        const password = openPrimePassword(saved.password_sealed, request.tenant_id, key);
+        try {
+            await client.createMerchant({
+                name: request.new_name,
+                loginId: request.new_login_id,
+                password,
+                phone: request.prime_phone,
+                state: request.new_state,
+                shopName: request.new_shop_name,
+            });
+        } catch (err) {
+            if (isPrimeUnreachable(err)) return down(err);
+            const taken = err instanceof PrimeApiError && err.code === PRIME_LOGIN_TAKEN;
+            let ours = false;
+            if (taken) {
+                // Taken by our own earlier try whose answer was lost: carry on and link it.
+                try {
+                    ours = await listed();
+                } catch (again) {
+                    return down(again);
+                }
+            }
+            if (!ours) {
+                await save({ outcome: taken ? "login_taken" : "create_failed" });
+                if (taken) return { outcome: "login_taken" };
+                throw err;
+            }
+        }
+    }
+    return checkPrimeLinkRequest(db, client, { id: request.id, tenant_id: request.tenant_id, prime_phone: request.new_login_id });
+}
+
 /** An open request waiting on Prime is looked at again this often. */
 export const PRIME_LINK_RECHECK_MS = 10 * 60 * 1000;
 /** Requests one cron run looks at; the rest wait for the next run. */
 const RECHECK_BATCH = 10;
 
 export type PrimeLinkRecheckOutcome = { checked: number; connected: number; failed: number };
+
+type RecheckRow = PrimeLinkRequestRow & {
+    kind: string;
+    new_name: string | null;
+    new_state: string | null;
+    new_login_id: string | null;
+    new_shop_name: string | null;
+    approved_at: string | null;
+};
+
+/** The account to create, when the request is a complete, approved new-account request. */
+function newMerchantRow(row: RecheckRow): PrimeNewMerchantRow | null {
+    if (!row.approved_at || !row.new_name || !row.new_state || !row.new_login_id || !row.new_shop_name) return null;
+    return { id: row.id, tenant_id: row.tenant_id, prime_phone: row.prime_phone, new_name: row.new_name, new_state: row.new_state, new_login_id: row.new_login_id, new_shop_name: row.new_shop_name };
+}
 
 /**
  * The prime-sync cron's part (every 5 minutes): look again at open requests
@@ -160,7 +265,7 @@ export async function recheckPrimeLinkRequests(
     const before = new Date(nowMs - PRIME_LINK_RECHECK_MS).toISOString();
     const { data, error } = await db
         .from("prime_link_requests")
-        .select("id, tenant_id, prime_phone")
+        .select("id, tenant_id, prime_phone, kind, new_name, new_state, new_login_id, new_shop_name, approved_at")
         .is("linked_at", null)
         .or(`outcome.is.null,outcome.in.(${PRIME_LINK_RECHECKED.join(",")})`)
         .or(`checked_at.is.null,checked_at.lt.${before}`)
@@ -171,9 +276,13 @@ export async function recheckPrimeLinkRequests(
     let merchants: Promise<PrimeMerchantAccount[]> | null = null;
     const once: PrimeClient = { ...client, merchants: () => (merchants ??= client.merchants()) };
     const outcome: PrimeLinkRecheckOutcome = { checked: 0, connected: 0, failed: 0 };
-    for (const row of (data ?? []) as PrimeLinkRequestRow[]) {
+    for (const row of (data ?? []) as RecheckRow[]) {
         try {
-            const result = await checkPrimeLinkRequest(db, once, row);
+            // A new account is created only once our team approved it; after
+            // creating, Prime's list is read afresh so the link is made this run.
+            const fresh = row.kind === "new" ? newMerchantRow(row) : null;
+            if (row.kind === "new" && !fresh) continue;
+            const result = fresh ? await createPrimeMerchantForRequest(db, client, fresh) : await checkPrimeLinkRequest(db, once, row);
             outcome.checked += 1;
             if (result.outcome === "connected") outcome.connected += 1;
         } catch (err) {

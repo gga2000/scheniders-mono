@@ -223,6 +223,10 @@ export function createDemoPrimeClient(db: ServiceDb, tenantId: string, clock: ()
         async merchants() {
             return [];
         },
+        // The demo store never opens a real Prime account.
+        async createMerchant(): Promise<string> {
+            throw new PrimeApiError("The demo store cannot open a Prime account", 400);
+        },
         async merchantShops() {
             return [];
         },
