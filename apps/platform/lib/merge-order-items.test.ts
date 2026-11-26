@@ -198,7 +198,7 @@ describe("display, print and export surfaces show one line × 3", () => {
     });
 
     it("shipping label names the product once, like a clean order", () => {
-        const brand = { primeLogo: true, fragileWarning: true, noOpenWarning: true };
+        const brand = { primeLogo: true, shopLogo: null, fragileWarning: true, noOpen: { text: "يمنع فتح الطرد منعاً باتاً", subtext: "" }, customerNote: "" };
         const html = shippingLabelHTML(split, brand);
         expect(html.match(/انفوي/g)).toHaveLength(1);
         expect(html).toBe(shippingLabelHTML(clean, brand));

@@ -31,15 +31,24 @@ export function useStoreSnapshot(enabled = true) {
         queryFn: async (): Promise<StoreSnapshot> => {
             const { data, error } = await supabase
                 .from("tenants")
-                .select("business_name, city, logo:branding->>logo_url, whatsapp:store_config->contact->>whatsapp_number")
+                .select(
+                    "business_name, city, logo:branding->>logo_url, builder_logo:store_config_v2->brand_kit->identity->>logo_url, whatsapp:store_config->contact->>whatsapp_number",
+                )
                 .eq("id", tenantId!)
                 .maybeSingle();
             if (error) throw error;
-            const row = data as { business_name: string | null; city: string | null; logo: string | null; whatsapp: string | null } | null;
+            const row = data as {
+                business_name: string | null;
+                city: string | null;
+                logo: string | null;
+                builder_logo: string | null;
+                whatsapp: string | null;
+            } | null;
             return {
                 name: row?.business_name?.trim() ?? "",
                 city: row?.city?.trim() || null,
-                logoUrl: row?.logo?.trim() || null,
+                // Store info's logo first, else the one the store editor saved (what most shops have).
+                logoUrl: row?.logo?.trim() || row?.builder_logo?.trim() || null,
                 whatsappNumber: row?.whatsapp?.trim() ?? "",
             };
         },

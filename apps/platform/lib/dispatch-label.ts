@@ -16,15 +16,15 @@ import { orderItemLabel } from "@/lib/orders/item-label";
 import { computeCodAmount, computeRefundPayout, courierAmount } from "@/lib/order-money";
 import { code128Svg, qrSvg } from "@/lib/print-codes";
 import { escapeHtml } from "@/lib/html-escape";
-import { PRIME_LOGO_SVG, SCHNEIDERS_LOGO_SVG } from "@/lib/label-brand";
+import { FERMI_WORDMARK_SVG, PRIME_LOGO_SVG } from "@/lib/label-brand";
 import type { AfterSalePickup } from "@/lib/after-sale/label-pickups";
 import { deliverySlotParts, formatDeliverySlot, parseDeliverySlot, type DeliverySlot } from "@/lib/orders/delivery-slot";
 
 const WARNING_SIGN = `<svg viewBox="0 0 24 22" class="dl-ico" aria-hidden="true"><path d="M12 1.2 23 20.8H1z" fill="#000"/><path d="M12 4.6 19.9 18.8H4.1z" fill="#fff"/><rect x="10.7" y="8.4" width="2.6" height="6" rx=".6" fill="#000"/><rect x="10.7" y="15.6" width="2.6" height="2.4" rx=".6" fill="#000"/></svg>`;
 const GLASS_SIGN = `<svg viewBox="0 0 20 24" class="dl-ico" aria-hidden="true"><path d="M3 1h14l-.6 6.2c-.4 4-3 6.4-6.4 6.6-3.4-.2-6-2.6-6.4-6.6z" fill="#000"/><path d="M10.6 1.6 8.8 5.4l2.4 1.6-2 4.2" fill="none" stroke="#fff" stroke-width="1.3" stroke-linejoin="round"/><rect x="9" y="13.4" width="2" height="7" fill="#000"/><rect x="5" y="20.4" width="10" height="2.2" rx=".8" fill="#000"/></svg>`;
 // Arrows point the way the goods move: out of the courier's hands, or back into them.
-// A closed parcel under a "no" circle: the parcel reaches the customer unopened.
-const NO_OPEN_SIGN = `<svg viewBox="0 0 24 24" class="dl-ico" aria-hidden="true"><rect x="5.8" y="6.6" width="12.4" height="3.2" rx=".6" fill="#000"/><rect x="6.6" y="10.4" width="10.8" height="8.8" rx="1" fill="#000"/><rect x="11" y="6.6" width="2" height="12.6" fill="#fff"/><circle cx="12" cy="12" r="10.6" fill="none" stroke="#000" stroke-width="2.2"/><path d="M4.6 4.6 19.4 19.4" stroke="#fff" stroke-width="3.6"/><path d="M4.6 4.6 19.4 19.4" stroke="#000" stroke-width="2.2"/></svg>`;
+// The "no entry" sign: a solid disc with a white bar, the plainest "forbidden" a thermal head can print.
+const NO_OPEN_SIGN = `<svg viewBox="0 0 24 24" class="dl-ico" aria-hidden="true"><circle cx="12" cy="12" r="11.6" fill="#000"/><rect x="4.4" y="9.7" width="15.2" height="4.6" rx=".9" fill="#fff"/></svg>`;
 const OUT_SIGN = `<svg viewBox="0 0 16 16" class="dl-ai" aria-hidden="true"><path d="M2 8h9.5M8 3.5 12.5 8 8 12.5" fill="none" stroke="#000" stroke-width="2.2" stroke-linecap="square"/></svg>`;
 const BACK_SIGN = `<svg viewBox="0 0 16 16" class="dl-ai" aria-hidden="true"><path d="M14 8H4.5M8 3.5 3.5 8 8 12.5" fill="none" stroke="#000" stroke-width="2.2" stroke-linecap="square"/></svg>`;
 const PHONE_SIGN = `<svg viewBox="0 0 24 24" class="dl-pi" aria-hidden="true"><path d="M6.6 2.5 9.4 2l1.6 4.6-2.2 1.5a11 11 0 0 0 7.1 7.1l1.5-2.2L22 14.6l-.5 2.8c-.2 1.1-1.2 1.9-2.3 1.8C10.6 18.6 5.4 13.4 4.8 4.8c-.1-1.1.7-2.1 1.8-2.3z" fill="#000"/></svg>`;
@@ -106,8 +106,15 @@ export interface DispatchLabelOptions {
     courierLogo?: { show: boolean; url?: string };
     /** The "handle with care" tape: any shop whose goods can break switches it on. */
     fragileWarning?: boolean;
-    /** The "do not open the parcel" line: any shop that wants its parcels to reach the customer unopened switches it on. */
-    noOpenWarning?: boolean;
+    /**
+     * The "do not open" box: any shop that wants its parcels to reach the customer
+     * unopened switches it on, and can change both lines. Absent = no box.
+     */
+    noOpen?: { text: string; subtext: string } | null;
+    /** The shop's own words to its customer, above the barcode when the label has room for them; empty = none. */
+    customerNote?: string;
+    /** The shop's logo beside the courier logo; the image itself comes from the document's stylesheet (shippingLabelsDocument). */
+    shopLogo?: boolean;
 }
 
 const itemList = (items: { name: string; qty: number }[]): string =>
@@ -130,14 +137,30 @@ function afterSaleLines(order: Order, items: { name: string; qty: number }[], pi
     return `<div class="dl-as">${lines}</div>`;
 }
 
-/** The tape and no-opening words as printed. */
+/** The tape words as printed, and the no-opening words a shop starts from. */
 export const LABEL_FRAGILE_TEXT = "قابل للكسر · يُحمل بعناية";
 export const LABEL_NO_OPEN_TEXT = "يمنع فتح الطرد منعاً باتاً";
+
+/** Longest words the shop can put on the label (Settings > Label), so each block keeps its lines. */
+export const LABEL_TEXT_LIMITS = { noOpenText: 40, noOpenSubtext: 60, customerNote: 55 } as const;
+
+/** The footer every label carries: the system the shop runs its orders on. */
+export const LABEL_FOOTER_TEXT = "نظام فيرمي لإدارة الطلبات";
 
 const FRAGILE_TAPE = `<div class="dl-tape"><div class="dl-tape-in">${WARNING_SIGN}<span>${LABEL_FRAGILE_TEXT}</span>${GLASS_SIGN}</div></div>`;
 
 /** Every parcel going out to a customer, when the shop switched it on: it is handed over unopened. */
-const NO_OPEN_WARNING = `<div class="dl-seal">${NO_OPEN_SIGN}<b>${LABEL_NO_OPEN_TEXT}</b></div>`;
+const noOpenBox = ({ text, subtext }: { text: string; subtext: string }): string =>
+    `<div class="dl-seal">${NO_OPEN_SIGN}<div class="dl-seal-t"><b>${escapeHtml(text)}</b>${subtext ? `<span>${escapeHtml(subtext)}</span>` : ""}</div></div>`;
+
+/**
+ * An order the merchant already handed to another courier (Al-Waseet by API, or
+ * an export file named for a courier) must not carry the Prime mark.
+ */
+function leftWithOtherCourier(order: Order): boolean {
+    if (order.delivery_company === "waseet") return true;
+    return Boolean(order.courier_name?.trim()) && order.delivery_company !== "prime";
+}
 
 function dispatchSlotPill(slot: DeliverySlot, stacked: boolean): string {
     if (!stacked) return `<span class="dl-slot"><small>وقت التوصيل</small><b>${escapeHtml(formatDeliverySlot(slot, "ar"))}</b></span>`;
@@ -157,7 +180,7 @@ export function generateDispatchLabelHTML(order: Order, options: DispatchLabelOp
     const items = mergeOrderItems(order.items).map((i) => ({ name: orderItemLabel(i), qty: i.quantity }));
     const pieces = items.reduce((sum, i) => sum + i.qty, 0);
     const e = (value: string | null | undefined) => escapeHtml(value ?? "");
-    const courierLogo = !options.courierLogo?.show
+    const courierLogo = !options.courierLogo?.show || leftWithOtherCourier(order)
         ? ""
         : options.courierLogo.url
           ? `<img class="dl-courier" src="${e(options.courierLogo.url)}" alt="">`
@@ -186,20 +209,25 @@ export function generateDispatchLabelHTML(order: Order, options: DispatchLabelOp
         Boolean(order.notes) ||
         (order.customer_name ?? "").length > DENSE_NAME_CHARS ||
         (order.address_details ?? "").length > DENSE_ADDRESS_CHARS;
+    // With two logos beside it, a long number steps down a size so the logos keep a readable width.
+    const shopLogo = Boolean(options.shopLogo);
+    // The shop's note sits above the barcode, on parcels handed to the customer.
+    const note = options.customerNote && !order.is_return ? `<div class="dl-cnote">${e(options.customerNote)}</div>` : "";
+    const oidSize = id.length > (shopLogo ? 9 : 11) ? " dl-oid-long" : id.length > (shopLogo ? 7 : 9) ? " dl-oid-mid" : "";
 
     return `
 <div class="dispatch-label${dense ? " dl-dense" : ""}" dir="rtl">
     <div class="dl-top">
         <div class="dl-idc">
             <div class="dl-k">رقم الوصل</div>
-            <div class="dl-oid${id.length > 11 ? " dl-oid-long" : id.length > 9 ? " dl-oid-mid" : ""}">${e(id)}</div>
+            <div class="dl-oid${oidSize}">${e(id)}</div>
         </div>
-        ${courierLogo}
+        ${courierLogo || shopLogo ? `<div class="dl-logos">${courierLogo}${shopLogo ? `<span class="dl-shop" role="img" aria-label="logo"></span>` : ""}</div>` : ""}
         <div class="dl-qr">${qrSvg(id, { moduleSteps: 3, maxSizeMm: 21 })}</div>
     </div>
     <div class="dl-dest${slot && kindPill ? " dl-dest-tight" : ""}"><b>${e(order.city) || "—"}</b>${slotPill}${kindPill}</div>
     ${options.fragileWarning ? FRAGILE_TAPE : ""}
-    ${options.noOpenWarning && !order.is_return ? NO_OPEN_WARNING : ""}
+    ${options.noOpen && !order.is_return ? noOpenBox(options.noOpen) : ""}
     ${afterSale ? afterSaleLines(order, items, options.pickup) : ""}
     <div class="dl-cust">
         <div class="dl-who">
@@ -214,8 +242,8 @@ export function generateDispatchLabelHTML(order: Order, options: DispatchLabelOp
     <div class="dl-addr${order.notes ? " dl-addr-short" : ""}"><div class="dl-k">العنوان</div><div class="dl-addr-t">${e(order.address_details) || "—"}</div></div>
     ${order.notes ? `<div class="dl-notes" style="-webkit-line-clamp: ${noteLines}"><b>${afterSale ? "تعليمات" : "ملاحظة"}:</b> ${e(order.notes)}</div>` : ""}
     ${afterSale ? "" : `<div class="dl-row"><span class="dl-items"><span class="dl-k">المنتج</span> ${itemList(items) || "—"}</span><span class="dl-pcs">${pieces} قطعة</span></div>`}
-    ${options.showBarcode ? `<div class="dl-foot"><div class="dl-bc">${code128Svg(id, { heightMm: dense ? 7 : 8, maxWidthMm: 74 })}</div></div>` : ""}
-    <div class="dl-meta"><span class="dl-brand">${SCHNEIDERS_LOGO_SVG}SCHNEIDERS</span><span class="dl-date">${formatLabelDate(order.created_at)}</span></div>
+    ${options.showBarcode || note ? `<div class="dl-foot">${options.showBarcode ? `<div class="dl-bc">${code128Svg(id, { heightMm: dense ? 7 : 8, maxWidthMm: 74 })}</div>` : ""}${note}</div>` : ""}
+    <div class="dl-meta"><span class="dl-brand"><span>${LABEL_FOOTER_TEXT}</span>${FERMI_WORDMARK_SVG}</span><span class="dl-date">${formatLabelDate(order.created_at)}</span></div>
 </div>`;
 }
 
@@ -232,14 +260,18 @@ export const DISPATCH_LABEL_CSS = `
     .dispatch-label > * { flex-shrink: 0; }
     /* When a long order still runs out of room, the notes give way first, then the barcode's
        height (a 1D code still scans when shorter); the address and the QR never shrink. */
-    .dispatch-label > .dl-foot { flex-shrink: 2; min-height: 5mm; overflow: hidden; align-items: flex-start; }
+    .dispatch-label > .dl-foot { flex-shrink: 2; min-height: 5mm; overflow: hidden; }
     .dl-top { display: flex; align-items: flex-end; gap: 3mm; border-bottom: .6mm solid #000; padding-bottom: 1.2mm; }
-    .dl-idc { min-width: 0; display: flex; flex-direction: column; gap: .6mm; }
+    .dl-idc { flex-shrink: 0; display: flex; flex-direction: column; gap: .6mm; }
     .dl-idc > .dl-k { font-size: 8pt; font-weight: 700; }
     .dl-oid { font-family: 'IBM Plex Mono', monospace; font-weight: 700; font-size: 17pt; line-height: 1; direction: ltr; text-align: right; white-space: nowrap; }
     .dl-oid-mid { font-size: 15pt; }
     .dl-oid-long { font-size: 12pt; }
-    .dl-courier { flex-shrink: 1; min-width: 0; height: 7.5mm; width: auto; max-width: 19mm; object-fit: contain; margin-bottom: .4mm; }
+    /* The courier's logo, then the shop's own to its left; both give way before the number or the QR do. */
+    .dl-logos { flex: 0 1 auto; min-width: 0; display: flex; align-items: flex-end; gap: 2mm; margin-bottom: .4mm; }
+    .dl-courier { flex-shrink: 1; min-width: 0; height: 7.5mm; width: auto; max-width: 19mm; object-fit: contain; }
+    .dl-shop { flex-shrink: 1; width: 15mm; min-width: 7mm; height: 9mm; background: center / contain no-repeat; filter: grayscale(1);
+        -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     /* The Prime mark is one stylesheet image shared by every label, not a 19 KB path repeated per label. */
     .dl-prime { width: 18.5mm; background: url("data:image/svg+xml,${encodeURIComponent(PRIME_LOGO_SVG)}") center / contain no-repeat;
         -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -263,9 +295,11 @@ export const DISPATCH_LABEL_CSS = `
     .dl-tape-in { background: #fff; display: flex; align-items: center; gap: 1.6mm; padding: 0 2.2mm; height: 6.8mm; border: .4mm solid #000; font-weight: 700; font-size: 9pt; }
     .dl-ico { height: 5.4mm; width: auto; }
     /* One line wherever it fits: the label is already full, so the warning takes a single row. */
-    .dl-seal { display: flex; align-items: center; justify-content: center; gap: 1.6mm; padding: .5mm 1.8mm; border: .6mm solid #000; }
-    .dl-seal .dl-ico { height: 5mm; flex-shrink: 0; }
-    .dl-seal b { font-size: 9.5pt; line-height: 1.2; }
+    .dl-seal { display: flex; align-items: center; gap: 1.8mm; padding: .5mm 1.8mm; border: .6mm solid #000; }
+    .dl-seal .dl-ico { height: 5.4mm; flex-shrink: 0; }
+    .dl-seal-t { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 1.2mm; min-width: 0; line-height: 1.2; }
+    .dl-seal-t b { font-size: 9.5pt; }
+    .dl-seal-t span { font-size: 7.5pt; font-weight: 700; }
     .dl-as { border: .7mm solid #000; }
     .dl-as-l { display: flex; align-items: baseline; gap: 1.6mm; padding: .5mm 2mm; font-size: 9pt; font-weight: 700; line-height: 1.3; }
     .dl-as-l + .dl-as-l { border-top: .3mm dashed #000; }
@@ -304,7 +338,8 @@ export const DISPATCH_LABEL_CSS = `
     .dl-dense .dl-ico { height: 4.2mm; }
     .dl-dense .dl-seal { padding: .3mm 1.6mm; }
     .dl-dense .dl-seal .dl-ico { height: 4.4mm; }
-    .dl-dense .dl-seal b { font-size: 9pt; }
+    .dl-dense .dl-seal-t { line-height: 1.1; }
+    .dl-dense .dl-seal-t b { font-size: 9pt; }
     .dl-dense .dl-tel { padding: .6mm 2mm; }
     .dl-dense .dl-addr { display: flex; align-items: baseline; gap: 1.4mm; }
     .dl-dense .dl-addr .dl-k { flex-shrink: 0; }
@@ -318,9 +353,15 @@ export const DISPATCH_LABEL_CSS = `
     .dl-items .dl-k { margin-inline-end: 1mm; }
     .dl-pcs { font-size: 8.5pt; }
     .dl-meta { display: flex; justify-content: space-between; align-items: center; font-size: 6.5pt; margin-top: -.6mm; }
-    .dl-brand { display: flex; align-items: center; gap: .8mm; font-weight: 700; letter-spacing: .3pt; }
-    .dl-brand svg { width: 3mm; height: 3mm; }
+    .dl-brand { display: flex; align-items: center; gap: 1.2mm; font-weight: 700; }
+    .dl-brand svg { height: 3.2mm; width: auto; }
+    /* One line: a full label still keeps its barcode at full height. */
+    .dl-cnote { font-size: 8pt; font-weight: 600; line-height: 1.2; text-align: center; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
     .dl-date { font-family: 'IBM Plex Mono', monospace; font-weight: 500; direction: ltr; }
-    .dl-foot { margin-top: auto; display: flex; justify-content: center; }
-    .dl-bc { text-align: center; }
+    /* Bottom up: the barcode, then the shop's note above it. When a long order leaves no room the
+       note wraps into a second column outside the label, so it is printed whole or not at all. */
+    .dl-foot { margin-top: auto; display: flex; flex-direction: column-reverse; flex-wrap: wrap; align-content: flex-start; }
+    .dl-foot > * { width: 100%; flex-shrink: 0; }
+    .dl-foot > .dl-cnote { margin-bottom: .6mm; }
+    .dl-bc { display: flex; justify-content: center; }
 `;

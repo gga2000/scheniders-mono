@@ -117,6 +117,8 @@ export const SETTINGS_SEARCH: readonly SettingsSearchEntry[] = [
     { focus: "blacklist", section: "blacklist", label: "settings.nav.blacklist", keywords: ["block", "ban", "blacklist", "fraud", "حظر", "سوداء", "محظور"] },
     { focus: "waseet", section: "waseet", label: "waseet.title", keywords: ["waseet", "alwaseet", "courier", "sync", "الوسيط", "مندوب", "مزامنة", "شركة توصيل"] },
     { focus: "label-fragile", section: "label", label: "settings.print.fragileWarning", keywords: ["fragile", "glass", "label", "كسر", "زجاج", "ملصق"] },
+    { focus: "label-shop-logo", section: "label", label: "settings.print.shopLogo", keywords: ["logo", "brand", "label", "شعار", "لوكو", "ملصق"] },
+    { focus: "label-customer-note", section: "label", label: "settings.print.customerNote", keywords: ["note", "thanks", "customer", "label", "ملاحظة", "شكر", "زبون", "ملصق"] },
     { focus: "label-no-open", section: "label", label: "settings.print.noOpenWarning", keywords: ["open", "parcel", "package", "sealed", "perfume", "label", "فتح", "طرد", "مسكر", "عطر", "ملصق"] },
     { focus: "team-members", section: "team", label: "settings.hub.team.members", keywords: ["team", "user", "employee", "invite", "role", "staff", "فريق", "موظف", "دعوة", "دور", "مستخدم"] },
     { focus: "page-access", section: "team", label: "settings.pages.title", keywords: ["pages", "access", "permission", "صلاحيات", "صفحات", "وصول"] },

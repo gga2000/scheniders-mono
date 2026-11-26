@@ -26,14 +26,25 @@ const DEFAULT_SETTINGS: Record<string, unknown> = {
 // Stored as free JSON per tenant: a field of the wrong type reads as unset, and
 // fields a form does not know are kept so saving it does not drop them.
 const flag = z.boolean().optional().catch(undefined);
+const text = z.string().optional().catch(undefined);
 type Loose<T> = T & { [field: string]: unknown };
 interface SettingValues {
-    print_settings: Loose<{ fragile_warning?: boolean; no_open_warning?: boolean }>;
+    /** Read by the label (hooks/use-label-brand.ts); edited in Settings > Label. */
+    print_settings: Loose<{
+        fragile_warning?: boolean;
+        no_open_warning?: boolean;
+        no_open_text?: string;
+        no_open_subtext?: string;
+        customer_note?: string;
+        shop_logo?: boolean;
+    }>;
     /** Written by /api/settings/staff-alert (lib/staff-alerts.ts); read here for the Settings overview. */
     staff_alert_numbers: Loose<{ enabled?: boolean; numbers?: unknown[] }>;
 }
 const SETTING_SCHEMAS: { [K in keyof SettingValues]: z.ZodType<SettingValues[K]> } = {
-    print_settings: z.looseObject({ fragile_warning: flag, no_open_warning: flag }).catch({}),
+    print_settings: z
+        .looseObject({ fragile_warning: flag, no_open_warning: flag, no_open_text: text, no_open_subtext: text, customer_note: text, shop_logo: flag })
+        .catch({}),
     staff_alert_numbers: z.looseObject({ enabled: flag, numbers: z.array(z.unknown()).optional().catch(undefined) }).catch({}),
 };
 export type SettingValue<K extends keyof SettingValues> = SettingValues[K];

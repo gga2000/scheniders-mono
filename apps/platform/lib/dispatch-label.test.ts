@@ -79,7 +79,7 @@ describe("generateDispatchLabelHTML", () => {
         expect(html).toContain("a &amp; b");
     });
     it("shows the fragile tape, grouped phones and the barcode", () => {
-        const html = generateDispatchLabelHTML(order(), { showBarcode: true, fragileWarning: true, noOpenWarning: true });
+        const html = generateDispatchLabelHTML(order(), { showBarcode: true, fragileWarning: true, noOpen: { text: "يمنع فتح الطرد منعاً باتاً", subtext: "" } });
         expect(html).toContain("قابل للكسر · يُحمل بعناية");
         expect(html).toContain("0782 700 8326");
         expect(html).toContain("0782 700 8306");
@@ -107,6 +107,13 @@ describe("generateDispatchLabelHTML", () => {
     it("shows the Prime logo only when the courier logo is on", () => {
         expect(generateDispatchLabelHTML(order(), { showBarcode: true, courierLogo: { show: true } })).toContain('class="dl-courier dl-prime"');
         expect(generateDispatchLabelHTML(order(), { showBarcode: true, courierLogo: { show: false } })).not.toContain("dl-courier");
+    });
+    // Ali 2026-11-26: a parcel that is not going with Prime must not carry the Prime logo.
+    it("drops the Prime logo from an order handed to another courier", () => {
+        const prime = { showBarcode: true, courierLogo: { show: true } };
+        expect(generateDispatchLabelHTML(order({ delivery_company: "waseet" }), prime)).not.toContain("dl-prime");
+        expect(generateDispatchLabelHTML(order({ courier_name: "كويك" }), prime)).not.toContain("dl-prime");
+        expect(generateDispatchLabelHTML(order({ delivery_company: "prime" }), prime)).toContain("dl-prime");
     });
 });
 
@@ -148,7 +155,7 @@ describe("refund and replacement labels", () => {
 
 describe("do not open the parcel", () => {
     const WARNING = "يمنع فتح الطرد منعاً باتاً";
-    const sealedShop = { showBarcode: true, noOpenWarning: true };
+    const sealedShop = { showBarcode: true, noOpen: { text: WARNING, subtext: "" } };
 
     it("is on every parcel a shop that switched it on sends to a customer, replacements included", () => {
         expect(generateDispatchLabelHTML(order(), sealedShop)).toContain(WARNING);
@@ -159,31 +166,51 @@ describe("do not open the parcel", () => {
         expect(generateDispatchLabelHTML(order({ is_return: true, price: -20000 }), sealedShop)).not.toContain(WARNING);
     });
 
-    // Ali 2026-11-26: the line is for every shop, so it names the parcel, not perfume.
-    it("names the parcel, not a product", () => {
-        const html = generateDispatchLabelHTML(order(), sealedShop);
-        expect(html).not.toContain("العطر");
-        expect(html).not.toContain("العينة");
+    it("stays off a shop that has not switched it on", () => {
+        expect(generateDispatchLabelHTML(order(), { showBarcode: true })).not.toContain("dl-seal");
     });
 
-    it("stays off a shop that has not switched it on", () => {
-        expect(generateDispatchLabelHTML(order(), { showBarcode: true })).not.toContain(WARNING);
+    // Ali 2026-11-26: the shop writes both lines; what it types is printed as text, never as markup.
+    it("prints the shop's own words, and the small line only when there is one", () => {
+        const html = generateDispatchLabelHTML(order(), { showBarcode: true, noOpen: { text: "يمنع فتح العطر <b>", subtext: "الفحص من خلال العينة" } });
+        expect(html).toContain("يمنع فتح العطر &lt;b&gt;");
+        expect(html).toContain("<span>الفحص من خلال العينة</span>");
+        expect(generateDispatchLabelHTML(order(), sealedShop)).not.toContain("dl-seal-t\"><b>" + WARNING + "</b><span>");
     });
 });
 
 // Ali 2026-11-16: "handle with care" is for any shop with goods that break.
 describe("handle-with-care tape", () => {
-    it("is its own switch, apart from the no-opening line", () => {
+    it("is its own switch, apart from the no-opening box", () => {
         const html = generateDispatchLabelHTML(order(), { showBarcode: true, fragileWarning: true });
         expect(html).toContain("قابل للكسر · يُحمل بعناية");
-        expect(html).not.toContain("يمنع فتح الطرد");
-        expect(generateDispatchLabelHTML(order(), { showBarcode: true, noOpenWarning: true })).not.toContain("قابل للكسر");
+        expect(html).not.toContain("dl-seal");
+        expect(generateDispatchLabelHTML(order(), { showBarcode: true, noOpen: { text: "x", subtext: "" } })).not.toContain("قابل للكسر");
+    });
+});
+
+describe("the shop's own marks", () => {
+    // Ali 2026-11-26: a note from the shop to its customer, on every parcel going out.
+    it("prints the customer note as text on parcels to the customer, not on refund pickups", () => {
+        const withNote = { showBarcode: true, customerNote: "شكراً لثقتك <script>" };
+        expect(generateDispatchLabelHTML(order(), withNote)).toContain('<div class="dl-cnote">شكراً لثقتك &lt;script&gt;</div>');
+        expect(generateDispatchLabelHTML(order({ is_return: true, price: -20000 }), withNote)).not.toContain("dl-cnote");
+        expect(generateDispatchLabelHTML(order(), { showBarcode: true })).not.toContain("dl-cnote");
     });
 
-    it("prints the same words whatever else is on", () => {
-        const html = generateDispatchLabelHTML(order(), { showBarcode: true, fragileWarning: true, noOpenWarning: true });
-        expect(html).toContain("قابل للكسر · يُحمل بعناية");
-        expect(html).not.toContain("زجاج");
+
+    it("puts the shop logo to the left of the courier logo, with or without one", () => {
+        const both = generateDispatchLabelHTML(order(), { showBarcode: true, courierLogo: { show: true }, shopLogo: true });
+        expect(both.indexOf("dl-prime")).toBeLessThan(both.indexOf("dl-shop"));
+        expect(generateDispatchLabelHTML(order(), { showBarcode: true, shopLogo: true })).toContain("dl-shop");
+        expect(generateDispatchLabelHTML(order(), { showBarcode: true })).not.toContain("dl-logos");
+    });
+
+    // Ali 2026-11-26: the footer names the system, with the Fermi logo.
+    it("signs every label with Fermi", () => {
+        const html = generateDispatchLabelHTML(order(), { showBarcode: true });
+        expect(html).toContain("نظام فيرمي لإدارة الطلبات");
+        expect(html).not.toContain("SCHNEIDERS");
     });
 });
 
