@@ -79,8 +79,8 @@ describe("generateDispatchLabelHTML", () => {
         expect(html).toContain("a &amp; b");
     });
     it("shows the fragile tape, grouped phones and the barcode", () => {
-        const html = generateDispatchLabelHTML(order(), { showBarcode: true, fragileWarning: true, perfumeWarning: true });
-        expect(html).toContain("زجاج · قابل للكسر · يُحمل بعناية");
+        const html = generateDispatchLabelHTML(order(), { showBarcode: true, fragileWarning: true, noOpenWarning: true });
+        expect(html).toContain("قابل للكسر · يُحمل بعناية");
         expect(html).toContain("0782 700 8326");
         expect(html).toContain("0782 700 8306");
         expect(html).toContain("34,750");
@@ -146,35 +146,44 @@ describe("refund and replacement labels", () => {
     });
 });
 
-describe("perfume warning", () => {
-    const WARNING = "يمنع فتح العطر منعاً باتاً";
+describe("do not open the parcel", () => {
+    const WARNING = "يمنع فتح الطرد منعاً باتاً";
+    const sealedShop = { showBarcode: true, noOpenWarning: true };
 
-    const GLASS = "زجاج · قابل للكسر";
-    const perfumeShop = { showBarcode: true, fragileWarning: true, perfumeWarning: true };
-
-    it("is on every parcel a perfume shop sends to a customer, replacements included", () => {
-        expect(generateDispatchLabelHTML(order(), perfumeShop)).toContain(WARNING);
-        expect(generateDispatchLabelHTML(order({ is_replacement: true }), perfumeShop)).toContain(WARNING);
+    it("is on every parcel a shop that switched it on sends to a customer, replacements included", () => {
+        expect(generateDispatchLabelHTML(order(), sealedShop)).toContain(WARNING);
+        expect(generateDispatchLabelHTML(order({ is_replacement: true }), sealedShop)).toContain(WARNING);
     });
 
     it("is left off refund pickups, where nothing is handed to the customer", () => {
-        expect(generateDispatchLabelHTML(order({ is_return: true, price: -20000 }), perfumeShop)).not.toContain(WARNING);
+        expect(generateDispatchLabelHTML(order({ is_return: true, price: -20000 }), sealedShop)).not.toContain(WARNING);
     });
 
-    // Store walkthrough 2026-11-16: a shop selling no perfume got the perfume and glass warnings.
-    it("and the glass tape stay off a shop that has not switched them on", () => {
-        const html = generateDispatchLabelHTML(order(), { showBarcode: true });
-        expect(html).not.toContain(WARNING);
-        expect(html).not.toContain(GLASS);
-        expect(generateDispatchLabelHTML(order(), perfumeShop)).toContain(GLASS);
+    // Ali 2026-11-26: the line is for every shop, so it names the parcel, not perfume.
+    it("names the parcel, not a product", () => {
+        const html = generateDispatchLabelHTML(order(), sealedShop);
+        expect(html).not.toContain("العطر");
+        expect(html).not.toContain("العينة");
     });
 
-    // Ali 2026-11-16: "handle with care" is for any shop with goods that break, not only perfume.
-    it("is separate from the handle-with-care tape any shop can switch on", () => {
+    it("stays off a shop that has not switched it on", () => {
+        expect(generateDispatchLabelHTML(order(), { showBarcode: true })).not.toContain(WARNING);
+    });
+});
+
+// Ali 2026-11-16: "handle with care" is for any shop with goods that break.
+describe("handle-with-care tape", () => {
+    it("is its own switch, apart from the no-opening line", () => {
         const html = generateDispatchLabelHTML(order(), { showBarcode: true, fragileWarning: true });
         expect(html).toContain("قابل للكسر · يُحمل بعناية");
+        expect(html).not.toContain("يمنع فتح الطرد");
+        expect(generateDispatchLabelHTML(order(), { showBarcode: true, noOpenWarning: true })).not.toContain("قابل للكسر");
+    });
+
+    it("prints the same words whatever else is on", () => {
+        const html = generateDispatchLabelHTML(order(), { showBarcode: true, fragileWarning: true, noOpenWarning: true });
+        expect(html).toContain("قابل للكسر · يُحمل بعناية");
         expect(html).not.toContain("زجاج");
-        expect(html).not.toContain(WARNING);
     });
 });
 

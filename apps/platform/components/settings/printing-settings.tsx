@@ -46,7 +46,7 @@ export function PrintingSettings() {
     }
 
     const fragile = printSettings.fragile_warning === true;
-    const perfume = printSettings.perfume_warning === true;
+    const noOpen = printSettings.no_open_warning === true;
 
     return (
         <div className="space-y-4">
@@ -62,7 +62,7 @@ export function PrintingSettings() {
                         hint={t("settings.preview.live")}
                         caption={t("settings.preview.labelCaption")}
                     >
-                        <LabelPreview brand={{ primeLogo: prime.connected, fragileWarning: fragile, perfumeWarning: perfume }} />
+                        <LabelPreview brand={{ primeLogo: prime.connected, fragileWarning: fragile, noOpenWarning: noOpen }} />
                     </SettingsPreviewPane>
                 }
             >
@@ -77,12 +77,12 @@ export function PrintingSettings() {
                     />
                     <div className="mx-4 border-t border-(--card-border)" />
                     <LabelSwitch
-                        id="print-perfume-warning"
-                        focus="label-perfume"
-                        label={t("settings.print.perfumeWarning")}
-                        hint={t("settings.print.perfumeWarningHint")}
-                        checked={perfume}
-                        onToggle={() => setPrintSettings({ ...printSettings, perfume_warning: !perfume })}
+                        id="print-no-open-warning"
+                        focus="label-no-open"
+                        label={t("settings.print.noOpenWarning")}
+                        hint={t("settings.print.noOpenWarningHint")}
+                        checked={noOpen}
+                        onToggle={() => setPrintSettings({ ...printSettings, no_open_warning: !noOpen })}
                     />
                     <div className="flex justify-end px-4 pb-3 pt-2">
                         <button

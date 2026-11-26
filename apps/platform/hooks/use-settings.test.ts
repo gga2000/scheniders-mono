@@ -8,9 +8,9 @@ describe("readSetting", () => {
     });
 
     it("reads a wrong-typed field as unset and a missing or broken value as empty", () => {
-        expect(readSetting({ print_settings: { fragile_warning: "yes", perfume_warning: true } }, "print_settings")).toEqual({
+        expect(readSetting({ print_settings: { fragile_warning: "yes", no_open_warning: true } }, "print_settings")).toEqual({
             fragile_warning: undefined,
-            perfume_warning: true,
+            no_open_warning: true,
         });
         expect(readSetting({}, "print_settings")).toEqual({});
         expect(readSetting({ print_settings: "oops" }, "print_settings")).toEqual({});

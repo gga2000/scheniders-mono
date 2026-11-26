@@ -37,14 +37,14 @@ describe("settingsHref", () => {
 });
 
 describe("settings search", () => {
-    const translate = (key: string) => ({ "settings.orders.fees": "أجور التوصيل", "settings.print.perfumeWarning": "سطر «يمنع فتح العطر» على الملصق" })[key] ?? key;
+    const translate = (key: string) => ({ "settings.orders.fees": "أجور التوصيل", "settings.print.noOpenWarning": "سطر «يمنع فتح الطرد» على الملصق" })[key] ?? key;
 
     it("reads hamza, teh marbuta and vowel marks as the plain letter", () => {
         expect(normalizeSettingsSearch("  أُجور  التوصيلة ")).toBe("اجور التوصيله");
     });
 
     it("finds the exact switch by a word in its label or its keywords", () => {
-        expect(searchSettings("عطر", translate)[0]?.focus).toBe("label-perfume");
+        expect(searchSettings("عطر", translate)[0]?.focus).toBe("label-no-open");
         expect(searchSettings("أجور", translate)[0]?.focus).toBe("delivery-fees");
         expect(searchSettings("waseet", translate)[0]?.focus).toBe("waseet");
         expect(searchSettings("   ", translate)).toEqual([]);

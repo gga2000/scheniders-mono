@@ -20,7 +20,7 @@ export interface AppSetting {
 // auto_archive, quick_actions and notification_settings, but no page, label or
 // checkout ever read them, so they were removed with the page rebuild.
 const DEFAULT_SETTINGS: Record<string, unknown> = {
-    print_settings: { fragile_warning: false, perfume_warning: false },
+    print_settings: { fragile_warning: false, no_open_warning: false },
 };
 
 // Stored as free JSON per tenant: a field of the wrong type reads as unset, and
@@ -28,12 +28,12 @@ const DEFAULT_SETTINGS: Record<string, unknown> = {
 const flag = z.boolean().optional().catch(undefined);
 type Loose<T> = T & { [field: string]: unknown };
 interface SettingValues {
-    print_settings: Loose<{ fragile_warning?: boolean; perfume_warning?: boolean }>;
+    print_settings: Loose<{ fragile_warning?: boolean; no_open_warning?: boolean }>;
     /** Written by /api/settings/staff-alert (lib/staff-alerts.ts); read here for the Settings overview. */
     staff_alert_numbers: Loose<{ enabled?: boolean; numbers?: unknown[] }>;
 }
 const SETTING_SCHEMAS: { [K in keyof SettingValues]: z.ZodType<SettingValues[K]> } = {
-    print_settings: z.looseObject({ fragile_warning: flag, perfume_warning: flag }).catch({}),
+    print_settings: z.looseObject({ fragile_warning: flag, no_open_warning: flag }).catch({}),
     staff_alert_numbers: z.looseObject({ enabled: flag, numbers: z.array(z.unknown()).optional().catch(undefined) }).catch({}),
 };
 export type SettingValue<K extends keyof SettingValues> = SettingValues[K];

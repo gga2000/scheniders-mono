@@ -6,7 +6,7 @@ import type { LabelBrand } from "@/lib/shipping-labels";
 
 /**
  * This shop's label marks: the Prime mark when its parcels go through the
- * Prime API, the "handle with care" tape and the sealed-perfume line when it
+ * Prime API, the "handle with care" tape and the no-opening line when it
  * switched them on in print settings. Otherwise the label is plain.
  */
 export function useLabelBrand(): LabelBrand {
@@ -16,6 +16,6 @@ export function useLabelBrand(): LabelBrand {
     return {
         primeLogo: prime.connected,
         fragileWarning: print.fragile_warning === true,
-        perfumeWarning: print.perfume_warning === true,
+        noOpenWarning: print.no_open_warning === true,
     };
 }

@@ -14,12 +14,12 @@ export type LabelPickups = Record<string, AfterSalePickup>;
 /**
  * What a shop's own labels carry beyond the order: the Prime mark only when it
  * ships through Prime, the "handle with care" tape when its goods can break,
- * the sealed-perfume line when it sells perfume.
+ * the "do not open the parcel" line when it hands parcels over unopened.
  */
 export interface LabelBrand {
     primeLogo: boolean;
     fragileWarning: boolean;
-    perfumeWarning: boolean;
+    noOpenWarning: boolean;
 }
 
 /** One 80x120 mm label in CSS pixels (96 dpi), for on-screen previews. */
@@ -43,7 +43,7 @@ export function shippingLabelHTML(order: Order, brand: LabelBrand, pickups: Labe
         pickup: pickups[order.id],
         courierLogo: { show: brand.primeLogo },
         fragileWarning: brand.fragileWarning,
-        perfumeWarning: brand.perfumeWarning,
+        noOpenWarning: brand.noOpenWarning,
     });
 }
 

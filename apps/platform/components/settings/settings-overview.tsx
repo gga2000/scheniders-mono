@@ -101,7 +101,7 @@ export function SettingsOverview() {
     const labelLine = settingsLoaded
         ? [
               print.fragile_warning ? t("settings.overview.label.fragileOn") : t("settings.overview.label.fragileOff"),
-              print.perfume_warning ? t("settings.overview.label.perfumeOn") : t("settings.overview.label.perfumeOff"),
+              print.no_open_warning ? t("settings.overview.label.noOpenOn") : t("settings.overview.label.noOpenOff"),
           ].join(sep)
         : null;
 
