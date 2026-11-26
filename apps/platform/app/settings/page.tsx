@@ -1,185 +1,121 @@
 "use client";
 
-import { Suspense, useState, useMemo } from "react";
-import { useSearchParams } from "next/navigation";
-import {
-    Settings,
-    Store,
-    Package,
-    Printer,
-    Database,
-    LayoutDashboard,
-    Link2,
-    UsersRound,
-    Search,
-    ShieldBan,
-    Building2,
-    CreditCard,
-    BellRing,
-    PackageX,
-    Headset,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Suspense, useEffect, useRef, type ComponentType, type RefObject } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Settings } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
-import { GeneralSettings } from "@/components/settings/general-settings";
-import { OrderSettings } from "@/components/settings/order-settings";
-import { PrintingSettings } from "@/components/settings/printing-settings";
-import { TeamSettings } from "@/components/settings/team-settings";
-import { DataSettings } from "@/components/settings/data-settings";
-import { PageSettings } from "@/components/settings/pages-settings";
-import { WaseetSettingsPanel } from "@/components/settings/waseet-settings";
-import { CustomerBlacklist } from "@/components/settings/customer-blacklist";
+import { useSettingsAttention } from "@/hooks/use-settings-attention";
+import { settingsHref, resolveSettingsSection, type SettingsSectionId } from "@/lib/settings-sections";
+import { SettingsNav } from "@/components/settings/settings-nav";
+import { SettingsOverview } from "@/components/settings/settings-overview";
 import { BusinessSettings } from "@/components/settings/business-settings";
 import { BillingSettings } from "@/components/settings/billing-settings";
-import { StaffAlertsSettings } from "@/components/settings/staff-alerts-settings";
 import { OrderReasonsManager } from "@/components/settings/order-reasons-manager";
-import { SupportVisitsSettings } from "@/components/settings/support-visits-settings";
+import { WhatsAppMessagesSettings } from "@/components/settings/whatsapp-messages-settings";
+import { DeliveryFeesSummary } from "@/components/settings/delivery-fees-summary";
+import { CustomerBlacklist } from "@/components/settings/customer-blacklist";
+import { WaseetSettingsPanel } from "@/components/settings/waseet-settings";
+import { PrintingSettings } from "@/components/settings/printing-settings";
+import { TeamAccessSettings } from "@/components/settings/team-access-settings";
+import { StaffAlertsSettings } from "@/components/settings/staff-alerts-settings";
+import { AccountSettings } from "@/components/settings/account-settings";
 
-function IntegrationsSettings() {
+function OrderReasonsSection() {
     const { t } = useLanguage();
     return (
-        <div className="space-y-6">
+        <div className="space-y-4" data-setting="order-reasons">
             <div>
-                <h2 className="text-2xl font-bold tracking-tight text-foreground">{t("settings.integrations.title")}</h2>
-                <p className="text-sm text-muted-foreground">{t("settings.integrations.subtitle")}</p>
+                <h2 className="text-2xl font-bold tracking-tight text-foreground">{t("settings.orders.reasons")}</h2>
+                <p className="text-sm text-muted-foreground">{t("settings.reasons.subtitle")}</p>
+            </div>
+            <div className="pastel-card p-4">
+                <OrderReasonsManager />
+            </div>
+        </div>
+    );
+}
+
+function WaseetSection() {
+    const { t } = useLanguage();
+    return (
+        <div className="space-y-4" data-setting="waseet">
+            <div>
+                <h2 className="text-2xl font-bold tracking-tight text-foreground">{t("settings.nav.waseet")}</h2>
+                <p className="text-sm text-muted-foreground">{t("settings.waseet.subtitle")}</p>
             </div>
             <WaseetSettingsPanel />
         </div>
     );
 }
 
-const SECTIONS = [
-    {
-        id: "business",
-        title: "settings.nav.business",
-        description: "settings.nav.businessDesc",
-        icon: Building2,
-        colorVar: "--pastel-orange",
-        iconColor: "text-orange-700",
-        component: BusinessSettings,
-        keywords: ["business", "tenant", "branding", "logo", "color", "plan", "subscription", "trial", "name", "contact"],
-    },
-    {
-        id: "billing",
-        title: "settings.nav.billing",
-        description: "settings.nav.billingDesc",
-        icon: CreditCard,
-        colorVar: "--pastel-green",
-        iconColor: "text-green-700",
-        component: BillingSettings,
-        keywords: ["billing", "wallet", "balance", "top-up", "usage", "plan", "subscription", "charge", "payment", "invoice"],
-    },
-    {
-        id: "general",
-        title: "settings.nav.general",
-        description: "settings.nav.generalDesc",
-        icon: Store,
-        colorVar: "--pastel-purple",
-        iconColor: "text-purple-700",
-        component: GeneralSettings,
-        keywords: ["store", "name", "currency", "timezone", "inventory", "notifications", "sound"],
-    },
-    {
-        id: "orders",
-        title: "settings.nav.orders",
-        description: "settings.nav.ordersDesc",
-        icon: Package,
-        colorVar: "--pastel-yellow",
-        iconColor: "text-amber-700",
-        component: OrderSettings,
-        keywords: ["orders", "delivery", "fees", "rejection", "workflow", "templates", "whatsapp", "governorate"],
-    },
-    {
-        id: "printing",
-        title: "settings.nav.printing",
-        description: "settings.nav.printingDesc",
-        icon: Printer,
-        colorVar: "--pastel-blue",
-        iconColor: "text-blue-700",
-        component: PrintingSettings,
-        keywords: ["printing", "labels", "size", "batch", "phone", "price", "4x6", "a4"],
-    },
-    {
-        id: "team",
-        title: "settings.nav.team",
-        description: "settings.nav.teamDesc",
-        icon: UsersRound,
-        colorVar: "--pastel-green",
-        iconColor: "text-green-700",
-        component: TeamSettings,
-        keywords: ["team", "users", "roles", "admin", "employee", "permissions", "invite"],
-    },
-    {
-        id: "integrations",
-        title: "settings.nav.integrations",
-        description: "settings.nav.integrationsDesc",
-        icon: Link2,
-        colorVar: "--pastel-mint",
-        iconColor: "text-teal-700",
-        component: IntegrationsSettings,
-        keywords: ["integrations", "waseet", "sync", "api", "token", "connect"],
-    },
-    {
-        id: "staff-alerts",
-        title: "settings.nav.staffAlerts",
-        description: "settings.nav.staffAlertsDesc",
-        icon: BellRing,
-        colorVar: "--pastel-yellow",
-        iconColor: "text-amber-700",
-        component: StaffAlertsSettings,
-        keywords: ["staff", "alerts", "whatsapp", "notify", "phone", "new order", "interakt"],
-    },
-    {
-        id: "order-reasons",
-        title: "settings.nav.orderReasons",
-        description: "settings.nav.orderReasonsDesc",
-        icon: PackageX,
-        colorVar: "--pastel-orange",
-        iconColor: "text-orange-700",
-        component: OrderReasonsManager,
-        keywords: ["reasons", "rejection", "cancel", "reject", "labels", "dropdown"],
-    },
-    {
-        id: "blacklist",
-        title: "settings.nav.blacklist",
-        description: "settings.nav.blacklistDesc",
-        icon: ShieldBan,
-        colorVar: "--pastel-pink",
-        iconColor: "text-rose-700",
-        component: CustomerBlacklist,
-        keywords: ["blacklist", "block", "customer", "phone", "ban", "fraud"],
-    },
-    {
-        id: "pages",
-        title: "settings.nav.pages",
-        description: "settings.nav.pagesDesc",
-        icon: LayoutDashboard,
-        colorVar: "--pastel-purple",
-        iconColor: "text-purple-700",
-        component: PageSettings,
-        keywords: ["pages", "access", "permissions", "roles", "control", "viewer"],
-    },
-    {
-        id: "support-activity",
-        title: "settings.nav.supportVisits",
-        description: "settings.nav.supportVisitsDesc",
-        icon: Headset,
-        colorVar: "--pastel-blue",
-        iconColor: "text-blue-700",
-        component: SupportVisitsSettings,
-        keywords: ["support", "staff", "access", "visits", "activity", "trust", "team"],
-    },
-    {
-        id: "data",
-        title: "settings.nav.data",
-        description: "settings.nav.dataDesc",
-        icon: Database,
-        colorVar: "--pastel-blue",
-        iconColor: "text-blue-700",
-        component: DataSettings,
-        keywords: ["data", "backup", "export", "csv", "restore", "snapshot", "download"],
-    },
-];
+function BlacklistSection() {
+    return (
+        <div data-setting="blacklist">
+            <CustomerBlacklist />
+        </div>
+    );
+}
+
+/** One screen per section; lib/settings-sections.ts holds the list and its groups. */
+const SECTION_SCREENS: Record<SettingsSectionId, ComponentType> = {
+    overview: SettingsOverview,
+    business: BusinessSettings,
+    billing: BillingSettings,
+    "order-reasons": OrderReasonsSection,
+    messages: WhatsAppMessagesSettings,
+    "delivery-fees": DeliveryFeesSummary,
+    blacklist: BlacklistSection,
+    waseet: WaseetSection,
+    label: PrintingSettings,
+    team: TeamAccessSettings,
+    "staff-alerts": StaffAlertsSettings,
+    account: AccountSettings,
+};
+
+/** How long a section may take to draw the block a link points at before we stop waiting. */
+const FOCUS_WAIT_MS = 6000;
+
+/**
+ * Scrolls to the `data-setting` block a search result or link names and lights
+ * it up for a moment. Sections load their data first, so it waits for the
+ * block to appear.
+ */
+function useFocusSetting(container: RefObject<HTMLElement | null>, section: SettingsSectionId, focus: string | null) {
+    useEffect(() => {
+        const root = container.current;
+        if (!root || !focus) return;
+        const selector = `[data-setting="${CSS.escape(focus)}"]`;
+        const light = (el: HTMLElement) => {
+            // Scroll only the settings pane (scrollIntoView would also move the page around it).
+            const top = el.getBoundingClientRect().top - root.getBoundingClientRect().top + root.scrollTop - 24;
+            root.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+            el.animate(
+                [
+                    { boxShadow: "0 0 0 3px rgb(251 227 142 / 1)", backgroundColor: "rgb(255 251 235 / 1)" },
+                    { boxShadow: "0 0 0 3px rgb(251 227 142 / 0)", backgroundColor: "rgb(255 251 235 / 0)" },
+                ],
+                { duration: 2400, easing: "ease-out" },
+            );
+        };
+        const found = root.querySelector<HTMLElement>(selector);
+        if (found) {
+            light(found);
+            return;
+        }
+        const observer = new MutationObserver(() => {
+            const el = root.querySelector<HTMLElement>(selector);
+            if (!el) return;
+            observer.disconnect();
+            light(el);
+        });
+        observer.observe(root, { childList: true, subtree: true });
+        const timer = window.setTimeout(() => observer.disconnect(), FOCUS_WAIT_MS);
+        return () => {
+            observer.disconnect();
+            window.clearTimeout(timer);
+        };
+    }, [container, section, focus]);
+}
 
 export default function SettingsPage() {
     return (
@@ -190,115 +126,40 @@ export default function SettingsPage() {
 }
 
 function SettingsPageContent() {
-    const requested = useSearchParams().get("section");
-    const [activeSection, setActiveSection] = useState(
-        SECTIONS.some((s) => s.id === requested) ? (requested as string) : "business",
-    );
-    const [search, setSearch] = useState("");
+    const params = useSearchParams();
+    const router = useRouter();
     const { t } = useLanguage();
+    const attention = useSettingsAttention();
+    const main = useRef<HTMLElement>(null);
 
-    const filtered = useMemo(() => {
-        if (!search.trim()) return SECTIONS;
-        const q = search.toLowerCase();
-        return SECTIONS.filter(
-            (s) =>
-                t(s.title).toLowerCase().includes(q) ||
-                t(s.description).toLowerCase().includes(q) ||
-                s.keywords.some((k) => k.includes(q))
-        );
-    }, [search, t]);
+    const resolved = resolveSettingsSection(params.get("section"));
+    const section = resolved.section;
+    const focus = params.get("focus") ?? resolved.focus;
+    useFocusSetting(main, section, focus);
 
-    const ActiveComponent =
-        SECTIONS.find((s) => s.id === activeSection)?.component || GeneralSettings;
+    const open = (next: SettingsSectionId, nextFocus?: string) => {
+        router.replace(settingsHref(next, nextFocus), { scroll: false });
+        if (next !== section) main.current?.scrollTo({ top: 0 });
+    };
+
+    const Screen = SECTION_SCREENS[section];
 
     return (
-        <div className="flex flex-col h-[calc(100vh-4rem)] bg-background">
-            {/* Page Header + Search — single row */}
-            <div className="flex items-center justify-between gap-4 px-6 py-4 shrink-0">
-                <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-(--pastel-purple) flex items-center justify-center shadow-sm">
-                        <Settings className="w-5 h-5 text-purple-700" />
-                    </div>
-                    <div>
-                        <h1 className="text-xl font-bold text-foreground leading-tight">{t("settings.page.title")}</h1>
-                        <p className="text-xs text-muted-foreground">{t("settings.page.subtitle")}</p>
-                    </div>
+        <div className="flex h-[calc(100vh-4rem)] flex-col bg-background">
+            <div className="flex shrink-0 items-center gap-3 px-6 py-4">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-(--ink)">
+                    <Settings className="h-5 w-5 text-white" />
                 </div>
-                <div className="relative w-56">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
-                    <input
-                        type="text"
-                        placeholder={t("settings.page.search")}
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        className="w-full pl-8 pr-4 h-8 rounded-xl border border-(--card-border) bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-(--pastel-purple) focus:border-transparent transition-all"
-                    />
-                </div>
+                <h1 className="text-xl font-bold leading-tight text-foreground">{t("settings.page.title")}</h1>
             </div>
 
-            {/* Main Layout */}
-            <div className="flex flex-col md:flex-row flex-1 overflow-hidden px-6 pb-6 gap-5 pt-0">
-                {/* Left: Nav Cards Grid */}
-                <div className="w-full md:w-72 shrink-0 overflow-y-auto">
-                    {filtered.length === 0 ? (
-                        <div className="text-sm text-muted-foreground text-center py-10">
-                            {t("settings.page.noResults", { q: search })}
-                        </div>
-                    ) : (
-                        <div className="grid grid-cols-2 gap-2.5">
-                            {filtered.map((section) => {
-                                const Icon = section.icon;
-                                const isActive = activeSection === section.id;
-                                return (
-                                    <button
-                                        key={section.id}
-                                        onClick={() => setActiveSection(section.id)}
-                                        className={cn(
-                                            "pastel-card p-3.5 flex flex-col gap-2.5 text-left transition-all duration-200 rounded-2xl border-2 group cursor-pointer",
-                                            isActive
-                                                ? "border-primary shadow-lg"
-                                                : "border-transparent hover:border-(--card-border)"
-                                        )}
-                                        style={isActive ? { background: "rgba(30,30,30,0.04)" } : undefined}
-                                    >
-                                        <div
-                                            className={cn(
-                                                "h-9 w-9 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110"
-                                            )}
-                                            style={{ background: `var(${section.colorVar})` }}
-                                        >
-                                            <Icon className={cn("h-4 w-4", section.iconColor)} />
-                                        </div>
-                                        <div className="min-w-0 flex-1">
-                                            <p className={cn("font-semibold text-sm leading-tight", isActive ? "text-foreground" : "text-foreground/80")}>
-                                                {t(section.title)}
-                                            </p>
-                                            <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight">
-                                                {t(section.description)}
-                                            </p>
-                                        </div>
-                                        {isActive && (
-                                            <div className="flex items-center gap-1">
-                                                <div className="w-1.5 h-1.5 rounded-full bg-(--button-success)" />
-                                                <span className="text-[10px] text-(--button-success) font-semibold uppercase tracking-wide">
-                                                    {t("settings.page.active")}
-                                                </span>
-                                            </div>
-                                        )}
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    )}
+            <div className="flex flex-1 gap-5 overflow-hidden px-6 pb-6">
+                <div className="w-64 shrink-0 overflow-y-auto pb-2">
+                    <SettingsNav active={section} attention={attention} onOpen={open} />
                 </div>
-
-                {/* Divider */}
-                <div className="hidden md:block w-px bg-(--card-border) shrink-0 my-1" />
-
-                {/* Right: Content Panel */}
-                <main className="flex-1 overflow-y-auto min-w-0">
-                    <div className="w-full animate-in fade-in duration-300">
-                        <ActiveComponent />
+                <main ref={main} className="min-w-0 flex-1 overflow-y-auto">
+                    <div key={section} className="mx-auto w-full max-w-5xl animate-in fade-in duration-200">
+                        <Screen />
                     </div>
                 </main>
             </div>

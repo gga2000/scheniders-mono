@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { loadAfterSalePickups } from "@/lib/after-sale/label-pickups";
 import { getQueueFlags, hasBlockingFlag } from "@/lib/dispatch-queue";
-import { shippingLabelsDocument, type LabelBrand } from "@/lib/shipping-labels";
+import { LABEL_PREVIEW_PX, shippingLabelsDocument, type LabelBrand } from "@/lib/shipping-labels";
 import { useLanguage } from "@/hooks/use-language";
 import type { Order } from "@/lib/supabase";
 
@@ -18,8 +18,8 @@ interface LabelPreviewRailProps {
     brand: LabelBrand;
 }
 
-// 80x120 mm at the CSS 96 dpi, shown at 90%.
-const LABEL_PX = { width: 302, height: 454 };
+// Shown at 90%.
+const LABEL_PX = LABEL_PREVIEW_PX;
 const SCALE = 0.9;
 
 /** The focused order's label, rendered by the same document the PDF and the printer get. */

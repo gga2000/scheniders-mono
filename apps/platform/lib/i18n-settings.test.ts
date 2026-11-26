@@ -23,14 +23,18 @@ const usedKeys = [
     ),
 ];
 
-const sectionKeys = [...readFileSync(files[0], "utf8").matchAll(/(?:title|description): "(settings\.nav\.[a-zA-Z]+)"/g)].map(
-    (m) => m[1],
-);
+describe("settings strings exist in both languages", async () => {
+    // The list, its groups and the search box read their names from the map.
+    const { SETTINGS_GROUPS, SETTINGS_SECTIONS, SETTINGS_SEARCH } = await import("./settings-sections");
+    const sectionKeys = [
+        ...SETTINGS_SECTIONS.map((s) => s.title),
+        ...SETTINGS_GROUPS.map((g) => g.title),
+        ...SETTINGS_SEARCH.map((e) => e.label),
+    ];
 
-describe("settings strings exist in both languages", () => {
     it("finds the keys", () => {
         expect(usedKeys.length).toBeGreaterThan(100);
-        expect(sectionKeys.length).toBeGreaterThan(10);
+        expect(sectionKeys.length).toBeGreaterThan(30);
     });
     for (const locale of ["en", "ar"] as const) {
         it(`${locale}: no missing key`, () => {

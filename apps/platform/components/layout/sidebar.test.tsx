@@ -27,6 +27,7 @@ vi.mock("@/hooks/use-products-query", () => ({ usePrefetchProducts: () => () => 
 vi.mock("@/hooks/use-prime-link", () => ({ usePrimeConnection: () => ({ connected: false, branchName: null, checked: true }) }));
 vi.mock("@/hooks/use-language", () => ({ useLanguage: () => ({ t: (k: string) => k }) }));
 vi.mock("@/components/ui/notification-center", () => ({ NotificationCenter: () => null }));
+vi.mock("@/hooks/use-settings-attention", () => ({ useSettingsAttention: () => [] }));
 vi.mock("./transition-link", () => ({
     TransitionLink: ({ href, children }: { href: string; children: ReactNode }) => <a href={href}>{children}</a>,
 }));

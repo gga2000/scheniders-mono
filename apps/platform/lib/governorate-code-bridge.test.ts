@@ -3,7 +3,6 @@ import { IRAQ_GOVERNORATES } from "@scheniders/shared";
 import { GOVERNORATES } from "./address-validator";
 import {
     PLATFORM_TO_SHARED_GOVERNORATE,
-    DELIVERY_FEE_GOVERNORATES,
     toSharedGovernorateCode,
     toPlatformGovernorateCode,
 } from "./governorate-code-bridge";
@@ -58,18 +57,6 @@ describe("governorate vocabularies", () => {
         expect(toSharedGovernorateCode("ZZZ")).toBeUndefined();
         expect(toSharedGovernorateCode(null)).toBeUndefined();
         expect(toPlatformGovernorateCode("ZZ")).toBeUndefined();
-    });
-
-    it("keeps the delivery-fee slugs describing the same eighteen provinces", () => {
-        // The slugs themselves must not change: they key every merchant's stored
-        // delivery_fees.governorates map, and renaming one drops the fee behind it.
-        expect(DELIVERY_FEE_GOVERNORATES).toHaveLength(18);
-        const sharedNames = new Set(IRAQ_GOVERNORATES.map((g) => g.name));
-        for (const g of DELIVERY_FEE_GOVERNORATES) {
-            expect(sharedNames.has(g.nameAr), `${g.id} (${g.nameAr}) is not a known province`).toBe(true);
-        }
-        expect(new Set(DELIVERY_FEE_GOVERNORATES.map((g) => g.id)).size).toBe(18);
-        expect(DELIVERY_FEE_GOVERNORATES.filter((g) => g.capital)).toHaveLength(1);
     });
 
     it("spot-checks a mapping by hand", () => {

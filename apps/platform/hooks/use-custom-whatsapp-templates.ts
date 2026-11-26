@@ -5,6 +5,7 @@ import { z } from "zod";
 import { CUSTOM_TEMPLATE_PURPOSES, type CustomTemplatePurpose } from "@scheniders/shared/whatsapp-custom-templates";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/auth/auth-provider";
+import { settingsHref } from "@/lib/settings-sections";
 
 /**
  * A shop's own paid wording for Fermi's automatic order messages
@@ -14,7 +15,7 @@ import { useAuth } from "@/components/auth/auth-provider";
  */
 
 /** Where the shop manages it, and where its bell lines lead. */
-export const CUSTOM_WHATSAPP_SETTINGS_PATH = "/settings?section=orders";
+export const CUSTOM_WHATSAPP_SETTINGS_PATH = settingsHref("messages", "custom-whatsapp");
 
 const customTemplateSchema = z.object({
     id: z.string(),

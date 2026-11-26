@@ -130,11 +130,16 @@ function afterSaleLines(order: Order, items: { name: string; qty: number }[], pi
     return `<div class="dl-as">${lines}</div>`;
 }
 
+/** The tape and perfume words as printed. */
+export const LABEL_FRAGILE_TEXT = "قابل للكسر · يُحمل بعناية";
+export const LABEL_GLASS_PREFIX = "زجاج · ";
+export const LABEL_PERFUME_TEXT = "يمنع فتح العطر منعاً باتاً";
+
 const fragileTape = (glass: boolean): string =>
-    `<div class="dl-tape"><div class="dl-tape-in">${WARNING_SIGN}<span>${glass ? "زجاج · " : ""}قابل للكسر · يُحمل بعناية</span>${GLASS_SIGN}</div></div>`;
+    `<div class="dl-tape"><div class="dl-tape-in">${WARNING_SIGN}<span>${glass ? LABEL_GLASS_PREFIX : ""}${LABEL_FRAGILE_TEXT}</span>${GLASS_SIGN}</div></div>`;
 
 /** Every parcel going out to a customer: the perfume stays sealed; the sample in the box is the tester. */
-const PERFUME_WARNING = `<div class="dl-perf">${NO_OPEN_SIGN}<div class="dl-perf-t"><b>يمنع فتح العطر منعاً باتاً</b><span>يتم الاختبار حصراً من خلال العينة المرفقة</span></div></div>`;
+const PERFUME_WARNING = `<div class="dl-perf">${NO_OPEN_SIGN}<div class="dl-perf-t"><b>${LABEL_PERFUME_TEXT}</b><span>يتم الاختبار حصراً من خلال العينة المرفقة</span></div></div>`;
 
 function dispatchSlotPill(slot: DeliverySlot, stacked: boolean): string {
     if (!stacked) return `<span class="dl-slot"><small>وقت التوصيل</small><b>${escapeHtml(formatDeliverySlot(slot, "ar"))}</b></span>`;

@@ -1,144 +1,165 @@
 "use client";
 
+import { useState } from "react";
+import { Loader2, Save } from "lucide-react";
+import { SettingsPreviewPane, SettingsWithPreview } from "@/components/settings/settings-preview";
 import { useLanguage } from "@/hooks/use-language";
-import { useEffect, useState } from "react";
+import { usePrimeConnection } from "@/hooks/use-prime-link";
 import { readSetting, useSettings, type SettingValue } from "@/hooks/use-settings";
-import { Save, Printer } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
+import { SETTINGS_SAMPLE_ORDER } from "@/lib/settings-sample-order";
+import { LABEL_PREVIEW_PX, shippingLabelsDocument, type LabelBrand } from "@/lib/shipping-labels";
+import { cn } from "@/lib/utils";
 
+/**
+ * The two shipping-label lines a shop can switch on. They are the only print
+ * settings the label reads (useLabelBrand); size, phone, price and batch
+ * grouping used to sit here but printing never read them.
+ */
 export function PrintingSettings() {
     const { settings, updateSetting, loading } = useSettings();
     const { t } = useLanguage();
-    const [printSettings, setPrintSettings] = useState<SettingValue<"print_settings">>({});
+    const prime = usePrimeConnection();
+    // The switches as edited; null = nothing changed, so they show what is saved.
+    const [draft, setDraft] = useState<SettingValue<"print_settings"> | null>(null);
     const [isSaving, setIsSaving] = useState(false);
-
-    useEffect(() => {
-        if (settings.print_settings) setPrintSettings(readSetting(settings, "print_settings"));
-    }, [settings]);
+    const printSettings = draft ?? readSetting(settings, "print_settings");
+    const setPrintSettings = (next: SettingValue<"print_settings">) => setDraft(next);
 
     const handleSave = async () => {
         setIsSaving(true);
-        await updateSetting("print_settings", printSettings);
+        const result = await updateSetting("print_settings", printSettings);
         setIsSaving(false);
+        if (result.success) {
+            setDraft(null);
+            toast.success(t("settings.print.saved"));
+        } else toast.error(t("settings.print.saveFailed"), result.error);
     };
 
-    if (loading) return <div className="text-muted">{t("common.loading")}</div>;
+    if (loading) {
+        return (
+            <div className="flex items-center gap-2 py-10 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                {t("common.loading")}
+            </div>
+        );
+    }
+
+    const fragile = printSettings.fragile_warning === true;
+    const perfume = printSettings.perfume_warning === true;
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-4">
             <div>
-                <h2 className="text-2xl font-bold tracking-tight text-foreground">{t("settings.print.title")}</h2>
-                <p className="text-muted">{t("settings.print.subtitle")}</p>
+                <h2 className="text-2xl font-bold tracking-tight text-foreground">{t("settings.print.label")}</h2>
+                <p className="text-sm text-muted-foreground">{t("settings.print.subtitle")}</p>
             </div>
 
-            <div className="grid gap-6 md:grid-cols-2">
-                <div className="pastel-card p-6">
-                    <div className="flex items-center gap-2 mb-6">
-                        <div className="w-8 h-8 rounded-lg bg-[var(--pastel-purple)] flex items-center justify-center">
-                            <Printer className="h-4 w-4 text-purple-700" />
-                        </div>
-                        <h3 className="text-lg font-semibold text-foreground">{t("settings.print.label")}</h3>
-                    </div>
-
-                    <div className="space-y-6">
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium text-foreground">{t("settings.print.size")}</label>
-                            <select
-                                className="flex h-10 w-full rounded-xl border border-[var(--card-border)] bg-[var(--background)] px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-green)] focus:border-transparent"
-                                value={printSettings.label_size || "4x6"}
-                                onChange={(e) => setPrintSettings({ ...printSettings, label_size: e.target.value })}
-                            >
-                                <option value="4x6">{t("settings.print.thermal")}</option>
-                                <option value="a4">{t("settings.print.a4")}</option>
-                            </select>
-                        </div>
-
-                        <div className="space-y-4 pt-4 border-t border-[var(--card-border)]">
-                            <div className="flex items-center justify-between">
-                                <label className="text-sm font-medium text-foreground">{t("settings.print.showPrice")}</label>
-                                <button
-                                    onClick={() => setPrintSettings({ ...printSettings, show_price: !printSettings.show_price })}
-                                    className={`w-12 h-6 rounded-full transition-all ${printSettings.show_price !== false ? 'bg-[var(--button-success)]' : 'bg-gray-300'}`}
-                                >
-                                    <div className={`w-5 h-5 rounded-full bg-white shadow-sm transition-transform ${printSettings.show_price !== false ? 'translate-x-6' : 'translate-x-0.5'}`} />
-                                </button>
-                            </div>
-                            <div className="flex items-center justify-between">
-                                <label className="text-sm font-medium text-foreground">{t("settings.print.showPhone")}</label>
-                                <button
-                                    onClick={() => setPrintSettings({ ...printSettings, show_phone: !printSettings.show_phone })}
-                                    className={`w-12 h-6 rounded-full transition-all ${printSettings.show_phone !== false ? 'bg-[var(--button-success)]' : 'bg-gray-300'}`}
-                                >
-                                    <div className={`w-5 h-5 rounded-full bg-white shadow-sm transition-transform ${printSettings.show_phone !== false ? 'translate-x-6' : 'translate-x-0.5'}`} />
-                                </button>
-                            </div>
-                            <div className="flex items-center justify-between gap-4">
-                                <div>
-                                    <label id="print-fragile-warning" className="text-sm font-medium text-foreground">{t("settings.print.fragileWarning")}</label>
-                                    <p className="text-xs text-muted">{t("settings.print.fragileWarningHint")}</p>
-                                </div>
-                                <button
-                                    type="button"
-                                    role="switch"
-                                    aria-checked={printSettings.fragile_warning === true}
-                                    aria-labelledby="print-fragile-warning"
-                                    onClick={() => setPrintSettings({ ...printSettings, fragile_warning: printSettings.fragile_warning !== true })}
-                                    className={`w-12 h-6 shrink-0 rounded-full transition-all ${printSettings.fragile_warning === true ? 'bg-[var(--button-success)]' : 'bg-gray-300'}`}
-                                >
-                                    <div className={`w-5 h-5 rounded-full bg-white shadow-sm transition-transform ${printSettings.fragile_warning === true ? 'translate-x-6' : 'translate-x-0.5'}`} />
-                                </button>
-                            </div>
-                            <div className="flex items-center justify-between gap-4">
-                                <div>
-                                    <label id="print-perfume-warning" className="text-sm font-medium text-foreground">{t("settings.print.perfumeWarning")}</label>
-                                    <p className="text-xs text-muted">{t("settings.print.perfumeWarningHint")}</p>
-                                </div>
-                                <button
-                                    type="button"
-                                    role="switch"
-                                    aria-checked={printSettings.perfume_warning === true}
-                                    aria-labelledby="print-perfume-warning"
-                                    onClick={() => setPrintSettings({ ...printSettings, perfume_warning: printSettings.perfume_warning !== true })}
-                                    className={`w-12 h-6 shrink-0 rounded-full transition-all ${printSettings.perfume_warning === true ? 'bg-[var(--button-success)]' : 'bg-gray-300'}`}
-                                >
-                                    <div className={`w-5 h-5 rounded-full bg-white shadow-sm transition-transform ${printSettings.perfume_warning === true ? 'translate-x-6' : 'translate-x-0.5'}`} />
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="pastel-card p-6">
-                    <div className="flex items-center gap-2 mb-6">
-                        <div className="w-8 h-8 rounded-lg bg-[var(--pastel-yellow)] flex items-center justify-center text-amber-700 text-xs font-bold">B</div>
-                        <h3 className="text-lg font-semibold text-foreground">{t("settings.print.batching")}</h3>
-                    </div>
-                    <div className="space-y-6">
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium text-foreground">{t("settings.print.grouping")}</label>
-                            <p className="text-xs text-muted">{t("settings.print.groupingHint")}</p>
-                            <select
-                                className="flex h-10 w-full rounded-xl border border-[var(--card-border)] bg-[var(--background)] px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-green)] focus:border-transparent"
-                                value={printSettings.batch_grouping || "city"}
-                                onChange={(e) => setPrintSettings({ ...printSettings, batch_grouping: e.target.value })}
-                            >
-                                <option value="city">{t("settings.print.byCity")}</option>
-                                <option value="all">{t("settings.print.single")}</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div className="mt-8">
+            <SettingsWithPreview
+                preview={
+                    <SettingsPreviewPane
+                        title={t("settings.preview.courier")}
+                        hint={t("settings.preview.live")}
+                        caption={t("settings.preview.labelCaption")}
+                    >
+                        <LabelPreview brand={{ primeLogo: prime.connected, fragileWarning: fragile, perfumeWarning: perfume }} />
+                    </SettingsPreviewPane>
+                }
+            >
+                <div className="pastel-card p-2">
+                    <LabelSwitch
+                        id="print-fragile-warning"
+                        focus="label-fragile"
+                        label={t("settings.print.fragileWarning")}
+                        hint={t("settings.print.fragileWarningHint")}
+                        checked={fragile}
+                        onToggle={() => setPrintSettings({ ...printSettings, fragile_warning: !fragile })}
+                    />
+                    <div className="mx-4 border-t border-(--card-border)" />
+                    <LabelSwitch
+                        id="print-perfume-warning"
+                        focus="label-perfume"
+                        label={t("settings.print.perfumeWarning")}
+                        hint={t("settings.print.perfumeWarningHint")}
+                        checked={perfume}
+                        onToggle={() => setPrintSettings({ ...printSettings, perfume_warning: !perfume })}
+                    />
+                    <div className="flex justify-end px-4 pb-3 pt-2">
                         <button
+                            type="button"
                             onClick={handleSave}
                             disabled={isSaving}
-                            className="w-full inline-flex items-center justify-center rounded-xl text-sm font-semibold transition-colors disabled:opacity-50 bg-[var(--button-success)] text-white hover:bg-[var(--button-success-hover)] h-10 px-4 py-2 shadow-sm"
+                            className="inline-flex h-9 items-center gap-2 rounded-xl bg-(--ink) px-4 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
                         >
-                            {isSaving ? t("common.saving") : <><Save className="h-4 w-4 mr-2" /> {t("settings.print.save")}</>}
+                            {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                            {isSaving ? t("common.saving") : t("settings.print.save")}
                         </button>
                     </div>
                 </div>
-            </div>
+            </SettingsWithPreview>
         </div>
     );
 }
 
+function LabelSwitch({
+    id,
+    focus,
+    label,
+    hint,
+    checked,
+    onToggle,
+}: {
+    id: string;
+    focus: string;
+    label: string;
+    hint: string;
+    checked: boolean;
+    onToggle: () => void;
+}) {
+    return (
+        <div data-setting={focus} className="flex items-center justify-between gap-4 rounded-xl px-4 py-3">
+            <div className="min-w-0">
+                <p id={id} className="text-sm font-semibold text-foreground"><bdi>{label}</bdi></p>
+                <p className="text-xs text-muted-foreground"><bdi>{hint}</bdi></p>
+            </div>
+            <button
+                type="button"
+                role="switch"
+                aria-checked={checked}
+                aria-labelledby={id}
+                onClick={onToggle}
+                className={cn(
+                    "relative h-6 w-11 shrink-0 rounded-full transition-colors",
+                    checked ? "bg-(--button-success)" : "bg-neutral-300 dark:bg-neutral-600",
+                )}
+            >
+                <span
+                    className={cn(
+                        "absolute left-0 top-1 h-4 w-4 rounded-full bg-white shadow-sm transition-transform",
+                        checked ? "translate-x-6" : "translate-x-1",
+                    )}
+                />
+            </button>
+        </div>
+    );
+}
+
+/** The real label for a sample order: the same document the printer and the PDF get, at 90%. */
+function LabelPreview({ brand }: { brand: LabelBrand }) {
+    const { t } = useLanguage();
+    const scale = 0.9;
+    return (
+        <div
+            className="relative mx-auto overflow-hidden rounded-md bg-white shadow-[0_18px_40px_-18px_rgba(40,30,10,0.35)]"
+            style={{ width: LABEL_PREVIEW_PX.width * scale, height: LABEL_PREVIEW_PX.height * scale }}
+        >
+            <iframe
+                title={t("settings.preview.labelTitle")}
+                srcDoc={shippingLabelsDocument([SETTINGS_SAMPLE_ORDER], brand)}
+                sandbox=""
+                className="pointer-events-none absolute left-0 top-0 origin-top-left border-0"
+                style={{ width: LABEL_PREVIEW_PX.width, height: LABEL_PREVIEW_PX.height, transform: `scale(${scale})` }}
+            />
+        </div>
+    );
+}

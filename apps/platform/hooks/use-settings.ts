@@ -15,38 +15,26 @@ export interface AppSetting {
     tenant_id?: string;
 }
 
-// Default settings fallback
+// Default settings fallback. Only keys something in the app reads live here:
+// the Settings page used to save store_profile, delivery_fees, inventory_rules,
+// auto_archive, quick_actions and notification_settings, but no page, label or
+// checkout ever read them, so they were removed with the page rebuild.
 const DEFAULT_SETTINGS: Record<string, unknown> = {
-    store_profile: { name: "My Store", currency: "IQD", timezone: "Asia/Baghdad" },
-    delivery_fees: { default: 5000, baghdad: 5000, provinces: 8000, free_shipping_threshold: 0 },
-    inventory_rules: { low_stock_threshold: 5, enable_stock_alerts: true },
-    print_settings: { label_size: "4x6", show_price: true, show_phone: true, batch_grouping: "city" },
-    auto_archive: { enabled: false, days: 60, archive_canceled: true, archive_delivered: true },
-    quick_actions: { show_cancel: true, show_reject: true, show_whatsapp: true, show_print: true },
-    notification_settings: { toast_enabled: true },
+    print_settings: { fragile_warning: false, perfume_warning: false },
 };
 
 // Stored as free JSON per tenant: a field of the wrong type reads as unset, and
 // fields a form does not know are kept so saving it does not drop them.
-const str = z.string().optional().catch(undefined);
-const num = z.number().optional().catch(undefined);
 const flag = z.boolean().optional().catch(undefined);
 type Loose<T> = T & { [field: string]: unknown };
 interface SettingValues {
-    store_profile: Loose<{ name?: string; currency?: string; timezone?: string }>;
-    inventory_rules: Loose<{ low_stock_threshold?: number; enable_stock_alerts?: boolean }>;
-    print_settings: Loose<{ label_size?: string; show_price?: boolean; show_phone?: boolean; batch_grouping?: string; fragile_warning?: boolean; perfume_warning?: boolean }>;
-    auto_archive: Loose<{ enabled?: boolean; days?: number; archive_canceled?: boolean; archive_delivered?: boolean }>;
-    quick_actions: Loose<{ show_cancel?: boolean; show_reject?: boolean; show_whatsapp?: boolean; show_print?: boolean }>;
-    notification_settings: Loose<{ toast_enabled?: boolean }>;
+    print_settings: Loose<{ fragile_warning?: boolean; perfume_warning?: boolean }>;
+    /** Written by /api/settings/staff-alert (lib/staff-alerts.ts); read here for the Settings overview. */
+    staff_alert_numbers: Loose<{ enabled?: boolean; numbers?: unknown[] }>;
 }
 const SETTING_SCHEMAS: { [K in keyof SettingValues]: z.ZodType<SettingValues[K]> } = {
-    store_profile: z.looseObject({ name: str, currency: str, timezone: str }).catch({}),
-    inventory_rules: z.looseObject({ low_stock_threshold: num, enable_stock_alerts: flag }).catch({}),
-    print_settings: z.looseObject({ label_size: str, show_price: flag, show_phone: flag, batch_grouping: str, fragile_warning: flag, perfume_warning: flag }).catch({}),
-    auto_archive: z.looseObject({ enabled: flag, days: num, archive_canceled: flag, archive_delivered: flag }).catch({}),
-    quick_actions: z.looseObject({ show_cancel: flag, show_reject: flag, show_whatsapp: flag, show_print: flag }).catch({}),
-    notification_settings: z.looseObject({ toast_enabled: flag }).catch({}),
+    print_settings: z.looseObject({ fragile_warning: flag, perfume_warning: flag }).catch({}),
+    staff_alert_numbers: z.looseObject({ enabled: flag, numbers: z.array(z.unknown()).optional().catch(undefined) }).catch({}),
 };
 export type SettingValue<K extends keyof SettingValues> = SettingValues[K];
 
@@ -61,7 +49,7 @@ export function useSettings() {
 
     const queryKey = ["app-settings", tenantId];
 
-    const { data: settings = DEFAULT_SETTINGS, isLoading: loading, error, refetch } = useQuery({
+    const { data: settings = DEFAULT_SETTINGS, isLoading: loading, isSuccess: loaded, error, refetch } = useQuery({
         queryKey,
         queryFn: async () => {
             // RLS filters by tenant automatically
@@ -139,6 +127,8 @@ export function useSettings() {
     return {
         settings,
         loading,
+        /** True once the shop's saved rows are in (until then `settings` holds only the defaults). */
+        loaded,
         error: error ? (error instanceof Error ? error.message : "Failed to fetch") : null,
         updateSetting,
         get,

@@ -31,6 +31,7 @@ import { useLanguage } from "@/hooks/use-language";
 import { useMemo, useState, type ComponentType } from "react";
 import { canAccessRoute, filterNavSections } from "@/lib/route-permissions";
 import { NotificationCenter } from "@/components/ui/notification-center";
+import { useSettingsAttention } from "@/hooks/use-settings-attention";
 import { TransitionLink } from "./transition-link";
 import { NavInkIcon } from "./nav-ink-icon";
 
@@ -153,6 +154,9 @@ export function Sidebar({
         </div>
     );
     const canOpenSettings = canAccessRoute("/settings", role, permissions);
+    // The number on the gear: Settings items that need the shop (wallet running
+    // out, no staff alert number, no WhatsApp number). See lib/settings-attention.ts.
+    const settingsAttention = useSettingsAttention(canOpenSettings).length;
     const prefetchProducts = usePrefetchProducts();
     const { t } = useLanguage();
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -454,12 +458,17 @@ export function Sidebar({
                                 {canOpenSettings && <Link
                                     href="/settings"
                                     className={cn(
-                                        "flex items-center justify-center rounded-xl text-zinc-400 hover:text-white hover:bg-white/6 transition-all",
+                                        "relative flex items-center justify-center rounded-xl text-zinc-400 hover:text-white hover:bg-white/6 transition-all",
                                         collapsed ? "w-10 h-10" : "flex-1 h-9"
                                     )}
-                                    title={t("nav.settings")}
+                                    title={settingsAttention > 0 ? t("nav.settingsAttention", { count: settingsAttention }) : t("nav.settings")}
                                 >
                                     <Settings className="w-[18px] h-[18px]" />
+                                    {settingsAttention > 0 && (
+                                        <span className="absolute right-1 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold leading-none text-white">
+                                            {settingsAttention}
+                                        </span>
+                                    )}
                                 </Link>}
                                 {!collapsed && <div className="w-px self-center h-5 bg-white/8" />}
                                 <button
