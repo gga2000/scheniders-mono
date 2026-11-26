@@ -220,7 +220,8 @@ export type AdminAction =
   | "manage_demo_store"
   | "manage_admins"
   | "review_trials"
-  | "import_products";
+  | "import_products"
+  | "review_whatsapp_templates";
 
 // Merchant table column definitions
 export type MerchantColumnId =

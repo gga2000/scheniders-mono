@@ -72,6 +72,11 @@ export function NotificationFeedList({
             return next;
         });
     const money = (n: number) => (revealed ? formatIQD(n) : FINANCIAL_MASK);
+    /** Which order message a shop's own wording line is about (whatsapp.custom_*). */
+    const customWaMessage = (n: FeedNotification) => {
+        const purpose = payloadText(n, "purpose");
+        return purpose ? t(`customWa.purpose.${purpose}`) : "";
+    };
     const orderStatusLabel = useStatusLabel();
     const dateLocale = language === "ar" ? arLocale : enLocale;
     // Strict, not the fuzzy form: "منذ 13 ساعة" instead of "منذ 13 ساعة تقريباً".
@@ -175,6 +180,12 @@ export function NotificationFeedList({
                         ? "notifications.wallet.autoRefillCardRemoved"
                         : n.payload.stopped === true ? "notifications.wallet.autoRefillStopped" : "notifications.wallet.autoRefillFailed",
                     { amount: money(payloadNumber(n, "amount")) });
+            case "whatsapp.custom_live":
+                return t("notifications.customWa.live", { message: customWaMessage(n) });
+            case "whatsapp.custom_rejected":
+                return t(
+                    payloadText(n, "by") === "meta" ? "notifications.customWa.rejectedMeta" : "notifications.customWa.rejectedFermi",
+                    { message: customWaMessage(n), amount: money(payloadNumber(n, "amount")), reason: payloadText(n, "reason") ?? "" });
             case "customer.review_created": {
                 const rating = typeof n.payload.rating === "number" ? n.payload.rating : null;
                 return t("notifications.msgReview",

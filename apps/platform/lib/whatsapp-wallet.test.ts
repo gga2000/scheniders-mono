@@ -33,6 +33,8 @@ const { sendTemplateMessage, sendNamedTemplate, sendStaffAlertMessage } = await 
 const { WHATSAPP_TEMPLATES } = await import("@scheniders/shared/whatsapp-templates");
 const { categorizeWhatsAppFailure } = await import("./whatsapp-error-handler");
 
+/** The confirmation a refused send would have gone out as (Fermi's own; the test shop has no custom one). */
+const CONFIRM = WHATSAPP_TEMPLATES.confirmation.name;
 const TENANT = "11111111-1111-4111-8111-111111111111";
 const order = {
     id: "uuid-1",
@@ -62,7 +64,7 @@ describe("WhatsApp paid from the shop's wallet", () => {
     it("a shop that cannot pay is not sent and Interakt is never called", async () => {
         refusal.mockResolvedValue(WALLET_EMPTY);
         const res = await sendTemplateMessage(order, "confirmation");
-        expect(res).toEqual({ success: false, error: WALLET_EMPTY });
+        expect(res).toEqual({ success: false, error: WALLET_EMPTY, templateName: CONFIRM });
         expect(refusal).toHaveBeenCalledWith(TENANT, "utility");
         expect(fetchMock).not.toHaveBeenCalled();
 
@@ -83,7 +85,7 @@ describe("WhatsApp paid from the shop's wallet", () => {
     it("a trial past its free messages is not sent, and the order says why", async () => {
         refusal.mockResolvedValue(TRIAL_CAP);
         const res = await sendTemplateMessage(order, "confirmation");
-        expect(res).toEqual({ success: false, error: TRIAL_CAP });
+        expect(res).toEqual({ success: false, error: TRIAL_CAP, templateName: CONFIRM });
         expect(fetchMock).not.toHaveBeenCalled();
         const flags = categorizeWhatsAppFailure(res, "7209", "0770");
         expect(flags.attention_reasons).toEqual(["whatsapp_trial_cap"]);
@@ -112,7 +114,7 @@ describe("a store paused to protect the shared number", () => {
     it("is not sent, Interakt is never called, and the order says to confirm by hand", async () => {
         refusal.mockResolvedValue("Store's automatic WhatsApp is paused");
         const res = await sendTemplateMessage(order, "confirmation");
-        expect(res).toEqual({ success: false, error: "Store's automatic WhatsApp is paused" });
+        expect(res).toEqual({ success: false, error: "Store's automatic WhatsApp is paused", templateName: CONFIRM });
         expect(fetchMock).not.toHaveBeenCalled();
         expect(daySlot).not.toHaveBeenCalled();
         const flags = categorizeWhatsAppFailure(res, "7209", "0770");
@@ -126,7 +128,7 @@ describe("each store's daily WhatsApp limit", () => {
         refusal.mockResolvedValue(null);
         daySlot.mockResolvedValue(false);
         const res = await sendTemplateMessage(order, "confirmation");
-        expect(res).toEqual({ success: false, error: "Store reached today's WhatsApp limit" });
+        expect(res).toEqual({ success: false, error: "Store reached today's WhatsApp limit", templateName: CONFIRM });
         expect(daySlot).toHaveBeenCalledWith(TENANT);
 
         const named = await sendNamedTemplate({ tenantId: TENANT, phone: "07701234567", template: WHATSAPP_TEMPLATES.deliveryUpdate, bodyValues: ["a"], label: "7209" });
@@ -154,7 +156,7 @@ describe("the demo store (Fermi B13)", () => {
 
     it("is told demo, not sent, before the shared number's list, and nothing goes out", async () => {
         refusal.mockResolvedValue(DEMO);
-        expect(await sendTemplateMessage(demoOrder, "confirmation")).toEqual({ success: false, error: DEMO });
+        expect(await sendTemplateMessage(demoOrder, "confirmation")).toEqual({ success: false, error: DEMO, templateName: CONFIRM });
         expect(await sendNamedTemplate({ tenantId: demoOrder.tenant_id!, phone: "07701234567", template: WHATSAPP_TEMPLATES.deliveryUpdate, bodyValues: ["a"], label: "7209" }))
             .toEqual({ success: false, error: DEMO });
         expect(await sendStaffAlertMessage(demoOrder, "07801234567")).toEqual({ success: false, error: DEMO });
@@ -165,7 +167,7 @@ describe("the demo store (Fermi B13)", () => {
     it("a store off the shared number's list is still refused for that", async () => {
         refusal.mockResolvedValue(null);
         const res = await sendTemplateMessage(demoOrder, "confirmation");
-        expect(res).toEqual({ success: false, error: "This store is not set up to send WhatsApp from the shared number" });
+        expect(res).toEqual({ success: false, error: "This store is not set up to send WhatsApp from the shared number", templateName: CONFIRM });
     });
 
     it("its order is not flagged for a message that never went", async () => {

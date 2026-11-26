@@ -116,10 +116,9 @@ async function handlePost(request: NextRequest) {
             }
         }
 
-        const templateName = TEMPLATE_NAMES[templateType];
-
-        // Send the template via Interakt
+        // Send the template via Interakt (the shop's paid custom wording when it has one on)
         const result = await sendTemplateMessage(order, templateType, overridePhone, discountPercent, customPrice);
+        const templateName = result.templateName ?? TEMPLATE_NAMES[templateType];
 
         // Log the outbound message to supabase
         try {

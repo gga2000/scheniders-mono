@@ -62,9 +62,27 @@ export const DISCOUNT_TEMPLATE_NAMES: readonly string[] = [
     ORDER_TEMPLATES.discount,
 ];
 
+/**
+ * A shop's own paid wording for an order message is a template of its own:
+ * custom_<purpose>_<shop number>_<n> (whatsapp-custom-templates.ts). It is
+ * logged under that name and counts as the message it replaces.
+ */
+const CUSTOM_TEMPLATE_NAME = /^custom_(confirmation|reminder|discount)_\d+_\d+$/;
+
+/** Which order message a shop's custom template replaces, or null for any other name. */
+export function customTemplatePurposeOf(templateName: string | null | undefined): OrderTemplateType | null {
+    const match = templateName ? CUSTOM_TEMPLATE_NAME.exec(templateName) : null;
+    return match ? (match[1] as OrderTemplateType) : null;
+}
+
+/** Names a shop's custom confirmation is logged under start with this (for a LIKE). */
+export const CUSTOM_CONFIRMATION_NAME_PREFIX = "custom_confirmation_";
+
 /** What a logged message was for, from any name it was ever sent under. */
 export function whatsappPurposeOf(templateName: string | null | undefined): WhatsAppPurpose | "other" {
     if (!templateName) return "other";
+    const custom = customTemplatePurposeOf(templateName);
+    if (custom) return custom;
     if (CONFIRMATION_TEMPLATE_NAMES.includes(templateName)) return "confirmation";
     if (REMINDER_TEMPLATE_NAMES.includes(templateName)) return "reminder";
     if (DISCOUNT_TEMPLATE_NAMES.includes(templateName)) return "discount";

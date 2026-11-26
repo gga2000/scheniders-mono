@@ -8681,6 +8681,74 @@ export type Database = {
           },
         ]
       }
+      whatsapp_custom_templates: {
+        Row: {
+          body: string
+          category: string | null
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          id: string
+          in_use: boolean
+          price_iqd: number
+          purpose: string
+          reason: string | null
+          refunded_at: string | null
+          requested_by: string | null
+          sent_to_meta_at: string | null
+          sent_to_meta_by: string | null
+          status: string
+          template_name: string
+          tenant_id: string
+        }
+        Insert: {
+          body: string
+          category?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          in_use?: boolean
+          price_iqd: number
+          purpose: string
+          reason?: string | null
+          refunded_at?: string | null
+          requested_by?: string | null
+          sent_to_meta_at?: string | null
+          sent_to_meta_by?: string | null
+          status?: string
+          template_name: string
+          tenant_id: string
+        }
+        Update: {
+          body?: string
+          category?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          in_use?: boolean
+          price_iqd?: number
+          purpose?: string
+          reason?: string | null
+          refunded_at?: string | null
+          requested_by?: string | null
+          sent_to_meta_at?: string | null
+          sent_to_meta_by?: string | null
+          status?: string
+          template_name?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_custom_templates_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       whatsapp_logs: {
         Row: {
           created_at: string | null
@@ -9122,6 +9190,16 @@ export type Database = {
         }
         Returns: number
       }
+      admin_custom_whatsapp_template_step: {
+        Args: {
+          p_admin_id: string
+          p_category?: string
+          p_id: string
+          p_reason?: string
+          p_step: string
+        }
+        Returns: Json
+      }
       admin_topup_queue: { Args: never; Returns: Json }
       admin_topup_wallet: {
         Args: {
@@ -9408,6 +9486,18 @@ export type Database = {
           _paid_product_ids: string[]
           _tenant_id: string
         }
+        Returns: Json
+      }
+      custom_whatsapp_template_price: {
+        Args: { _tenant_id: string }
+        Returns: number
+      }
+      custom_whatsapp_template_problem: {
+        Args: { _body: string; _purpose: string }
+        Returns: string
+      }
+      custom_whatsapp_templates: {
+        Args: { p_tenant_id: string }
         Returns: Json
       }
       decide_wallet_topup_request: {
@@ -10046,6 +10136,10 @@ export type Database = {
         Args: { _expected_period_end: string; _subscription_id: string }
         Returns: Json
       }
+      request_custom_whatsapp_template: {
+        Args: { p_body: string; p_purpose: string; p_tenant_id: string }
+        Returns: Json
+      }
       resolve_order_creation_actor: {
         Args: { p_order: Database["public"]["Tables"]["orders"]["Row"] }
         Returns: Record<string, unknown>
@@ -10285,6 +10379,10 @@ export type Database = {
         Args: { _split_log_id: string; _tenant_id?: string }
         Returns: Json
       }
+      use_custom_whatsapp_template: {
+        Args: { p_id: string; p_use: boolean }
+        Returns: Json
+      }
       void_payroll: { Args: { p_record_id: string }; Returns: undefined }
       uuid_generate_v4: { Args: never; Returns: string }
       value_tier_calc: { Args: { p_completed: number }; Returns: string }
@@ -10308,6 +10406,10 @@ export type Database = {
       }
       whatsapp_usage: { Args: { p_tenant_id: string }; Returns: Json }
       whatsapp_watch: { Args: never; Returns: Json }
+      withdraw_custom_whatsapp_template: {
+        Args: { p_id: string }
+        Returns: Json
+      }
     }
     Enums: {
       commission_status: "pending" | "approved" | "paid"

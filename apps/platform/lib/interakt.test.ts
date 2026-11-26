@@ -31,6 +31,8 @@ vi.mock("@/lib/env", () => ({
 }));
 
 import { sendTemplateMessage, shopperName, shopperText, storeContactFrom } from "./interakt";
+import { whatsappSendRefusal } from "@/lib/whatsapp-wallet";
+import { setTestCustomTemplate } from "@/lib/testing/store-contact-service-client";
 
 const fetchMock = vi.fn();
 
@@ -207,5 +209,62 @@ describe("storeContactFrom", () => {
         expect(storeContactFrom({ business_name: "", contact_phone: "07701111111", store_config: null })).toBeNull();
         expect(storeContactFrom({ business_name: "متجر https://evil.example", contact_phone: "07701111111", store_config: null })?.name)
             .toBe("متجر");
+    });
+});
+
+describe("a shop's paid custom message", () => {
+    afterEach(() => setTestCustomTemplate(null));
+
+    it("goes out under the shop's template name, its fields filled in the order they appear", async () => {
+        setTestCustomTemplate({
+            template_name: "custom_confirmation_100095_2",
+            body: "هلا {customer_name}، طلبك {order_number} من {store_name} وصلنا. المبلغ {total}. للاستفسار {store_name} على {store_whatsapp} وشكراً",
+            category: "utility",
+        });
+        const res = await sendTemplateMessage(makeOrder({ delivery_fee: 5000, source: "storefront" } as Partial<Order>), "confirmation");
+
+        expect(res.success).toBe(true);
+        expect(res.templateName).toBe("custom_confirmation_100095_2");
+        const sent = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+        expect(sent.template.name).toBe("custom_confirmation_100095_2");
+        expect(sent.template.languageCode).toBe("ar");
+        expect(sent.template.headerValues).toEqual(["https://schenidersapp.xyz/whatsapp/order-confirm.png"]);
+        expect(sent.template.bodyValues).toEqual([
+            "عدنان علي",
+            "7208",
+            "عطور الكرادة",
+            "39,750 د.ع",
+            "عطور الكرادة",
+            "07801234567",
+        ]);
+    });
+
+    it("is priced by the category Meta approved it under", async () => {
+        setTestCustomTemplate({
+            template_name: "custom_reminder_100095_1",
+            body: "تذكير من {store_name} بطلبك هسه",
+            category: "marketing",
+        });
+        vi.mocked(whatsappSendRefusal).mockClear();
+        await sendTemplateMessage(makeOrder(), "reminder");
+        expect(whatsappSendRefusal).toHaveBeenCalledWith("11111111-1111-4111-8111-111111111111", "marketing");
+    });
+
+    it("fills an offer's discount and price after discount", async () => {
+        setTestCustomTemplate({
+            template_name: "custom_discount_100095_1",
+            body: "خصم {discount} من {store_name}: {total} صار {discounted_price} بس اليوم",
+            category: "marketing",
+        });
+        await sendTemplateMessage(makeOrder(), "discount", undefined, 20);
+        const sent = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+        expect(sent.template.bodyValues).toEqual(["20%", "عطور الكرادة", "34,750 د.ع", "27,800 د.ع"]);
+    });
+
+    it("sends Fermi's own message when the shop has none switched on", async () => {
+        const res = await sendTemplateMessage(makeOrder(), "confirmation");
+        expect(res.templateName).toBe("cod_order_confirm_v3");
+        const sent = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+        expect(sent.template.name).toBe("cod_order_confirm_v3");
     });
 });

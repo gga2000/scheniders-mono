@@ -18,6 +18,8 @@ import { SHOP_DAILY_CAP_REACHED, SHOP_DEMO_NOT_SENT, takeDailySendSlot, whatsapp
 import { normalizeIraqiMobile } from "@scheniders/shared";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { ORDER_TEMPLATES, WHATSAPP_TEMPLATES, type PlatformWhatsAppTemplate, type WhatsAppCategory, type WhatsAppTemplate } from "@scheniders/shared/whatsapp-templates";
+import { CUSTOM_TEMPLATE_LANGUAGE, customTemplateVariables, type CustomTemplateField } from "@scheniders/shared/whatsapp-custom-templates";
+import { z } from "zod";
 import { PROVIDER_TIMEOUT_MS, requestNeverSent } from "@/lib/request-never-sent";
 
 // =============================================
@@ -110,6 +112,11 @@ export interface SendTemplateResult {
     statusCode?: number;
     /** The provider's raw response, for the audit log. Never an error channel. */
     raw?: unknown;
+    /**
+     * The template this send went out as (or would have): Fermi's own, or the
+     * shop's paid custom one. Callers log it in whatsapp_logs.template_name.
+     */
+    templateName?: string;
 }
 
 // =============================================
@@ -428,12 +435,16 @@ function buildReminderBody(order: Order, store: StoreContact, overridePhone?: st
  *
  * Buttons: [تأكيد بالخصم] [لا شكراً]
  */
+function discountedPriceText(order: Order, discountPercent: number, customPrice?: number): string {
+    return customPrice != null
+        ? `${customPrice.toLocaleString("en-US")} د.ع`
+        : `${Math.round(order.price * (1 - discountPercent / 100)).toLocaleString("en-US")} د.ع`;
+}
+
 function buildDiscountBody(order: Order, store: StoreContact, discountPercent: number, overridePhone?: string, customPrice?: number): InteraktTemplateBody {
     const h = getOrderHelpers(order, overridePhone);
 
-    const discountedPrice = customPrice != null
-        ? `${customPrice.toLocaleString("en-US")} د.ع`
-        : `${Math.round(order.price * (1 - discountPercent / 100)).toLocaleString("en-US")} د.ع`;
+    const discountedPrice = discountedPriceText(order, discountPercent, customPrice);
 
     return {
         countryCode: h.countryCode,
@@ -457,6 +468,97 @@ function buildDiscountBody(order: Order, store: StoreContact, discountPercent: n
     };
 }
 
+/** The discount Fermi's offer quotes when the caller names none. */
+const DEFAULT_DISCOUNT_PERCENT = 10;
+
+/** A shop's own approved wording for one order message (paid extra), while it is switched on. */
+export interface CustomOrderTemplate {
+    name: string;
+    /** Key form: the shop's text with {customer_name}, {store_name}… */
+    body: string;
+    /** The category Meta approved it under; it sets the shop's price per message. */
+    category: WhatsAppCategory;
+}
+
+const customRowSchema = z.object({
+    template_name: z.string(),
+    body: z.string(),
+    category: z.enum(["utility", "marketing"]),
+});
+
+/**
+ * The shop's approved custom wording for this message, when it has one
+ * switched on (whatsapp_custom_templates, migration 20261126133000), else
+ * null and Fermi's own message goes.
+ */
+export async function loadCustomTemplate(tenantId: string, templateType: TemplateType): Promise<CustomOrderTemplate | null> {
+    const { data, error } = await createSupabaseServiceClient()
+        .from("whatsapp_custom_templates")
+        .select("template_name, body, category")
+        .eq("tenant_id", tenantId)
+        .eq("purpose", templateType)
+        .eq("status", "live")
+        .eq("in_use", true)
+        .maybeSingle();
+    if (error) throw error;
+    if (!data) return null;
+    const row = customRowSchema.parse(data);
+    return { name: row.template_name, body: row.body, category: row.category };
+}
+
+/**
+ * Every field a custom message may use, filled for this order with the same
+ * values Fermi's own message of this kind sends ("total" is what the courier
+ * collects on a confirmation, the order price on a reminder or an offer).
+ */
+export function orderTemplateValues(
+    order: Order,
+    store: StoreContact,
+    templateType: TemplateType,
+    overridePhone?: string,
+    discountPercent: number = DEFAULT_DISCOUNT_PERCENT,
+    customPrice?: number,
+): Record<CustomTemplateField, string> {
+    const h = getOrderHelpers(order, overridePhone);
+    return {
+        customer_name: h.customerName,
+        store_name: store.name,
+        order_number: order.order_id,
+        products: h.itemsList,
+        address: h.address,
+        phone: h.displayPhone,
+        total: templateType === "confirmation" ? h.collectibleTotal : h.totalPrice,
+        store_whatsapp: store.whatsapp,
+        discount: `${discountPercent}%`,
+        discounted_price: discountedPriceText(order, discountPercent, customPrice),
+    };
+}
+
+/** The shop's custom template, its numbered fields filled in the order they appear. */
+export function buildCustomTemplateBody(
+    order: Order,
+    store: StoreContact,
+    templateType: TemplateType,
+    custom: CustomOrderTemplate,
+    overridePhone?: string,
+    discountPercent?: number,
+    customPrice?: number,
+): InteraktTemplateBody {
+    const values = orderTemplateValues(order, store, templateType, overridePhone, discountPercent || DEFAULT_DISCOUNT_PERCENT, customPrice);
+    const { countryCode, phoneNumber } = formatPhoneForInterakt(overridePhone || order.phone);
+    return {
+        countryCode,
+        phoneNumber,
+        callbackData: order.id,
+        type: "Template",
+        template: {
+            name: custom.name,
+            languageCode: CUSTOM_TEMPLATE_LANGUAGE,
+            bodyValues: customTemplateVariables(custom.body).map((field) => values[field]),
+        },
+    };
+}
+
 /**
  * Build the correct template body based on type.
  */
@@ -472,7 +574,7 @@ export function buildTemplateBody(
         case 'reminder':
             return buildReminderBody(order, store, overridePhone);
         case 'discount':
-            return buildDiscountBody(order, store, discountPercent || 10, overridePhone, customPrice);
+            return buildDiscountBody(order, store, discountPercent || DEFAULT_DISCOUNT_PERCENT, overridePhone, customPrice);
         case 'confirmation':
         default:
             return buildConfirmationBody(order, store, overridePhone);
@@ -516,16 +618,21 @@ export async function sendTemplateMessage(
     customPrice?: number,
 ): Promise<SendTemplateResult> {
     const tenantId = order.tenant_id;
-    const refusal = await sendRefusal(tenantId, WHATSAPP_TEMPLATES[templateType].category);
-    if (refusal || !tenantId) {
-        return { success: false, error: refusal ?? SENDER_NOT_ALLOWED };
+    if (!tenantId) return { success: false, error: SENDER_NOT_ALLOWED };
+    // The shop's own paid wording replaces Fermi's message while it is on; it
+    // keeps Fermi's picture and buttons, and is priced by its own category.
+    const custom = await loadCustomTemplate(tenantId, templateType);
+    const templateName = custom?.name ?? TEMPLATE_NAMES[templateType];
+    const refusal = await sendRefusal(tenantId, custom?.category ?? WHATSAPP_TEMPLATES[templateType].category);
+    if (refusal) {
+        return { success: false, error: refusal, templateName };
     }
     const store = await loadStoreContact(tenantId);
     if (!store) {
-        return { success: false, error: STORE_WHATSAPP_MISSING };
+        return { success: false, error: STORE_WHATSAPP_MISSING, templateName };
     }
     if (!(await takeDailySendSlot(tenantId))) {
-        return { success: false, error: SHOP_DAILY_CAP_REACHED };
+        return { success: false, error: SHOP_DAILY_CAP_REACHED, templateName };
     }
     const apiKey = env.INTERAKT_API_KEY;
 
@@ -534,24 +641,26 @@ export async function sendTemplateMessage(
         return {
             success: false,
             error: "Interakt API key not configured",
+            templateName,
         };
     }
 
     const headerImage = templateHeaderImageUrl(templateType);
     if (!headerImage) {
         console.error("[Interakt] VERCEL_PROJECT_PRODUCTION_URL is not set; the template's header picture has no public address");
-        return { success: false, error: "Template header image has no public address" };
+        return { success: false, error: "Template header image has no public address", templateName };
     }
 
-    const templateName = TEMPLATE_NAMES[templateType];
-    const body = buildTemplateBody(order, store, templateType, overridePhone, discountPercent, customPrice);
+    const body = custom
+        ? buildCustomTemplateBody(order, store, templateType, custom, overridePhone, discountPercent, customPrice)
+        : buildTemplateBody(order, store, templateType, overridePhone, discountPercent, customPrice);
     body.template.bodyValues = body.template.bodyValues.map(sanitizeTemplateVar);
     body.template.headerValues = [headerImage];
 
     console.log(
         `[Interakt] Sending template "${templateName}" to +${body.countryCode}${body.phoneNumber} for order ${order.order_id}`
     );
-    return postTemplate(apiKey, body, order.order_id);
+    return { ...(await postTemplate(apiKey, body, order.order_id)), templateName };
 }
 
 /**
