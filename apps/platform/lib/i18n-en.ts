@@ -1931,6 +1931,7 @@ export const en: Record<string, string> = {
     "orderDetail.piece": "piece",
     "orderDetail.deliveryFee": "Delivery Fee",
     "orderDetail.discount": "Discount",
+    "orderDetail.returnFee": "Return fee",
     "orderDetail.grandTotal": "Grand Total",
     "orderDetail.timeline": "Timeline",
     "orderDetail.noTimeline": "No timeline entries",

@@ -94,8 +94,8 @@ describe("GlobalSearch without an order book", () => {
 
     it("the Customers tab searches wider, so one customer's orders do not crowd out the rest", async () => {
         renderSearch();
-        fireEvent.click(screen.getByText("nav.customers"));
         type("ahmed");
+        fireEvent.click(screen.getByText("nav.customers"));
 
         await waitFor(() => expect(screen.getByText("Ahmed Kareem")).toBeTruthy(), { timeout: 2000 });
         expect(H.search).toHaveBeenCalledWith("tenant-1", "ahmed", MAX_SEARCH_RESULTS);
@@ -112,6 +112,22 @@ describe("GlobalSearch without an order book", () => {
 
         await waitFor(() => expect(screen.getByText("#LF-3879 - Zainab")).toBeTruthy(), { timeout: 2000 });
         expect(screen.queryByText("Zainab")).toBeNull();
+    });
+});
+
+describe("where to search", () => {
+    it("the bar is all typing space; the scope buttons show in the results box once you type (critic r18)", () => {
+        const { container } = renderSearch();
+        expect(screen.queryByText("nav.customers")).toBeNull();
+        expect(container.querySelector("[data-search-scopes]")).toBeNull();
+
+        type("ahmed");
+        const scopes = container.querySelector("[data-search-scopes]");
+        expect(scopes?.textContent).toContain("nav.orders");
+        expect(scopes?.textContent).toContain("nav.customers");
+        expect(scopes?.textContent).toContain("nav.products");
+        // The bar itself holds no scope button.
+        expect(container.querySelector("input")?.parentElement?.querySelectorAll("button[aria-pressed]").length).toBe(0);
     });
 });
 

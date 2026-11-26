@@ -206,7 +206,7 @@ export function OrderItemsEditor({
                     payout instead of the items alone (critic r18: −39,750 above, −44,750 here). */}
                 {!isEditing && refundFeeKept > 0 && (
                     <div className="flex items-center justify-between px-4 py-2" data-refund-fee-row>
-                        <span className="text-sm text-muted">{t("refund.pickupFeeKept")}</span>
+                        <span className="text-sm text-muted">{t("orderDetail.returnFee")}</span>
                         <span className="font-mono text-sm text-foreground">{formatIQD(refundFeeKept)}</span>
                     </div>
                 )}

@@ -32,7 +32,7 @@ describe("OrderItemsEditor totals", () => {
         // Refund of 44,750 with a 5,000 pickup fee kept: the banner says −39,750.
         const { container } = view({ is_return: true, price: -44_750, delivery_fee: 5_000 });
         const fee = container.querySelector("[data-refund-fee-row]");
-        expect(fee?.textContent).toContain("رسوم الاستلام المخصومة");
+        expect(fee?.textContent).toContain("رسوم الاسترجاع");
         expect(fee?.textContent).toContain(formatIQD(5_000));
         expect(container.textContent).toContain(formatIQD(-39_750));
         expect(container.textContent).not.toContain(formatIQD(-44_750));
