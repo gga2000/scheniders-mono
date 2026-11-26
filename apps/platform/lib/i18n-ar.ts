@@ -8542,8 +8542,8 @@ export const ar: Record<string, string> = {
     "signup.code.sendFailed": "ما كدرنا ندز الرمز. تأكد إن الرقم عليه واتساب وجرّب مرة ثانية.",
     "signup.code.checkFailed": "ما كدرنا نتأكد من الرمز. جرّب مرة ثانية.",
     "signup.code.again": "أكّد رقم الواتساب مالك، وبعدين سوّي المتجر.",
-    "signup.city": "المدينة",
-    "signup.cityPlaceholder": "بغداد",
+    "signup.city": "المحافظة",
+    "signup.cityPlaceholder": "اختار محافظتك",
     "signup.submit": "ابدأ التجربة المجانية",
     "signup.submitting": "دا نسوي الحساب...",
     "signup.captchaRejected": "فحص الأمان انتهى. اضغط الزر مرة ثانية.",
@@ -8559,6 +8559,7 @@ export const ar: Record<string, string> = {
     // ── Password reset flow ──
     "auth.captcha.prompt": "فحص أمان سريع",
     "auth.captcha.failed": "فحص الأمان ما اشتغل. حدّث الصفحة أو جرّب متصفح ثاني.",
+    "auth.captcha.setupFailed": "فحص الأمان بي خلل من عدنا، مو منك. وصلنا خبر وراح نصلحه، جرّب بعد شوية.",
     "pwreset.role.superAdmin": "مدير عام",
     "pwreset.backToSignIn": "رجوع لتسجيل الدخول",
     "pwreset.brandFooter": "كلمة المرور محفوظة بشكل مشفّر. محد يعرفها غيرك.",

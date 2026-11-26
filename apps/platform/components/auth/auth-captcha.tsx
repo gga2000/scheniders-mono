@@ -3,7 +3,9 @@
 import { useCallback, useRef, useState } from "react";
 import { ShieldAlert, ShieldCheck } from "lucide-react";
 import { TurnstileBox, type TurnstileHandle } from "@scheniders/ui/turnstile";
+import type { TurnstileErrorKind } from "@scheniders/shared/turnstile-errors";
 import { env } from "@/lib/env";
+import { reportError } from "@/lib/report-error";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
 
 const SITE_KEY = env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
@@ -16,7 +18,8 @@ const SITE_KEY = env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
 export function useAuthCaptcha() {
     const ref = useRef<TurnstileHandle>(null);
     const [token, setToken] = useState<string | null>(null);
-    const [failed, setFailed] = useState(false);
+    /** Why the check could not run, until a token arrives. */
+    const [failed, setFailed] = useState<TurnstileErrorKind | null>(null);
     const waiters = useRef<((token: string | undefined) => void)[]>([]);
     const settle = useCallback((value: string | undefined) => {
         for (const resolve of waiters.current.splice(0)) resolve(value);
@@ -25,13 +28,21 @@ export function useAuthCaptcha() {
     const onToken = useCallback((next: string | null) => {
         setToken(next);
         if (next) {
-            setFailed(false);
+            setFailed(null);
             settle(next);
         }
     }, [settle]);
-    const onFailure = useCallback(() => {
-        setFailed(true);
+    const onFailure = useCallback(({ kind, code }: { kind: TurnstileErrorKind; code: string | null }) => {
+        setFailed(kind);
         settle(undefined);
+        // A setup error blocks every sign-in and sign-up on this address until
+        // someone fixes the widget in Cloudflare, so the team hears of it now.
+        if (kind === "setup") {
+            reportError(new Error(`Turnstile setup error ${code ?? "unknown"} on ${window.location.hostname}`), {
+                tags: { feature: "auth-captcha", turnstile_code: code ?? "unknown" },
+                fingerprint: ["turnstile-setup-error", code ?? "unknown", window.location.hostname],
+            });
+        }
     }, [settle]);
     /**
      * Throws away the current token and waits for the next one. For flows that
@@ -96,7 +107,9 @@ export function AuthCaptcha({ captcha, className }: { captcha: ReturnType<typeof
             {captcha.failed && (
                 <p role="alert" className="flex items-start gap-2 text-[13px] text-[#8A3B12]">
                     <ShieldAlert className="w-4 h-4 mt-0.5 shrink-0" />
-                    <span dir={dir} className="text-left">{t("auth.captcha.failed")}</span>
+                    <span dir={dir} className="text-left">
+                        {t(captcha.failed === "setup" ? "auth.captcha.setupFailed" : "auth.captcha.failed")}
+                    </span>
                 </p>
             )}
         </div>
