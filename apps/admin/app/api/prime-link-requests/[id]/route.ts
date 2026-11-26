@@ -20,7 +20,8 @@ const REFUSALS: Record<string, { status: number; error: string }> = {
 };
 
 /**
- * POST /api/prime-link-requests/:id — approve a shop's Prime link (Fermi A3).
+ * POST /api/prime-link-requests/:id — approve a shop's Prime link (Fermi A3),
+ * or a shop's request for a new Prime account (see the branch below).
  * Makes the link with the Prime account the merchant app found for it, even
  * when another shop uses that account; `shopId` picks the Prime shop when the
  * account has several. link_prime_request writes the link, closes the request
@@ -42,10 +43,31 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     // Read the shop for the staff log before anything changes.
     const { data: asked, error: askedError } = await supabase
       .from("prime_link_requests")
-      .select("tenant_id")
+      .select("tenant_id, kind, outcome")
       .eq("id", id)
       .maybeSingle();
     if (askedError) throw askedError;
+
+    // A new Prime account: approving lets the merchant app's prime-sync cron
+    // create it at Prime and link the shop (within minutes). A refused account
+    // (create_failed) is approved again once sorted with Prime.
+    if (asked?.kind === "new") {
+      if (asked.outcome !== "awaiting_approval" && asked.outcome !== "create_failed") {
+        return NextResponse.json({ error: "This request is not waiting for approval." }, { status: 409 });
+      }
+      const { data: approved, error: approveError } = await supabase
+        .from("prime_link_requests")
+        .update({ approved_at: new Date().toISOString(), approved_by: auth.user.id, outcome: null, checked_at: null })
+        .eq("id", id)
+        .eq("kind", "new")
+        .is("linked_at", null)
+        .in("outcome", ["awaiting_approval", "create_failed"])
+        .select("id");
+      if (approveError) throw approveError;
+      if (!approved?.length) return NextResponse.json({ error: "This request changed. Refresh and look again." }, { status: 409 });
+      await logAdminAction(auth, "link_prime", { tenantId: asked.tenant_id, details: { request_id: id, new_account: true } });
+      return NextResponse.json({ ok: true });
+    }
 
     const { data, error } = await supabase.rpc("link_prime_request", {
       _request_id: id,

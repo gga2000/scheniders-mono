@@ -2,7 +2,9 @@ import { describe, expect, it, vi } from "vitest";
 import { fakeServiceClient, type FakeCall, type FakeResult } from "@/lib/testing/fake-service-client";
 import type { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { PrimeApiError, type PrimeClient, type PrimeMerchantAccount, type PrimeMerchantShop } from "./client";
-import { checkPrimeLinkRequest, findPrimeMerchant, primeMerchantKey, recheckPrimeLinkRequests } from "./self-link";
+import { randomBytes } from "node:crypto";
+import { checkPrimeLinkRequest, createPrimeMerchantForRequest, findPrimeMerchant, primeMerchantKey, recheckPrimeLinkRequests } from "./self-link";
+import { sealPrimePassword } from "./login-seal";
 
 type ServiceDb = ReturnType<typeof createSupabaseServiceClient>;
 
@@ -174,5 +176,73 @@ describe("recheckPrimeLinkRequests", () => {
                 { method: "or", args: ["checked_at.is.null,checked_at.lt.2026-11-16T11:50:00.000Z"] },
             ]),
         );
+    });
+});
+
+describe("createPrimeMerchantForRequest", () => {
+    const KEY = randomBytes(32);
+    const NEW = { ...REQUEST, new_name: "متجر سارة", new_state: "BGD", new_login_id: "sara_shop", new_shop_name: "متجر سارة" };
+    const savedLogin = { login_id: "sara_shop", password_sealed: sealPrimePassword("pass-1234", TENANT, KEY) };
+
+    function newPrime(options: { listedAfter?: boolean; create?: Error } = {}) {
+        let created = false;
+        const client = {
+            merchants: vi.fn(async () => (created || options.listedAfter ? [{ loginId: "sara_shop", active: true }] : [])),
+            merchantShops: vi.fn(async () => [{ id: 7001, name: "متجر سارة", active: true }]),
+            createMerchant: vi.fn(async () => {
+                if (options.create) throw options.create;
+                created = true;
+                return "sara_shop";
+            }),
+        };
+        return { client: client as unknown as PrimeClient, ...client };
+    }
+    const newDb = () => db({ respond: (call) => (call.table === "prime_saved_logins" ? { data: savedLogin } : {}) });
+
+    it("creates the account with the saved password, then links the store", async () => {
+        const p = newPrime();
+        const d = newDb();
+        expect(await createPrimeMerchantForRequest(d.db, p.client, NEW, KEY)).toEqual({ outcome: "connected" });
+        expect(p.createMerchant).toHaveBeenCalledWith({
+            name: "متجر سارة",
+            loginId: "sara_shop",
+            password: "pass-1234",
+            phone: "07701234567",
+            state: "BGD",
+            shopName: "متجر سارة",
+        });
+        expect(d.rpcCalls.map((c) => c.name)).toContain("link_prime_request");
+    });
+
+    it("an account Prime already lists (an earlier try) is linked, not created twice", async () => {
+        const p = newPrime({ listedAfter: true });
+        expect(await createPrimeMerchantForRequest(newDb().db, p.client, NEW, KEY)).toEqual({ outcome: "connected" });
+        expect(p.createMerchant).not.toHaveBeenCalled();
+    });
+
+    it("a login Prime refuses as taken waits on the store", async () => {
+        const p = newPrime({ create: new PrimeApiError("Login id already used", 422, 1006) });
+        const d = newDb();
+        expect(await createPrimeMerchantForRequest(d.db, p.client, NEW, KEY)).toEqual({ outcome: "login_taken" });
+        expect(saved(d.calls)).toMatchObject({ outcome: "login_taken" });
+    });
+
+    it("any other refusal waits on our team and is reported", async () => {
+        const p = newPrime({ create: new PrimeApiError("Phone number is blank", 400, 8034) });
+        const d = newDb();
+        await expect(createPrimeMerchantForRequest(d.db, p.client, NEW, KEY)).rejects.toThrow("Phone number is blank");
+        expect(saved(d.calls)).toMatchObject({ outcome: "create_failed" });
+    });
+
+    it("Prime down waits for the next run", async () => {
+        const p = newPrime({ create: new PrimeApiError("Bad gateway", 502) });
+        const d = newDb();
+        expect(await createPrimeMerchantForRequest(d.db, p.client, NEW, KEY)).toEqual({ outcome: "prime_down" });
+    });
+
+    it("never creates without the sealing key", async () => {
+        const p = newPrime();
+        await expect(createPrimeMerchantForRequest(newDb().db, p.client, NEW, null)).rejects.toThrow("PRIME_LOGIN_KEY");
+        expect(p.createMerchant).not.toHaveBeenCalled();
     });
 });

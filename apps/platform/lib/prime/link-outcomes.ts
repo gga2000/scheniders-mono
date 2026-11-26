@@ -6,7 +6,20 @@
  * - choose_shop: the account has several shops and the store picks one;
  * - no_shop: the account has no active shop at Prime;
  * - prime_down: Prime did not answer.
+ * A request for a new Prime account (kind 'new') can also wait as:
+ * - awaiting_approval: our team has not approved creating it yet;
+ * - login_taken: Prime has another merchant with that login, so the store picks another;
+ * - create_failed: Prime refused the account for another reason, so our team looks.
  * Shared by the server and the Prime page.
  */
-export const PRIME_LINK_OUTCOMES = ["not_linked", "shared_account", "choose_shop", "no_shop", "prime_down"] as const;
+export const PRIME_LINK_OUTCOMES = [
+    "not_linked",
+    "shared_account",
+    "choose_shop",
+    "no_shop",
+    "prime_down",
+    "awaiting_approval",
+    "login_taken",
+    "create_failed",
+] as const;
 export type PrimeLinkOutcome = (typeof PRIME_LINK_OUTCOMES)[number];

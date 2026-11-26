@@ -14,6 +14,7 @@ const state = vi.hoisted(() => ({
     open: null as Record<string, unknown> | null,
     check: vi.fn(),
     link: vi.fn(),
+    key: null as Buffer | null,
 }));
 
 let fake = fakeServiceClient((call) => respond(call));
@@ -37,11 +38,17 @@ vi.mock("@/lib/prime/client", () => ({ getPrimeClient: () => ({ prime: true }) }
 vi.mock("@/lib/prime/connection", () => ({
     loadPrimeLink: async () => (state.connected ? { client: { prime: true }, connection: { merchantLoginId: "m", shopId: 1, branchName: null } } : null),
 }));
+vi.mock("@/lib/prime/login-seal", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("@/lib/prime/login-seal")>()),
+    primeLoginKeyFromEnv: () => state.key,
+}));
 vi.mock("@/lib/prime/self-link", () => ({
     checkPrimeLinkRequest: (...args: unknown[]) => state.check(...args),
     linkPrimeRequest: (...args: unknown[]) => state.link(...args),
 }));
 
+import { randomBytes } from "node:crypto";
+import { openPrimePassword } from "@/lib/prime/login-seal";
 import { GET, POST } from "./route";
 
 const post = (body: unknown) =>
@@ -73,6 +80,7 @@ beforeEach(() => {
     state.open = null;
     state.check = vi.fn(async (): Promise<PrimeLinkResult> => ({ outcome: "not_linked" }));
     state.link = vi.fn(async () => "connected");
+    state.key = randomBytes(32);
     fake = fakeServiceClient((call) => respond(call));
 });
 
@@ -89,7 +97,7 @@ describe("GET /api/prime/link", () => {
         expect(body).toEqual({
             success: true,
             connected: false,
-            request: { phone: "07701234567", outcome: "shared_account", checkedAt: "2026-11-16T00:01:00Z" },
+            request: { phone: "07701234567", outcome: "shared_account", checkedAt: "2026-11-16T00:01:00Z", kind: "existing", loginId: null },
         });
     });
 
@@ -163,5 +171,56 @@ describe("POST /api/prime/link", () => {
         expect(await res.json()).toEqual({ success: true, connected: true, request: null });
         expect(fake.calls).toEqual([]);
         expect(state.check).not.toHaveBeenCalled();
+    });
+});
+
+describe("POST /api/prime/link with a new account", () => {
+    const account = { name: "متجر سارة", phone: "+964 770 123 4567", state: "BGD", loginId: "sara_shop", password: "pass-1234" };
+    const write = (table: string) => fake.calls.find((c) => c.table === table && c.op !== "select");
+
+    it("saves the password sealed and waits for our team, without asking Prime", async () => {
+        const res = await post({ newAccount: account });
+        expect(res.status).toBe(200);
+        const saved = write("prime_saved_logins")?.payload as { login_id: string; password_sealed: string };
+        expect(saved.login_id).toBe("sara_shop");
+        expect(saved.password_sealed).not.toContain("pass-1234");
+        expect(openPrimePassword(saved.password_sealed, TENANT, state.key as Buffer)).toBe("pass-1234");
+        expect(write("prime_link_requests")?.payload).toMatchObject({
+            kind: "new",
+            prime_phone: "07701234567",
+            new_login_id: "sara_shop",
+            new_state: "BGD",
+            new_shop_name: "متجر سارة",
+            approved_at: null,
+            outcome: "awaiting_approval",
+        });
+        expect(JSON.stringify(fake.calls)).not.toContain("pass-1234");
+        expect(state.check).not.toHaveBeenCalled();
+    });
+
+    it("refuses a governorate, login or password the form does not allow", async () => {
+        expect((await post({ newAccount: { ...account, state: "XXX" } })).status).toBe(400);
+        expect((await post({ newAccount: { ...account, loginId: "a b" } })).status).toBe(400);
+        expect((await post({ newAccount: { ...account, password: "123" } })).status).toBe(400);
+        expect(fake.calls.filter((c) => c.op !== "select")).toEqual([]);
+    });
+
+    it("stays closed, saving nothing, until the sealing key is set", async () => {
+        state.key = null;
+        const res = await post({ newAccount: account });
+        expect(res.status).toBe(503);
+        expect(fake.calls.filter((c) => c.op !== "select")).toEqual([]);
+    });
+
+    it("an approved account being opened at Prime cannot change", async () => {
+        state.open = openRow({ kind: "new", new_login_id: "sara_shop", approved_at: "2026-11-26T18:00:00Z", outcome: null });
+        expect((await post({ newAccount: { ...account, loginId: "other" } })).status).toBe(409);
+        expect((await post({ phone: "07701234567" })).status).toBe(409);
+    });
+
+    it("a login Prime refused goes again as approved, with the new login", async () => {
+        state.open = openRow({ kind: "new", new_login_id: "sara_shop", approved_at: "2026-11-26T18:00:00Z", outcome: "login_taken" });
+        expect((await post({ newAccount: { ...account, loginId: "sara_shop2" } })).status).toBe(200);
+        expect(write("prime_link_requests")?.payload).toMatchObject({ new_login_id: "sara_shop2", approved_at: "2026-11-26T18:00:00Z", outcome: null });
     });
 });

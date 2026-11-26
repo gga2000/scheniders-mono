@@ -197,6 +197,20 @@ const merchantSchema = z.object({
 });
 export type PrimeMerchantAccount = z.infer<typeof merchantSchema>;
 
+/** A merchant we ask Prime to create (external/create-merchant), with its one shop. */
+export type PrimeNewMerchant = {
+    name: string;
+    loginId: string;
+    password: string;
+    phone: string;
+    /** Governorate code from /general/states (our governorates' oms_code). */
+    state: string;
+    shopName: string;
+};
+
+/** Prime's errorCode when create-merchant is given a login another merchant has. */
+export const PRIME_LOGIN_TAKEN = 1006;
+
 /** One shop of a merchant (external/merchant-shops); its id is the senderId parcels ship from. */
 const merchantShopSchema = z.object({
     id: z.number().int().positive(),
@@ -550,6 +564,31 @@ export function createPrimeClient(config: PrimeConfig, fetchImpl: FetchLike = fe
         /** The merchants Prime has linked to our integrated system (active ones only). */
         async merchants(): Promise<PrimeMerchantAccount[]> {
             return call("GET", "/external/merchants", undefined, z.array(merchantSchema));
+        },
+
+        /**
+         * Creates a merchant with one shop and links it to our integrated
+         * system (external/create-merchant). Branch 0 lets Prime use our
+         * system account's branch. Prime echoes the password back, so the
+         * answer is not kept: only the new merchant's login is returned.
+         * Refused with code 1006 when the login is taken.
+         */
+        async createMerchant(merchant: PrimeNewMerchant): Promise<string> {
+            const created = await call(
+                "POST",
+                "/external/create-merchant",
+                {
+                    name: merchant.name,
+                    loginId: merchant.loginId,
+                    password: merchant.password,
+                    phone1: merchant.phone,
+                    state: merchant.state,
+                    branch: 0,
+                    shops: [{ name: merchant.shopName, phone1: merchant.phone }],
+                },
+                z.object({ loginId: z.string().min(1) }),
+            );
+            return created.loginId;
         },
 
         /** One merchant's shops (deleted ones are left out by Prime). */

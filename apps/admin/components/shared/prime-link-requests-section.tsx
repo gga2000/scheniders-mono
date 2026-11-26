@@ -10,7 +10,9 @@ import { sendStep } from "@/lib/send-json";
 import { formatWhen } from "@/lib/format";
 import { SHELL_READ, useAfterPageReads } from "@/hooks/use-after-page-reads";
 
-const outcomeSchema = z.enum(["not_linked", "shared_account", "choose_shop", "no_shop", "prime_down"]).nullable();
+const outcomeSchema = z
+  .enum(["not_linked", "shared_account", "choose_shop", "no_shop", "prime_down", "awaiting_approval", "login_taken", "create_failed"])
+  .nullable();
 
 const primeRequestsSchema = z.object({
   requests: z.array(
@@ -24,6 +26,11 @@ const primeRequestsSchema = z.object({
       prime_name: z.string().nullable(),
       prime_shop_id: z.number().nullable(),
       prime_shops: z.array(z.object({ id: z.number(), name: z.string() })).nullable(),
+      kind: z.enum(["existing", "new"]).default("existing"),
+      new_name: z.string().nullish(),
+      new_state: z.string().nullish(),
+      new_login_id: z.string().nullish(),
+      approved_at: z.string().nullish(),
       tenants: z.object({ business_name: z.string(), slug: z.string() }).nullable(),
     }),
   ),
@@ -39,8 +46,16 @@ const WAITING_ON: Record<NonNullable<PrimeLinkRequest["outcome"]> | "unchecked",
   choose_shop: "The shop is picking which Prime shop to send from.",
   no_shop: "This Prime account has no active shop. Ask Prime to open one.",
   prime_down: "Prime is not answering. Retried every few minutes.",
+  awaiting_approval: "Wants a new Prime account. Approve to open it at Prime and link the shop.",
+  login_taken: "Prime has another merchant with this login. Waiting for the shop to pick another.",
+  create_failed: "Prime refused the new account. Sort it out with Prime, then approve again.",
   unchecked: "Being checked with Prime.",
 };
+
+/** A new account Prime has not refused and we have approved: the cron is opening it. */
+function creating(req: PrimeLinkRequest): boolean {
+  return req.kind === "new" && req.approved_at != null && req.outcome !== "login_taken" && req.outcome !== "create_failed";
+}
 
 /** Shops whose Prime link is not made yet; refreshed every minute. */
 export function usePrimeLinkRequests() {
@@ -86,19 +101,28 @@ export function PrimeLinkRequestsSection({ requests }: { requests: PrimeLinkRequ
       {requests.map((req) => {
         const shops = req.prime_shops ?? [];
         const shopId = req.prime_shop_id ?? picked[req.id] ?? null;
-        const canApprove = req.prime_login_id !== null && (shopId !== null || shops.length > 1);
+        const fresh = req.kind === "new" && (req.outcome === "awaiting_approval" || req.outcome === "create_failed");
+        const canApprove = req.kind === "new" ? fresh : req.prime_login_id !== null && (shopId !== null || shops.length > 1);
         const busy = approve.isPending && approve.variables?.id === req.id;
         return (
           <div key={req.id} className="flex items-start gap-3 px-4 py-3">
             <span className="mt-0.5 text-[#315EA8]"><Truck className="w-3.5 h-3.5" /></span>
             <div className="flex-1 min-w-0">
               <p className="text-xs font-medium text-foreground truncate name-dir" title={req.tenants?.business_name ?? req.tenant_id}>{req.tenants?.business_name ?? req.tenant_id}</p>
+              {req.kind === "new" ? (
+                <p className="text-xs text-foreground/70 tabular-nums mt-0.5">
+                  New Prime account: {req.new_name} · login {req.new_login_id} · {req.prime_phone} · {req.new_state}
+                </p>
+              ) : (
               <p className="text-xs text-foreground/70 tabular-nums mt-0.5">
                 Prime account {req.prime_phone}
                 {req.prime_name ? ` · ${req.prime_name}` : ""}
                 {req.prime_login_id && req.prime_login_id !== req.prime_phone ? ` (${req.prime_login_id})` : ""}
               </p>
-              <p className="text-xs text-foreground/70 mt-1">{WAITING_ON[req.outcome ?? "unchecked"]}</p>
+              )}
+              <p className="text-xs text-foreground/70 mt-1">
+                {creating(req) ? "Approved. Opening the Prime account and linking the shop within minutes." : WAITING_ON[req.outcome ?? "unchecked"]}
+              </p>
               {req.prime_login_id && req.prime_shop_id === null && shops.length > 1 && (
                 <select
                   aria-label="Prime shop"
@@ -117,8 +141,8 @@ export function PrimeLinkRequestsSection({ requests }: { requests: PrimeLinkRequ
             {canApprove && (
               <button
                 type="button"
-                onClick={() => approve.mutate({ id: req.id, shopId: req.prime_shop_id === null ? shopId : null })}
-                disabled={busy || shopId === null}
+                onClick={() => approve.mutate({ id: req.id, shopId: fresh || req.prime_shop_id !== null ? null : shopId })}
+                disabled={busy || (!fresh && shopId === null)}
                 className="shrink-0 inline-flex items-center gap-1 rounded-lg bg-foreground px-2.5 py-1.5 text-xs font-semibold text-background hover:opacity-90 disabled:opacity-50"
               >
                 {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}

@@ -23,6 +23,7 @@ import { PrimePipeline } from "./prime-pipeline";
 import { PrimeParcelList } from "./prime-parcel-list";
 import { PrimeProblemsTab } from "./prime-problems-tab";
 import { PrimeReturnsTab } from "./prime-returns-tab";
+import { PrimeSavedLogin } from "./prime-saved-login";
 import { PrimeStatementCard } from "./prime-statement-card";
 import { PrimeStatementsTab } from "./prime-statements-tab";
 import { PrimeTicketsCard } from "./prime-tickets-card";
@@ -192,6 +193,9 @@ export function PrimePage() {
                         ))}
                     </div>
                 </header>
+
+                {/* A store we opened a Prime account for keeps its Prime app sign-in here; nothing shows for others. */}
+                {admin && <PrimeSavedLogin />}
 
                 {tab === "now" &&
                     (isError ? (
