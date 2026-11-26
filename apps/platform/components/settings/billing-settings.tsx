@@ -109,10 +109,11 @@ export function BillingSettings() {
 
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                 {exempt ? (
-                    <div className="pastel-card p-6">
+                    <div className="pastel-card p-6" data-setting="plan">
                         <p className="text-sm text-muted-foreground"><bdi>{t("billing.exempt")}</bdi></p>
                     </div>
                 ) : (
+                    <div data-setting="plan" className="grid">
                     <PlanCard
                         plan={plan}
                         subscription={subscription}
@@ -122,9 +123,10 @@ export function BillingSettings() {
                         nextPrice={lock?.price_iqd ?? null}
                         paidMonth={paidMonth}
                     />
+                    </div>
                 )}
 
-                <div className="pastel-card p-6">
+                <div className="pastel-card p-6" data-setting="wallet">
                     <div className="mb-5 flex items-center gap-2">
                         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-(--pastel-green)">
                             <Wallet className="h-4 w-4 text-green-700" />

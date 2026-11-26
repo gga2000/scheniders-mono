@@ -1,357 +1,242 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
-import { Plus, Trash2, Edit2, MessageSquare, X, Smile, Phone, Bell, Gift, Filter, ChevronDown } from "lucide-react";
-import { supabase } from "@/lib/supabase";
-import { Button } from "@scheniders/ui/button";
-import { Input } from "@scheniders/ui/input";
-import { Textarea } from "@scheniders/ui/textarea";
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from "@scheniders/ui/dialog";
-import { cn } from "@/lib/utils";
-import { getEmojiList, processEmojis } from "@/lib/emoji-shortcodes";
+import { useRef, useState } from "react";
+import { Loader2, Plus, Save, Smile, Trash2 } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
-import { useAuth } from "@/components/auth/auth-provider";
-import { toast } from "@/hooks/use-toast";
+import type { TemplateEditor, TemplateType } from "@/hooks/use-message-templates";
+import { getEmojiList } from "@/lib/emoji-shortcodes";
+import { OFFER_TEMPLATE_VARIABLES, TEMPLATE_VARIABLES } from "@/lib/fill-message-template";
+import { cn } from "@/lib/utils";
 
-interface Template {
-    id: string;
-    name: string;
-    content: string;
-    content_ar?: string;
-    is_active: boolean;
-    template_type?: 'confirmation' | 'reminder' | 'discount' | null;
-}
+const TYPES: { value: TemplateType | null; label: string }[] = [
+    { value: null, label: "templates.general" },
+    { value: "confirmation", label: "templates.confirmation" },
+    { value: "reminder", label: "templates.reminder" },
+    { value: "discount", label: "templates.discount" },
+];
 
-type FilterType = 'all' | 'workflow' | 'other';
+const TYPE_DOT: Record<TemplateType, string> = {
+    confirmation: "bg-emerald-500",
+    reminder: "bg-amber-500",
+    discount: "bg-rose-500",
+};
 
-export function MessageTemplatesList() {
-    const [templates, setTemplates] = useState<Template[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
-    const [isDialogOpen, setIsDialogOpen] = useState(false);
-    const [filter, setFilter] = useState<FilterType>('all');
-    const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-    const [activeField, setActiveField] = useState<'content' | 'content_ar'>('content_ar');
-    const textareaRef = useRef<HTMLTextAreaElement>(null);
-    const textareaArRef = useRef<HTMLTextAreaElement>(null);
+const INPUT =
+    "w-full rounded-xl border border-(--card-border) bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-(--ink) focus:outline-none";
+
+/**
+ * The shop's WhatsApp templates, edited in place: pick one, change its words,
+ * drop in the order's details with one click. The preview beside it follows.
+ */
+export function MessageTemplatesList({ editor }: { editor: TemplateEditor }) {
     const { t } = useLanguage();
-    const { tenantId } = useAuth();
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+    // Where the cursor last was in this template's text; none yet = add at the end.
+    const caret = useRef<{ id: string; start: number; end: number } | null>(null);
+    const [showEmoji, setShowEmoji] = useState(false);
+    const { current } = editor;
 
-    useEffect(() => {
-        fetchTemplates();
-    }, []);
-
-    async function fetchTemplates() {
-        const { data } = await supabase
-            .from("message_templates")
-            .select("*")
-            .order("sort_order");
-        if (data) setTemplates(data);
-        setLoading(false);
-    }
-
-    async function handleSave() {
-        if (!editingTemplate) return;
-
-        if (editingTemplate.id === "new") {
-            if (!tenantId) {
-                toast.error(t("templates.saveFailed"), t("templates.noWorkspace"));
-                return;
-            }
-            const { data, error } = await supabase
-                .from("message_templates")
-                .insert([{
-                    tenant_id: tenantId,
-                    name: editingTemplate.name,
-                    content: editingTemplate.content,
-                    content_ar: editingTemplate.content_ar,
-                    is_active: true,
-                    template_type: editingTemplate.template_type,
-                }])
-                .select()
-                .single();
-
-            if (error || !data) {
-                toast.error(t("templates.saveFailed"), error?.message);
-                return;
-            }
-            setTemplates([...templates, data]);
-        } else {
-            const { error } = await supabase
-                .from("message_templates")
-                .update({
-                    name: editingTemplate.name,
-                    content: editingTemplate.content,
-                    content_ar: editingTemplate.content_ar,
-                    template_type: editingTemplate.template_type,
-                })
-                .eq("id", editingTemplate.id);
-
-            if (error) {
-                toast.error(t("templates.saveFailed"), error.message);
-                return;
-            }
-            setTemplates(templates.map(row => row.id === editingTemplate.id ? editingTemplate : row));
-        }
-        setIsDialogOpen(false);
-        setEditingTemplate(null);
-    }
-
-    async function handleDelete(id: string) {
-        if (!confirm(t("templates.deleteConfirm"))) return;
-        const { error } = await supabase.from("message_templates").delete().eq("id", id);
-        if (error) {
-            toast.error(t("templates.deleteFailed"), error.message);
-            return;
-        }
-        setTemplates(templates.filter(row => row.id !== id));
-    }
-
-    function openNew() {
-        setEditingTemplate({ id: "new", name: "", content: "", content_ar: "", is_active: true, template_type: null });
-        setIsDialogOpen(true);
-    }
-
-    function openEdit(t: Template) {
-        setEditingTemplate(t);
-        setIsDialogOpen(true);
-    }
-
-    function insertEmoji(shortcode: string) {
-        if (!editingTemplate) return;
-        const insertText = `{e:${shortcode}}`;
-
-        if (activeField === 'content_ar') {
-            setEditingTemplate({
-                ...editingTemplate,
-                content_ar: (editingTemplate.content_ar || '') + insertText
-            });
-        } else {
-            setEditingTemplate({
-                ...editingTemplate,
-                content: editingTemplate.content + insertText
-            });
-        }
-        setShowEmojiPicker(false);
-    }
-
-    const filteredTemplates = templates.filter(row => {
-        if (filter === 'all') return true;
-        if (filter === 'workflow') return !!row.template_type;
-        return !row.template_type;
-    });
-
-    const getTypeBadge = (type: Template['template_type']) => {
-        if (!type) return null;
-        const config = {
-            confirmation: { label: t('templates.confirmation'), color: 'bg-emerald-100 text-emerald-700', icon: Phone },
-            reminder: { label: t('templates.reminder'), color: 'bg-amber-100 text-amber-700', icon: Bell },
-            discount: { label: t('templates.discount'), color: 'bg-rose-100 text-rose-700', icon: Gift },
-        };
-        const c = config[type];
-        const Icon = c.icon;
+    if (editor.loading) {
         return (
-            <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium", c.color)}>
-                <Icon className="w-3 h-3" />
-                {c.label}
-            </span>
+            <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                {t("templates.loading")}
+            </div>
         );
+    }
+
+    /** Puts text where the cursor is (at the end when the box was never clicked). */
+    const insert = (text: string) => {
+        if (!current) return;
+        const value = current.content_ar ?? "";
+        const el = textareaRef.current;
+        const at = caret.current?.id === current.id ? caret.current : null;
+        const start = Math.min(at?.start ?? value.length, value.length);
+        const end = Math.min(at?.end ?? value.length, value.length);
+        editor.change({ content_ar: value.slice(0, start) + text + value.slice(end) });
+        caret.current = { id: current.id, start: start + text.length, end: start + text.length };
+        requestAnimationFrame(() => {
+            el?.focus();
+            el?.setSelectionRange(start + text.length, start + text.length);
+        });
     };
 
-    if (loading) return <div className="text-sm">{t("templates.loading")}</div>;
-
-    const emojiList = getEmojiList();
+    const variables = current?.template_type === "discount" ? [...TEMPLATE_VARIABLES, ...OFFER_TEMPLATE_VARIABLES] : TEMPLATE_VARIABLES;
 
     return (
         <div className="space-y-4">
-            {/* Filter Tabs */}
-            <div className="flex items-center gap-2 border-b pb-2">
-                {(['all', 'workflow', 'other'] as FilterType[]).map(f => (
-                    <button
-                        key={f}
-                        onClick={() => setFilter(f)}
-                        className={cn(
-                            "px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
-                            filter === f
-                                ? "bg-primary text-primary-foreground"
-                                : "text-muted-foreground hover:bg-muted"
-                        )}
-                    >
-                        {t(`templates.filter.${f}`)}
-                        <span className="ml-1.5 text-xs opacity-70">
-                            ({templates.filter(row =>
-                                f === 'all' ? true :
-                                    f === 'workflow' ? !!row.template_type :
-                                        !row.template_type
-                            ).length})
-                        </span>
-                    </button>
-                ))}
+            <div role="tablist" aria-label={t("settings.orders.templates")} className="flex flex-wrap gap-2">
+                {editor.templates.map((row) => {
+                    const on = row.id === current?.id;
+                    return (
+                        <button
+                            key={row.id}
+                            type="button"
+                            role="tab"
+                            aria-selected={on}
+                            onClick={() => editor.select(row.id)}
+                            className={cn(
+                                "inline-flex h-8 max-w-56 items-center gap-1.5 rounded-lg px-3 text-sm font-medium transition-colors",
+                                on ? "bg-(--ink) text-white" : "bg-(--background) text-foreground hover:bg-(--background-soft)",
+                                !row.is_active && !on && "text-muted-foreground",
+                            )}
+                        >
+                            {row.template_type && <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", TYPE_DOT[row.template_type])} />}
+                            <span className="truncate">{on && editor.dirty ? current?.name || row.name : row.name}</span>
+                        </button>
+                    );
+                })}
+                <button
+                    type="button"
+                    onClick={editor.startNew}
+                    className={cn(
+                        "inline-flex h-8 items-center gap-1.5 rounded-lg border border-dashed border-(--card-border) px-3 text-sm font-medium text-foreground hover:bg-(--background)",
+                        editor.isNew && "border-(--ink)",
+                    )}
+                >
+                    <Plus className="h-3.5 w-3.5" />
+                    {t("templates.new")}
+                </button>
             </div>
 
-            {/* Template List */}
-            <div className="grid gap-3">
-                {filteredTemplates.map((template) => (
-                    <div
-                        key={template.id}
-                        className="flex items-start justify-between p-3 rounded-md border bg-card hover:bg-muted/50 transition-colors"
-                    >
-                        <div className="space-y-1 flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                                <h4 className="font-medium text-sm">{template.name}</h4>
-                                {getTypeBadge(template.template_type)}
-                                {!template.is_active && <span className="text-xs text-muted-foreground px-1.5 py-0.5 bg-muted rounded">{t("templates.disabled")}</span>}
-                            </div>
-                            <p className="text-xs text-muted-foreground line-clamp-2 max-w-md" dir="rtl">
-                                {processEmojis(template.content_ar || template.content)}
-                            </p>
-                        </div>
-
-                        <div className="flex items-center gap-1 flex-shrink-0">
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(template)}>
-                                <Edit2 className="h-3 w-3" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-rose-500" onClick={() => handleDelete(template.id)}>
-                                <Trash2 className="h-3 w-3" />
-                            </Button>
-                        </div>
-                    </div>
-                ))}
-            </div>
-
-            {/* Add/Edit Dialog */}
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                <DialogTrigger asChild>
-                    <Button variant="outline" size="sm" className="w-full border-dashed" onClick={openNew}>
-                        <Plus className="mr-2 h-3.5 w-3.5" /> {t("templates.new")}
-                    </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                    <DialogHeader>
-                        <DialogTitle>{editingTemplate?.id === 'new' ? t("templates.new") : t("templates.edit")}</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4 py-4">
-                        {/* Name */}
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium">{t("templates.name")}</label>
-                            <Input
-                                value={editingTemplate?.name || ''}
-                                onChange={(e) => setEditingTemplate(prev => prev ? { ...prev, name: e.target.value } : null)}
+            {!current ? (
+                <p className="rounded-xl bg-(--background-soft) px-4 py-6 text-center text-sm text-muted-foreground">
+                    <bdi>{t("templates.empty")}</bdi>
+                </p>
+            ) : (
+                <div className="space-y-3">
+                    <div className="flex flex-wrap items-end gap-3">
+                        <div className="min-w-48 flex-1">
+                            <label htmlFor="template-name" className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                                {t("templates.name")}
+                            </label>
+                            <input
+                                id="template-name"
+                                value={current.name}
+                                onChange={(e) => editor.change({ name: e.target.value })}
                                 placeholder={t("templates.namePlaceholder")}
+                                className={INPUT}
                             />
                         </div>
-
-                        {/* Template Type */}
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium">{t("templates.type")}</label>
-                            <div className="flex gap-2">
-                                {([
-                                    { value: null, label: t("templates.general") },
-                                    { value: 'confirmation', label: t('templates.confirmation') },
-                                    { value: 'reminder', label: t('templates.reminder') },
-                                    { value: 'discount', label: t('templates.discount') },
-                                ] satisfies { value: Template['template_type']; label: string }[]).map(opt => (
+                        <div role="radiogroup" aria-label={t("templates.type")} className="flex h-9.5 items-center gap-1 rounded-xl bg-(--background) p-1">
+                            {TYPES.map((type) => {
+                                const on = (current.template_type ?? null) === type.value;
+                                return (
                                     <button
-                                        key={opt.value || 'none'}
-                                        onClick={() => setEditingTemplate(prev =>
-                                            prev ? { ...prev, template_type: opt.value } : null
-                                        )}
+                                        key={type.value ?? "general"}
+                                        type="button"
+                                        role="radio"
+                                        aria-checked={on}
+                                        onClick={() => editor.change({ template_type: type.value })}
                                         className={cn(
-                                            "px-3 py-1.5 text-sm rounded-md border transition-colors",
-                                            editingTemplate?.template_type === opt.value
-                                                ? "bg-primary text-primary-foreground border-primary"
-                                                : "border-input hover:bg-muted"
+                                            "h-7.5 rounded-lg px-3 text-xs font-semibold transition-colors",
+                                            on ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
                                         )}
                                     >
-                                        {opt.label}
+                                        {t(type.label)}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    <div>
+                        <div className="mb-1.5 flex items-center justify-between">
+                            <label htmlFor="template-text" className="text-xs font-medium text-muted-foreground">
+                                {t("templates.arabicContent")}
+                            </label>
+                            <button
+                                type="button"
+                                onClick={() => setShowEmoji((v) => !v)}
+                                aria-expanded={showEmoji}
+                                className={cn(
+                                    "inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs transition-colors",
+                                    showEmoji ? "bg-(--pastel-yellow) text-amber-800" : "text-muted-foreground hover:bg-(--background)",
+                                )}
+                            >
+                                <Smile className="h-3.5 w-3.5" />
+                                {t("templates.emoji")}
+                            </button>
+                        </div>
+                        <textarea
+                            id="template-text"
+                            ref={textareaRef}
+                            dir="rtl"
+                            value={current.content_ar ?? ""}
+                            onChange={(e) => editor.change({ content_ar: e.target.value })}
+                            onSelect={(e) => {
+                                caret.current = { id: current.id, start: e.currentTarget.selectionStart, end: e.currentTarget.selectionEnd };
+                            }}
+                            placeholder={t("templates.textPlaceholder")}
+                            className={cn(INPUT, "min-h-36 resize-y leading-relaxed")}
+                        />
+                        {showEmoji && (
+                            <div className="mt-2 flex flex-wrap gap-1 rounded-xl bg-(--background-soft) p-2">
+                                {getEmojiList().slice(0, 24).map((item) => (
+                                    <button
+                                        key={item.shortcode}
+                                        type="button"
+                                        onClick={() => insert(`{e:${item.shortcode}}`)}
+                                        aria-label={item.shortcode}
+                                        className="flex h-8 w-8 items-center justify-center rounded-lg text-lg hover:bg-background"
+                                    >
+                                        {item.emoji}
                                     </button>
                                 ))}
                             </div>
-                        </div>
+                        )}
+                    </div>
 
-                        {/* Arabic Content */}
-                        <div className="space-y-2">
-                            <div className="flex items-center justify-between">
-                                <label className="text-sm font-medium">{t("templates.arabicContent")}</label>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="text-xs text-muted-foreground">{t("templates.insert")}</span>
+                        {variables.map((v) => (
+                            <button
+                                key={v}
+                                type="button"
+                                onClick={() => insert(`{${v}}`)}
+                                className="inline-flex h-7 items-center rounded-lg bg-(--pastel-purple) px-2.5 text-xs font-medium text-purple-800 hover:opacity-80"
+                            >
+                                {t(`templates.var.${v}`)}
+                            </button>
+                        ))}
+                    </div>
+
+                    {!editor.isNew && (
+                        <button
+                            type="button"
+                            onClick={editor.remove}
+                            className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2 text-xs font-medium text-rose-700 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-950/40"
+                        >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            {t("templates.delete")}
+                        </button>
+                    )}
+
+                    {editor.dirty && (
+                        <div className="flex items-center justify-between gap-3 rounded-2xl bg-(--ink) px-4 py-2.5 text-white">
+                            <span className="text-sm"><bdi>{t("settings.unsaved")}</bdi></span>
+                            <div className="flex items-center gap-2">
                                 <button
-                                    onClick={() => {
-                                        setActiveField('content_ar');
-                                        setShowEmojiPicker(!showEmojiPicker);
-                                    }}
-                                    className={cn(
-                                        "flex items-center gap-1 px-2 py-1 text-xs rounded-md transition-colors",
-                                        showEmojiPicker && activeField === 'content_ar'
-                                            ? "bg-amber-100 text-amber-700"
-                                            : "bg-muted text-muted-foreground hover:bg-muted/80"
-                                    )}
+                                    type="button"
+                                    onClick={editor.discard}
+                                    className="h-8 rounded-lg border border-white/30 px-3 text-xs font-semibold hover:bg-white/10"
                                 >
-                                    <Smile className="w-3 h-3" />
-                                    {t("templates.emoji")}
+                                    {t("settings.discard")}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={editor.save}
+                                    disabled={editor.saving || !current.name.trim()}
+                                    className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-white px-3 text-xs font-semibold text-neutral-900 hover:opacity-90 disabled:opacity-50"
+                                >
+                                    {editor.saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                                    {t("templates.save")}
                                 </button>
                             </div>
-                            <Textarea
-                                ref={textareaArRef}
-                                value={editingTemplate?.content_ar || ''}
-                                onChange={(e) => setEditingTemplate(prev => prev ? { ...prev, content_ar: e.target.value } : null)}
-                                placeholder="*يا هلا ومرحبا {e:heart}*..."
-                                className="min-h-[150px] font-arabic"
-                                dir="rtl"
-                            />
-
-                            {/* Emoji Picker Dropdown */}
-                            {showEmojiPicker && activeField === 'content_ar' && (
-                                <div className="border rounded-lg p-3 bg-muted/50 space-y-2">
-                                    <p className="text-xs font-medium text-muted-foreground">{t("templates.emojiHint")}</p>
-                                    <div className="flex flex-wrap gap-1">
-                                        {emojiList.slice(0, 24).map(item => (
-                                            <button
-                                                key={item.shortcode}
-                                                onClick={() => insertEmoji(item.shortcode)}
-                                                className="w-8 h-8 flex items-center justify-center text-lg hover:bg-white rounded transition-colors"
-                                                title={`{e:${item.shortcode}}`}
-                                            >
-                                                {item.emoji}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
                         </div>
-
-                        {/* Preview */}
-                        {editingTemplate?.content_ar && (
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-muted-foreground">{t("templates.preview")}</label>
-                                <div className="p-3 rounded-lg bg-[#e5ddd5] border">
-                                    <div className="bg-[#dcf8c6] rounded-lg p-3 max-w-[80%] ml-auto">
-                                        <p className="text-sm whitespace-pre-wrap" dir="rtl">
-                                            {processEmojis(editingTemplate.content_ar)}
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Variable Hints */}
-                        <div className="p-3 bg-blue-50 rounded-lg border border-blue-100">
-                            <p className="text-xs font-medium text-blue-800 mb-2">{t("templates.variables")}</p>
-                            <div className="flex flex-wrap gap-1.5">
-                                {['{customer_name}', '{order_id}', '{sequence_number}', '{product}', '{price}', '{address}', '{phone}'].map(v => (
-                                    <code key={v} className="px-1.5 py-0.5 bg-white rounded text-xs text-blue-700 border border-blue-200">{v}</code>
-                                ))}
-                            </div>
-                        </div>
-
-                        <Button onClick={handleSave} className="w-full">{t("templates.save")}</Button>
-                    </div>
-                </DialogContent>
-            </Dialog>
+                    )}
+                </div>
+            )}
         </div>
     );
 }

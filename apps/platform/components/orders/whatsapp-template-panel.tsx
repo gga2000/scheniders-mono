@@ -23,10 +23,9 @@ import {
     Loader2,
     Clock,
 } from "lucide-react";
-import { cn, formatIQD, formatIQDText, generateWhatsAppLink, getBaseOrderId } from "@/lib/utils";
-import { processEmojis } from "@/lib/emoji-shortcodes";
-import { formatPhoneForDisplay, formatPhoneGrouped } from "@/lib/order-utils";
-import { mergeOrderItems } from "@/lib/merge-order-items";
+import { cn, formatIQD, generateWhatsAppLink } from "@/lib/utils";
+import { fillMessageTemplate } from "@/lib/fill-message-template";
+import { formatPhoneGrouped } from "@/lib/order-utils";
 import type { MessageTemplate, Order } from "@/lib/supabase";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRecordContact } from "@/hooks/use-record-contact";
@@ -149,77 +148,14 @@ export function WhatsAppTemplatePanel({
         return templates.find(t => t.template_type === selectedType) || templates[0];
     }, [templates, selectedType]);
 
-    // Process template with order data and emoji shortcodes
-    const processTemplate = (content: string): string => {
-        if (!previewOrder) return content;
-
-        const items = mergeOrderItems(previewOrder.items);
-        let productDisplay = "";
-        if (items.length === 0) {
-            productDisplay = "المنتج";
-        } else if (items.length === 1) {
-            productDisplay = items[0].name;
-        } else {
-            productDisplay = items.map(item => item.name).join(" + ");
-        }
-
-        const itemsCount = items.reduce((sum, item) => sum + (item.quantity || 1), 0);
-
-        const firstItem = items[0];
-        const orderPrice = previewOrder.price || 0;
-
-        let calculatedDiscount = 0;
-        let originalPrice = orderPrice;
-
-        if (firstItem?.compare_at_price && firstItem.compare_at_price > firstItem.price) {
-            calculatedDiscount = Math.round((1 - firstItem.price / firstItem.compare_at_price) * 100);
-            originalPrice = items.reduce((sum, item) => {
-                const comparePrice = item.compare_at_price || item.price;
-                return sum + (comparePrice * (item.quantity || 1));
-            }, 0);
-        }
-
-        const activeDiscount = calculatedDiscount > 0 ? calculatedDiscount : discountPercent;
-        const discountedPrice = useCustomPrice && customPrice
-            ? Number(customPrice)
-            : (calculatedDiscount > 0
-                ? orderPrice
-                : Math.round(orderPrice * (1 - discountPercent / 100)));
-
-        const displayOriginalPrice = calculatedDiscount > 0 ? originalPrice : orderPrice;
-
-        const city = previewOrder.city || "";
-        const addressDetails = previewOrder.address_details || "";
-        let fullAddress = "";
-        if (city && addressDetails) {
-            fullAddress = `${city} - ${addressDetails}`;
-        } else {
-            fullAddress = city || addressDetails || "";
-        }
-
-        const formattedPhone = formatPhoneForDisplay(previewOrder.phone) || previewOrder.phone || "";
-        const formattedSecondaryPhone = formatPhoneForDisplay(previewOrder.secondary_phone) || "";
-
-        let processed = content
-            .replace(/\{customer_name\}/g, previewOrder.customer_name || "")
-            .replace(/\{order_id\}/g, previewOrder.order_id || "")
-            .replace(/\{sequence_number\}/g, previewOrder.sequence_number?.toString() || getBaseOrderId(previewOrder.order_id))
-            .replace(/\{product\}/g, productDisplay)
-            .replace(/\{products\}/g, productDisplay)
-            .replace(/\{items_count\}/g, itemsCount.toString())
-            .replace(/\{address\}/g, fullAddress)
-            .replace(/\{phone\}/g, formattedPhone)
-            .replace(/\{secondary_phone\}/g, formattedSecondaryPhone || "—")
-            .replace(/\{original_price\}/g, formatIQDText(displayOriginalPrice))
-            .replace(/\{price\}/g, formatIQDText(orderPrice))
-            .replace(/\{discounted_price\}/g, formatIQDText(discountedPrice))
-            .replace(/\{discount_percent\}/g, activeDiscount.toString())
-            .replace(/\{city\}/g, city)
-            .replace(/\{status\}/g, previewOrder.status || "");
-
-        processed = processEmojis(processed);
-        return processed;
-    };
+    // Fill the template with the order and emoji shortcodes (lib/fill-message-template).
+    const processTemplate = (content: string): string =>
+        previewOrder
+            ? fillMessageTemplate(content, previewOrder, {
+                  discountPercent,
+                  customPrice: useCustomPrice && customPrice ? Number(customPrice) : null,
+              })
+            : content;
 
     const handleCopy = async () => {
         if (!selectedTemplate) return;
