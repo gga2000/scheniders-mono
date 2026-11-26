@@ -2242,6 +2242,7 @@ export const ar: Record<string, string> = {
     "orderDetail.piece": "قطعة",
     "orderDetail.deliveryFee": "رسوم التوصيل",
     "orderDetail.discount": "خصم",
+    "orderDetail.returnFee": "رسوم الاسترجاع",
     "orderDetail.grandTotal": "المجموع الكلي",
     "orderDetail.timeline": "الجدول الزمني",
     "orderDetail.noTimeline": "ماكو إدخالات",
