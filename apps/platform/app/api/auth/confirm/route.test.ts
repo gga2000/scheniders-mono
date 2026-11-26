@@ -39,8 +39,13 @@ describe("auth confirm (email link) route", () => {
     });
 
     it("rejects an unknown type without calling Supabase", async () => {
-        expect(await redirectFor("token_hash=h&type=bogus")).toBe("https://app.test/login");
+        expect(await redirectFor("token_hash=h&type=bogus")).toBe("https://app.test/login?link=used");
         expect(verifyOtp).not.toHaveBeenCalled();
+    });
+
+    it("tells login that a sign-up link was already used, so it says so instead of opening another account", async () => {
+        verifyOtp.mockResolvedValue({ data: { user: null }, error: { message: "Email link is invalid or has expired" } });
+        expect(await redirectFor("token_hash=h&type=email&next=/orders")).toBe("https://app.test/login?link=used");
     });
 
     it("never leaves the site through next", async () => {

@@ -2,18 +2,16 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useQuery } from "@tanstack/react-query";
 import { Lock, Loader2, AlertCircle, CheckCircle2, Eye, EyeOff, Store, KeyRound } from "lucide-react";
 import { isAuthWeakPasswordError } from "@supabase/supabase-js";
 import { useAuth } from "@/hooks/use-auth";
+import { useStoreName } from "@/hooks/use-store-name";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
-import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import { AuthCardShell, AuthCardHeading } from "@/components/auth/auth-card-shell";
 import { PasswordRule } from "@/components/auth/password-rule";
 import { PasswordStrengthMeter } from "@/components/auth/password-strength-meter";
 import { PASSWORD_MIN_LENGTH, passwordRules, weakPasswordReason } from "@/lib/password-policy";
-
 
 /** Same role names the Team page shows, so Arabic readers see Arabic. */
 const ROLE_KEYS: Record<string, string> = {
@@ -29,24 +27,6 @@ function roleLabel(role: string | null, t: (key: string) => string): string | nu
     const key = ROLE_KEYS[role];
     if (key) return t(key);
     return role.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
-/** The store this account works in, so the person knows which login they are fixing. */
-function useStoreName(tenantId: string | null) {
-    return useQuery<string | null>({
-        queryKey: ["reset-password-store-name", tenantId],
-        enabled: !!tenantId,
-        staleTime: 5 * 60_000,
-        queryFn: async () => {
-            const { data, error } = await supabase
-                .from("tenants")
-                .select("business_name")
-                .eq("id", tenantId!)
-                .maybeSingle();
-            if (error) throw error;
-            return data?.business_name ?? null;
-        },
-    });
 }
 
 function PasswordField({
