@@ -151,9 +151,10 @@ export function OrdersPageToolbar({ m }: { m: OrdersPageModel }) {
                                     evenly between ALL cards. Never position:sticky a card in
                                     here — it paints over the cards scrolling beneath it; the
                                     edge fades below signal overflow instead. */}
-                                    {/* The Actions group sits outside the scroll strip, so «طلب جديد»
-                                        stays in view when the other groups overflow at 1440 px or with
-                                        the sidebar open; only the strip scrolls under the edge fade. */}
+                                    {/* The Export and Actions groups sit outside the scroll strip, so the
+                                        export buttons and «طلب جديد» stay in view when the other groups
+                                        overflow at 1440 px or with the sidebar open; only the strip scrolls
+                                        under the edge fade. */}
                                     <div className="flex items-start gap-3 w-full">
                                     <div
                                         ref={toolbarScrollRef}
@@ -488,34 +489,35 @@ export function OrdersPageToolbar({ m }: { m: OrdersPageModel }) {
                                         </div>
                                     </div>
 
-                                    {/* Export Group */}
-                                    <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm orders-toolbar-group flex-shrink-0">
-                                        <span className="text-[11px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">{t("orders.toolbar.export")}</span>
-                                        <div className="flex items-center gap-1.5">
-
-                                            <button
-                                                onClick={() => setIsExportModalOpen(true)}
-                                                className="p-2.5 rounded-xl text-muted-foreground hover:bg-amber-200/60 hover:text-foreground transition-all duration-300"
-                                                title={t("orders.ui.export")}
-                                            >
-                                                <Download className="w-4 h-4" />
-                                            </button>
-                                            <button
-                                                onClick={() => {
-                                                    setShipConfirmKey(k => k + 1);
-                                                    setShipConfirmOpen(true);
-                                                }}
-                                                className="p-2.5 rounded-xl bg-slate-800 text-white text-sm font-medium hover:bg-slate-700 shadow-lg shadow-slate-900/20 transition-all duration-300 flex items-center gap-2"
-                                                title={t("shipExport.open")}
-                                                aria-label={t("shipExport.open")}
-                                            >
-                                                <Truck className="w-4 h-4" />
-                                            </button>
-                                        </div>
-                                    </div>
-
                                 </div>
-                                    <div className="pt-2 pb-6 flex-shrink-0">
+                                    <div className="pt-2 pb-6 flex-shrink-0 flex items-start gap-3">
+                                        {/* Export Group: beside Actions, outside the scroll strip, so the daily courier
+                                            file button never scrolls out of view (critic r18). */}
+                                        <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm orders-toolbar-group flex-shrink-0">
+                                            <span className="text-[11px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">{t("orders.toolbar.export")}</span>
+                                            <div className="flex items-center gap-1.5">
+
+                                                <button
+                                                    onClick={() => setIsExportModalOpen(true)}
+                                                    className="p-2.5 rounded-xl text-muted-foreground hover:bg-amber-200/60 hover:text-foreground transition-all duration-300"
+                                                    title={t("orders.ui.export")}
+                                                    aria-label={t("orders.ui.export")}
+                                                >
+                                                    <Download className="w-4 h-4" />
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        setShipConfirmKey(k => k + 1);
+                                                        setShipConfirmOpen(true);
+                                                    }}
+                                                    className="p-2.5 rounded-xl bg-slate-800 text-white text-sm font-medium hover:bg-slate-700 shadow-lg shadow-slate-900/20 transition-all duration-300 flex items-center gap-2"
+                                                    title={t("shipExport.open")}
+                                                    aria-label={t("shipExport.open")}
+                                                >
+                                                    <Truck className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        </div>
                                         <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm orders-toolbar-group flex-shrink-0">
                                             <span className="text-[11px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">{t("orders.toolbar.actions")}</span>
                                             <div className="flex items-center gap-1.5">
@@ -529,6 +531,8 @@ export function OrdersPageToolbar({ m }: { m: OrdersPageModel }) {
                                                 </button>
                                                 <button
                                                     onClick={() => setIsCreateModalOpen(true)}
+                                                    title={t("orders.newOrder")}
+                                                    aria-label={t("orders.newOrder")}
                                                     className="group relative px-4 py-2.5 rounded-xl bg-foreground text-background hover:bg-foreground/90 dark:bg-[var(--primary)] dark:text-[var(--primary-fg)] dark:hover:bg-[var(--primary)] dark:shadow-[0_0_15px_rgba(239,255,0,0.3)] dark:hover:shadow-[0_0_20px_rgba(239,255,0,0.5)] hover:-translate-y-0.5 transition-all duration-300 overflow-hidden"
                                                 >
                                                     <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />

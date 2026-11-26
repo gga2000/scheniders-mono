@@ -271,29 +271,6 @@ export function GlobalSearch({ onOpenChange }: { onOpenChange?: (open: boolean) 
                     </button>
                 )}
 
-                {/* Divider */}
-                <div className="w-px h-6 bg-(--card-border)" />
-
-                {/* Category Label */}
-                <span className="text-xs text-muted font-medium">{t("search.in")}</span>
-
-                {/* Category Pills */}
-                <div className="flex items-center gap-1 shrink-0">
-                    {categories.map((cat) => (
-                        <button
-                            key={cat.id}
-                            onClick={() => setCategory(cat.id)}
-                            className={cn(
-                                "px-3 py-1.5 rounded-full text-xs font-medium transition-all",
-                                category === cat.id
-                                    ? "bg-(--ink) text-white"
-                                    : "bg-background text-muted hover:text-foreground border border-(--card-border)"
-                            )}
-                        >
-                            {cat.label}
-                        </button>
-                    ))}
-                </div>
             </div>
 
             {/* Search Results Dropdown */}
@@ -307,6 +284,30 @@ export function GlobalSearch({ onOpenChange }: { onOpenChange?: (open: boolean) 
                         className="absolute top-full left-0 right-0 mt-2 bg-(--card-bg) rounded-2xl border border-(--card-border) shadow-xl overflow-hidden"
                         style={{ zIndex: "var(--z-header-overlay)" }}
                     >
+                        {/* Where to search: in the results box, not the bar, so the bar is all
+                            typing space even with the sidebar open (critic r18, Ali's yes 26 Nov). */}
+                        <div className="flex items-center gap-1 px-4 pt-3 pb-2 border-b border-(--card-border)" data-search-scopes>
+                            <span className="text-xs text-muted font-medium me-1">{t("search.in")}</span>
+                            {categories.map((cat) => (
+                                <button
+                                    key={cat.id}
+                                    type="button"
+                                    aria-pressed={category === cat.id}
+                                    onClick={() => {
+                                        setCategory(cat.id);
+                                        inputRef.current?.focus();
+                                    }}
+                                    className={cn(
+                                        "px-3 py-1.5 rounded-full text-xs font-medium transition-all",
+                                        category === cat.id
+                                            ? "bg-(--ink) text-white"
+                                            : "bg-background text-muted hover:text-foreground border border-(--card-border)"
+                                    )}
+                                >
+                                    {cat.label}
+                                </button>
+                            ))}
+                        </div>
                         {results.length > 0 ? (
                             <div className="py-2">
                                 {results.map((result) => {

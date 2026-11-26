@@ -5,7 +5,7 @@ import { m, AnimatePresence } from "framer-motion";
 import { Bell, Check, Wallet, Building2, Clock, AlertTriangle } from "lucide-react";
 import { EASE_CHROME } from "@/lib/animation-constants";
 import { TopupRequestsSection, useTopupRequests } from "./topup-requests-section";
-import { WhatsAppHealthAlert, WhatsAppPausedAlert, useWhatsAppHealth } from "./whatsapp-health-alert";
+import { WhatsAppCustomAlert, WhatsAppHealthAlert, WhatsAppPausedAlert, useWhatsAppHealth } from "./whatsapp-health-alert";
 import { BillingCheckAlert, billingCheckCount, useBillingCheck } from "./billing-check-alert";
 import { HourlyJobsAlert, hourlyJobsCount, useHourlyJobs } from "./hourly-jobs-alert";
 import { PrimeLinkRequestsSection, usePrimeLinkRequests } from "./prime-link-requests-section";
@@ -81,6 +81,7 @@ export function NotificationBell() {
   const whatsapp = whatsappRead.data;
   const interaktEmpty = whatsapp?.interaktEmpty === true;
   const pausedShops = whatsapp?.pausedShops ?? 0;
+  const customToSubmit = whatsapp?.customToSubmit ?? 0;
   const billingRead = useBillingCheck();
   const billingCheck = billingRead.data;
   const billingMissed = billingCheckCount(billingCheck) > 0;
@@ -97,7 +98,7 @@ export function NotificationBell() {
   ]);
   // The alert rows above the list, one list for the count and for the empty
   // line: the hourly row once showed above "No notifications yet".
-  const alertRows = [interaktEmpty, pausedShops > 0, billingMissed, hourlyMissed, unchecked.names.length > 0].filter(Boolean).length;
+  const alertRows = [interaktEmpty, pausedShops > 0, customToSubmit > 0, billingMissed, hourlyMissed, unchecked.names.length > 0].filter(Boolean).length;
   // Open Prime and top-up requests always count: they wait on the team, not on a read mark.
   const unreadCount = notifications.filter((n) => isNewStep(n.created_at, readUpTo)).length + openPrime.length + openTopups.length + alertRows;
   const nothingToShow = notifications.length === 0 && openPrime.length === 0 && openTopups.length === 0 && alertRows === 0;
@@ -193,6 +194,9 @@ export function NotificationBell() {
 
             {/* Shops whose automatic WhatsApp is paused to protect the shared number */}
             {pausedShops > 0 && <WhatsAppPausedAlert count={pausedShops} onOpen={() => setIsOpen(false)} />}
+
+            {/* Shops' paid custom WhatsApp messages waiting for us to submit them */}
+            {customToSubmit > 0 && <WhatsAppCustomAlert count={customToSubmit} onOpen={() => setIsOpen(false)} />}
 
             {/* Top-up receipts: shops waiting for our team to add their money */}
             <TopupRequestsSection requests={openTopups} />

@@ -62,6 +62,14 @@ import type { AdminRole, AdminAction } from "@/types/admin";
  *                         (never changes or removes one), each import is in
  *                         the staff log, and the shop can delete what it does
  *                         not want.
+ *   review_whatsapp_templates — move a shop's paid custom WhatsApp message
+ *                         along (copy it into Interakt, mark it sent to Meta,
+ *                         approved with Meta's category, or rejected / declined
+ *                         with the reason the shop reads, which refunds the
+ *                         shop once). Open to support_staff on purpose: it is
+ *                         day-to-day Interakt work, a refund only returns the
+ *                         shop's own payment for that message, and every step
+ *                         is in the staff log.
  */
 const ROLE_PERMISSIONS: Record<AdminRole, Set<AdminAction>> = {
   super_admin: new Set([
@@ -88,6 +96,7 @@ const ROLE_PERMISSIONS: Record<AdminRole, Set<AdminAction>> = {
     "manage_admins",
     "review_trials",
     "import_products",
+    "review_whatsapp_templates",
   ]),
   support_staff: new Set([
     "extend_trial",
@@ -100,6 +109,7 @@ const ROLE_PERMISSIONS: Record<AdminRole, Set<AdminAction>> = {
     "check_payments",
     "review_trials",
     "import_products",
+    "review_whatsapp_templates",
   ]),
 };
 

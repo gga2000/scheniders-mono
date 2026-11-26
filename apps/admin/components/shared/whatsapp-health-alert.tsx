@@ -1,14 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { MessageCircleOff, MessageCircleWarning } from "lucide-react";
+import { MessageCircleOff, MessageCircleWarning, MessageSquareText } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import { adminFetch } from "@/lib/admin-fetch";
 import { formatDayTime } from "@/lib/format";
 import { SHELL_READ, useAfterPageReads } from "@/hooks/use-after-page-reads";
 
-const healthSchema = z.object({ interaktEmpty: z.boolean(), since: z.string().nullable(), pausedShops: z.number().int() });
+const healthSchema = z.object({
+  interaktEmpty: z.boolean(),
+  since: z.string().nullable(),
+  pausedShops: z.number().int(),
+  /** Paid custom messages waiting for us to submit them in Interakt. */
+  customToSubmit: z.number().int(),
+});
 
 /** Is the platform's Interakt wallet empty? Every shop sends through it. */
 export function useWhatsAppHealth() {
@@ -41,6 +47,28 @@ export function WhatsAppPausedAlert({ count, onOpen }: { count: number; onOpen?:
         </p>
         <p className="text-xs text-[var(--ink-amber)] mt-0.5">
           Most of their recent messages did not reach customers, or staff paused them. Orders still come in.
+        </p>
+      </div>
+    </Link>
+  );
+}
+
+/** The bell's row while shops' paid custom messages wait for us to put them into Interakt. */
+export function WhatsAppCustomAlert({ count, onOpen }: { count: number; onOpen?: () => void }) {
+  return (
+    <Link
+      href="/whatsapp#custom-messages"
+      onClick={onOpen}
+      className="flex items-start gap-3 border-b border-[var(--card-border)] bg-sky-500/5 px-4 py-3 hover:bg-sky-100/70 dark:bg-sky-950/30"
+      data-testid="whatsapp-custom-alert"
+    >
+      <span className="mt-0.5 text-[var(--ink-blue)]"><MessageSquareText className="w-3.5 h-3.5" /></span>
+      <div className="min-w-0">
+        <p className="text-xs font-semibold text-[var(--ink-blue)]">
+          {count} custom WhatsApp {count === 1 ? "message" : "messages"} to submit
+        </p>
+        <p className="text-xs text-foreground/70 mt-0.5">
+          The shop paid. Copy it into Interakt and send it to Meta, or decline it with a reason.
         </p>
       </div>
     </Link>

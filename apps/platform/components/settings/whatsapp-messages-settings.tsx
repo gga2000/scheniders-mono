@@ -1,9 +1,10 @@
 "use client";
 
-import { BellRing, MessageSquare } from "lucide-react";
+import { BellRing, MessageSquare, PenLine } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
 import { useTemplateEditor } from "@/hooks/use-message-templates";
 import { useStoreSnapshot } from "@/hooks/use-settings-attention";
+import { CustomWhatsappMessages } from "@/components/settings/custom-whatsapp/custom-whatsapp-messages";
 import { MessageTemplatesList } from "@/components/settings/message-templates-list";
 import { ReminderSettingsForm } from "@/components/settings/reminder-settings-form";
 import { SettingsPreviewPane, SettingsWithPreview } from "@/components/settings/settings-preview";
@@ -11,7 +12,8 @@ import { WhatsAppChatPreview } from "@/components/settings/whatsapp-chat-preview
 
 /**
  * What the shop sends customers on WhatsApp: the message templates, edited in
- * place with the customer's chat beside them, then the automatic reminder.
+ * place with the customer's chat beside them, the automatic reminder, then the
+ * shop's own paid wording for Fermi's automatic order messages.
  */
 export function WhatsAppMessagesSettings() {
     const { t } = useLanguage();
@@ -59,6 +61,16 @@ export function WhatsAppMessagesSettings() {
                         <h3 className="text-lg font-semibold text-foreground">{t("settings.orders.reminder")}</h3>
                     </div>
                     <ReminderSettingsForm />
+                </div>
+
+                <div className="pastel-card p-6" data-setting="custom-whatsapp">
+                    <div className="mb-4 flex items-center gap-2">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-(--pastel-green)">
+                            <PenLine className="h-4 w-4 text-green-700" />
+                        </div>
+                        <h3 className="text-lg font-semibold text-foreground">{t("customWa.title")}</h3>
+                    </div>
+                    <CustomWhatsappMessages />
                 </div>
             </SettingsWithPreview>
         </div>
