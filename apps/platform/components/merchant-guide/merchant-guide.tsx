@@ -205,6 +205,8 @@ export function MerchantGuide() {
         return (
             <GuideWelcome
                 locale={locale}
+                soundOn={soundOn}
+                onToggleSound={toggleSound}
                 saving={saving}
                 onStart={(answers) => persist({ answers })}
             />
