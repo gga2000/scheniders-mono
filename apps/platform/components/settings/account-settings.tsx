@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowUpRight, Bell, Database, Volume2 } from "lucide-react";
+import { ArrowRight, Bell, Database, Volume2 } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
 import { SOUND_URLS } from "@/lib/notification-chime";
-import { SETTINGS_BACKUP_HREF } from "@/lib/settings-sections";
+import { settingsHref } from "@/lib/settings-sections";
 import { AccountLinkingCard } from "@/components/settings/account-linking-card";
 import { GuideSettingsCard } from "@/components/settings/guide-settings-card";
 import { NotificationSettingsDialog } from "@/components/layout/notification-settings-dialog";
@@ -26,7 +26,7 @@ function previewSound(url: string): void {
     void audio.play().catch(() => {});
 }
 
-/** Sign-in, notification sounds and choices, the setup guide, and the backup page. */
+/** Sign-in, notification sounds and choices, the setup guide, and a pointer to the Data Vault section. */
 export function AccountSettings() {
     const { t } = useLanguage();
     const [prefsOpen, setPrefsOpen] = useState(false);
@@ -90,11 +90,11 @@ export function AccountSettings() {
                     <p className="text-sm text-muted-foreground">{t("settings.data.vaultDesc")}</p>
                 </div>
                 <Link
-                    href={SETTINGS_BACKUP_HREF}
+                    href={settingsHref("vault")}
                     className="inline-flex h-9 items-center gap-2 rounded-xl bg-(--ink) px-4 text-sm font-semibold text-white hover:opacity-90"
                 >
                     {t("settings.data.openVault")}
-                    <ArrowUpRight className="h-4 w-4" />
+                    <ArrowRight className="h-4 w-4" />
                 </Link>
             </div>
 

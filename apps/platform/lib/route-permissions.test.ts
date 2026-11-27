@@ -12,7 +12,7 @@ describe("getRouteRule", () => {
 });
 
 describe("canAccessRoute", () => {
-    const money = ["/finances", "/salaries", "/vault"];
+    const money = ["/finances", "/salaries", "/ads"];
 
     it.each(money)("lets admins and platform staff open %s", (path) => {
         expect(canAccessRoute(path, "admin", [])).toBe(true);
@@ -35,6 +35,14 @@ describe("canAccessRoute", () => {
         expect(canAccessRoute("/printing", "viewer", [])).toBe(false);
         expect(canAccessRoute("/shipping-export/b1", "viewer", [])).toBe(false);
         expect(canAccessRoute("/orders/trash", "viewer", [])).toBe(true);
+    });
+
+    it("opens Shops & rules to staff, while the till itself needs the selling permission", () => {
+        expect(canAccessRoute("/till/shops", "employee", [])).toBe(true);
+        expect(canAccessRoute("/till/shops", "viewer", [])).toBe(false);
+        expect(canAccessRoute("/till", "employee", [])).toBe(false);
+        expect(canAccessRoute("/till", "employee", [PERMISSIONS.TILL_SELL])).toBe(true);
+        expect(canAccessRoute("/till/customer", "employee", [])).toBe(false);
     });
 
     it("does not open admin-only routes to a permission they do not name", () => {
@@ -77,8 +85,15 @@ describe("filterNavItems / filterNavSections", () => {
             titleKey: "nav.groupWorkspace",
             items: [
                 { key: "nav.store", href: "/store" },
+                {
+                    key: "nav.till",
+                    href: "/till/shops",
+                    subItems: [
+                        { key: "nav.tillShops", href: "/till/shops" },
+                        { key: "nav.tillScreen", href: "/till" },
+                    ],
+                },
                 { key: "nav.team", href: "/team" },
-                { key: "nav.vault", href: "/vault" },
             ],
         },
     ];
@@ -88,18 +103,29 @@ describe("filterNavItems / filterNavSections", () => {
         expect(keys(filterNavSections(sections, "admin", []))).toEqual(keys(sections));
     });
 
-    it("hides Finances, Reports, Team and Vault from an employee, and drops the emptied section", () => {
+    it("hides Finances, Reports and Team from an employee, and drops the emptied section", () => {
         expect(keys(filterNavSections(sections, "employee", [PERMISSIONS.EDIT_ORDERS]))).toEqual([
             ["nav.dashboard", "nav.orders", "nav.printing"],
-            ["nav.store"],
+            ["nav.store", "nav.till"],
         ]);
+    });
+
+    it("keeps Shops & rules for staff but shows the selling screen only to those who may sell", () => {
+        const tillSubs = (perms: string[]) =>
+            filterNavSections(sections, "employee", perms)
+                .flatMap((s) => s.items)
+                .find((i) => i.key === "nav.till")
+                ?.subItems?.map((s) => s.key);
+        expect(tillSubs([])).toEqual(["nav.tillShops"]);
+        expect(tillSubs([PERMISSIONS.TILL_SELL])).toEqual(["nav.tillShops", "nav.tillScreen"]);
+        expect(filterNavSections(sections, "admin", [])[2].items[1].subItems).toHaveLength(2);
     });
 
     it("shows money links to a non-admin granted the financials permission", () => {
         expect(keys(filterNavSections(sections, "employee", [PERMISSIONS.VIEW_FINANCIALS]))).toEqual([
             ["nav.dashboard", "nav.orders", "nav.printing"],
             ["nav.finances"],
-            ["nav.store", "nav.vault"],
+            ["nav.store", "nav.till"],
         ]);
     });
 

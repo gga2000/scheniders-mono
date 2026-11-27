@@ -345,7 +345,7 @@ export function TillPage() {
                     {activeShops.length === 0 ? (
                         <>
                             <p className="text-lg font-semibold text-foreground">{t("till.top.noShops")}</p>
-                            <Link href="/shops" className="inline-flex h-12 items-center rounded-2xl bg-[var(--ink)] px-6 text-sm font-semibold text-white dark:bg-[#EFFF00] dark:text-[#121212]">
+                            <Link href="/till/shops" className="inline-flex h-12 items-center rounded-2xl bg-[var(--ink)] px-6 text-sm font-semibold text-white dark:bg-[#EFFF00] dark:text-[#121212]">
                                 {t("till.shops.addFirst")}
                             </Link>
                         </>

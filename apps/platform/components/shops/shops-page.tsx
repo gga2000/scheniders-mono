@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Store } from "lucide-react";
+import Link from "next/link";
+import { Plus, ScanBarcode, Store } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
 import { usePermission } from "@/hooks/use-permission";
 import { PERMISSIONS } from "@/lib/permissions";
@@ -20,12 +21,15 @@ const CARD = "rounded-[24px] border border-[var(--card-border)] bg-[var(--card-b
 /**
  * Shops & rules (Shop Till phase 0): the store's physical shops, who works in
  * each, the till rules and cashier PINs. Staff without shops.manage see only
- * their own PIN card.
+ * their own PIN card. It is the home of the sidebar's till section, so it
+ * also opens the selling screen for those who may sell.
  */
 export function ShopsPage() {
     const { t } = useLanguage();
     const { can } = usePermission();
     const manage = can(PERMISSIONS.MANAGE_SHOPS);
+    // Same rule as the /till route: admins, or anyone granted till.sell.
+    const sell = can(PERMISSIONS.TILL_SELL);
     const shops = useShops();
     const members = useTillMembers();
     // null = closed; "new" = adding; a shop = editing it.
@@ -39,16 +43,27 @@ export function ShopsPage() {
                         <h1 className="text-3xl font-bold tracking-tight text-foreground">{t("till.shops.title")}</h1>
                         <p className="mt-0.5 text-left text-sm text-muted" dir="auto">{t("till.shops.subtitle")}</p>
                     </div>
-                    {manage && (
-                        <button
-                            type="button"
-                            onClick={() => setEditing("new")}
-                            className={`${CARD} inline-flex h-12 items-center gap-2 px-5 text-sm font-semibold text-foreground hover:bg-[var(--card-hover,transparent)]`}
-                        >
-                            <Plus className="h-4 w-4" aria-hidden="true" />
-                            {t("till.shops.add")}
-                        </button>
-                    )}
+                    <div className="flex flex-wrap items-center gap-3">
+                        {manage && (
+                            <button
+                                type="button"
+                                onClick={() => setEditing("new")}
+                                className={`${CARD} inline-flex h-12 items-center gap-2 px-5 text-sm font-semibold text-foreground hover:bg-[var(--card-hover,transparent)]`}
+                            >
+                                <Plus className="h-4 w-4" aria-hidden="true" />
+                                {t("till.shops.add")}
+                            </button>
+                        )}
+                        {sell && (
+                            <Link
+                                href="/till"
+                                className="inline-flex h-12 items-center gap-2 rounded-2xl bg-[var(--ink)] px-5 text-sm font-semibold text-white hover:opacity-90 dark:bg-[#EFFF00] dark:text-[#121212]"
+                            >
+                                <ScanBarcode className="h-4 w-4" aria-hidden="true" />
+                                {t("till.shops.openTill")}
+                            </Link>
+                        )}
+                    </div>
                 </header>
 
                 {manage && (

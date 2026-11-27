@@ -1,6 +1,7 @@
 import {
     BellRing,
     Building2,
+    Database,
     Gauge,
     Link2,
     MessageCircle,
@@ -20,6 +21,7 @@ export const SETTINGS_SECTION_ICONS: Record<SettingsSectionId, LucideIcon> = {
     overview: Gauge,
     business: Building2,
     billing: Wallet,
+    vault: Database,
     "order-reasons": PackageX,
     messages: MessageCircle,
     "delivery-fees": Truck,

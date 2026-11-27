@@ -1,13 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
-import { ArrowUpRight, Database, Search, X } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { SETTINGS_SECTION_ICONS } from "@/components/settings/settings-icons";
 import { useLanguage } from "@/hooks/use-language";
 import type { SettingsAttentionItem } from "@/lib/settings-attention";
 import {
-    SETTINGS_BACKUP_HREF,
     SETTINGS_GROUPS,
     SETTINGS_SECTIONS,
     searchSettings,
@@ -128,16 +126,6 @@ export function SettingsNav({
                     {SETTINGS_SECTIONS.filter((s) => s.group === group.id).map((s) => (
                         <NavItem key={s.id} id={s.id} active={active} onOpen={onOpen} flagged={flagged.has(s.id)} />
                     ))}
-                    {group.id === "you" && (
-                        <Link
-                            href={SETTINGS_BACKUP_HREF}
-                            className="flex h-8 items-center gap-2.5 rounded-lg px-2 text-sm text-foreground/85 hover:bg-(--background)"
-                        >
-                            <Database className="h-4 w-4 text-muted-foreground" />
-                            {t("settings.hub.backup.title")}
-                            <ArrowUpRight className="ml-auto h-3.5 w-3.5 text-muted-foreground" />
-                        </Link>
-                    )}
                 </div>
             ))}
         </nav>

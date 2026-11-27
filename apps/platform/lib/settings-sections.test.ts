@@ -20,7 +20,7 @@ describe("resolveSettingsSection", () => {
         expect(resolveSettingsSection("integrations")).toEqual({ section: "waseet", focus: null });
         expect(resolveSettingsSection("pages")).toEqual({ section: "team", focus: "page-access" });
         expect(resolveSettingsSection("support-activity")).toEqual({ section: "team", focus: "support-activity" });
-        expect(resolveSettingsSection("data")).toEqual({ section: "account", focus: "backup" });
+        expect(resolveSettingsSection("data")).toEqual({ section: "vault", focus: null });
     });
 
     it("opens the overview for nothing or an unknown id", () => {

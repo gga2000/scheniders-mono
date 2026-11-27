@@ -9,7 +9,6 @@ import {
     LogOut,
     Megaphone,
     Truck,
-    MapPinned,
     LayoutDashboard,
     Users,
     ShoppingBag,
@@ -18,7 +17,6 @@ import {
     FileBarChart,
     Store,
     UsersRound,
-    Database,
     ScanBarcode,
 } from "lucide-react";
 import Link from "next/link";
@@ -96,10 +94,19 @@ const NAV_SECTIONS: { titleKey: string; items: NavItem[] }[] = [
             // Store owns its own sub-navigation in-page (Command Center / Editor /
             // Reviews / Cart Recovery), so the sidebar keeps a single entry.
             { key: "nav.store", icon: Store, href: "/store" },
-            { key: "nav.till", icon: ScanBarcode, href: "/till" },
-            { key: "nav.shops", icon: MapPinned, href: "/shops" },
+            // The till section opens on Shops & rules (shops, till rules, PINs);
+            // the selling screen is full screen, so it is a sub-link, shown only
+            // to those who may sell. The Data Vault now lives in Settings.
+            {
+                key: "nav.till",
+                icon: ScanBarcode,
+                href: "/till/shops",
+                subItems: [
+                    { key: "nav.tillShops", label: "Shops & rules", href: "/till/shops", tab: "till-shops" },
+                    { key: "nav.tillScreen", label: "Selling screen", href: "/till", tab: "till-screen" },
+                ],
+            },
             { key: "nav.team", icon: UsersRound, href: "/team" },
-            { key: "nav.vault", icon: Database, href: "/vault" },
         ],
     },
 ];
@@ -126,10 +133,13 @@ export function Sidebar({
     const pathname = usePathname();
     const searchParams = useSearchParams();
     const router = useRouter();
-    // Every screen of the advanced Finances page lights its one sub-link, whatever its own tab.
+    // Every screen of the advanced Finances page lights its one sub-link, whatever its own tab;
+    // the till section has no tabs, only Shops & rules (the selling screen hides the sidebar).
     const currentTab = pathname.startsWith("/finances/advanced")
         ? "advanced"
-        : searchParams?.get("tab") || (pathname.startsWith("/finances") ? "summary" : "products");
+        : pathname.startsWith("/till/shops")
+            ? "till-shops"
+            : searchParams?.get("tab") || (pathname.startsWith("/finances") ? "summary" : "products");
     const { user, profile, role, permissions, profileLoaded, signOut, isLoading: authLoading } = useAuth();
     // Only the links this user may open: the same rules PageGuard enforces.
     const prime = usePrimeConnection();
