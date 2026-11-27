@@ -1,7 +1,7 @@
 "use client";
 
 import { safeRedirectPath } from "@scheniders/shared/safe-redirect-path";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useSyncExternalStore } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Mail, Lock, AlertCircle, ArrowBigUpDash, ArrowRight, CheckCircle2, Fingerprint, ShieldCheck } from "lucide-react";
@@ -12,6 +12,7 @@ import { AuthCaptcha, useAuthCaptcha } from "@/components/auth/auth-captcha";
 import { AuthCardShell } from "@/components/auth/auth-card-shell";
 import { AuthHero } from "@/components/auth/auth-hero";
 import { GoogleMark } from "@/components/auth/google-mark";
+import { LinkUsedNotice } from "@/components/auth/link-used-notice";
 import { emailProblem, loginErrorKey } from "@/lib/login-errors";
 import { devicePasskeyAvailable, registerPasskey, signInWithPasskey } from "@/lib/passkey-client";
 import { TRIAL_DAYS } from "@/lib/trial";
@@ -58,6 +59,20 @@ function SuccessCheck() {
  */
 function readReturnTo(): string {
     return safeRedirectPath(new URLSearchParams(window.location.search).get("returnTo"));
+}
+
+/**
+ * ?link=used: an email link that no longer works sent the owner here, most
+ * often a sign-up link opened again on a second device. Login then says so and
+ * does not carry a browser still signed in to some account into that account.
+ */
+function readLinkUsed(): boolean {
+    return new URLSearchParams(window.location.search).get("link") === "used";
+}
+
+/** The address does not change while the page is open, so there is nothing to subscribe to. */
+function noSubscription(): () => void {
+    return () => {};
 }
 
 type LoginMethod = "email" | "google" | "passkey";
@@ -181,9 +196,12 @@ function LoginForm() {
     const passwordRef = useRef<HTMLInputElement>(null);
     const captcha = useAuthCaptcha();
 
-    // Redirect if already logged in
+    const linkUsed = useSyncExternalStore(noSubscription, readLinkUsed, () => false);
+
+    // Redirect if already logged in, except after a dead email link: there the
+    // owner picks between the account this browser holds and another one.
     useEffect(() => {
-        if (user && !authLoading && !holdRedirect.current) {
+        if (user && !authLoading && !holdRedirect.current && !readLinkUsed()) {
             router.push(readReturnTo());
         }
     }, [user, authLoading, router]);
@@ -336,6 +354,8 @@ function LoginForm() {
                 {t("login.title")}
             </h1>
             <p dir={dir} className="mt-2 text-left text-[15px] text-[#8A847A]">{t("login.subtitle")}</p>
+
+            {linkUsed && <LinkUsedNotice onContinue={() => router.push(readReturnTo())} />}
 
             <AnimatePresence mode="wait">
                 {error && (

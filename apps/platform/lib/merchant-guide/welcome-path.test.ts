@@ -8,6 +8,12 @@ describe("welcomePath", () => {
         expect(path.more).toBe(5);
     });
 
+    it("lists the four basics steps under the basics, in the order the guide walks them", () => {
+        const [basics] = welcomePath({ inShop: null, staff: null }).rows;
+        expect(basics.labelKey).toBe("guide.phase.foundation");
+        expect(basics.stepKeys).toEqual(["guide.step.shop", "guide.step.product", "guide.step.delivery", "guide.step.open"]);
+    });
+
     it("adds the till for a shop and the team for staff", () => {
         const path = welcomePath({ inShop: true, staff: true });
         expect(path.rows.map((r) => r.id)).toEqual(["basics", "first_order", "team", "till"]);
