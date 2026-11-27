@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useLanguage } from "@/components/providers/language-provider";
@@ -20,6 +20,7 @@ import {
     LogOut,
     ChevronRight,
     Loader2,
+    Menu,
     RotateCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -409,6 +410,12 @@ export function TopBar({ onMenuClick, isMobile }: TopBarProps) {
     const { user, profile, signOut } = useAuth();
     const { t } = useLanguage();
     const router = useRouter();
+    const pathname = usePathname() ?? "";
+    // Phones reach every page through the menu. The phone Orders page has its
+    // own bar with its own menu button, so it doesn't get a second one. To keep
+    // the bar on one line at 360px, the phone gaps are a little tighter and the
+    // trial chip and store number show less there (desktop is unchanged).
+    const showMenuButton = isMobile && !!onMenuClick && !pathname.startsWith("/orders");
 
     const [scrolled, setScrolled] = useState(false);
     const [searchOpen, setSearchOpen] = useState(false);
@@ -436,9 +443,21 @@ export function TopBar({ onMenuClick, isMobile }: TopBarProps) {
         <header className="app-header backdrop-blur-md backdrop-saturate-150" data-scrolled={scrolled} data-hidden={hidden}>
             {/* Header Content */}
             {/* "topbar" container: the store-number side sizes itself to the bar, not the window (change-request-button). */}
-            <div className="@container/topbar relative flex items-center justify-between gap-3 md:gap-6 w-full px-4 md:px-6 py-3 md:py-4">
+            <div className="@container/topbar relative flex items-center justify-between gap-2 md:gap-6 w-full px-4 md:px-6 py-3 md:py-4">
                 {/* Left: merchant code badge */}
                 <div className="flex items-center w-auto md:flex-1 md:min-w-fit">
+                    {showMenuButton && (
+                        <button
+                            type="button"
+                            onClick={onMenuClick}
+                            data-guide="nav-menu"
+                            aria-label={t("nav.openMenu")}
+                            title={t("nav.openMenu")}
+                            className={cn(HEADER_ACTION_CLASS, "mr-1.5 shrink-0")}
+                        >
+                            <Menu className="h-5 w-5" aria-hidden="true" />
+                        </button>
+                    )}
                     <MerchantCodeBadge />
                     {/* Desktop only, right of the store number (Ali, 22 Nov). */}
                     <div className="ml-2 hidden shrink-0 md:block">
@@ -523,7 +542,7 @@ export function TopBar({ onMenuClick, isMobile }: TopBarProps) {
 
                     {/* Mobile-only actions — the desktop block above is hidden on mobile,
                         so without this chat + notifications are unreachable on phones. */}
-                    <div className="flex md:hidden items-center gap-2">
+                    <div className="flex md:hidden items-center gap-1.5">
                         <ChatTrigger />
                         <NotificationsDropdown onOpenChange={setNotifOpen} />
                         <SupportTrigger />

@@ -60,7 +60,7 @@ export function MerchantCodeBadge() {
       {copied ? (
         <Check className="w-3 h-3 text-emerald-500 shrink-0" />
       ) : (
-        <Copy className="w-3 h-3 text-foreground/35 group-hover:text-foreground/60 shrink-0 transition-colors" />
+        <Copy className="hidden md:block w-3 h-3 text-foreground/35 group-hover:text-foreground/60 shrink-0 transition-colors" />
       )}
     </button>
   );

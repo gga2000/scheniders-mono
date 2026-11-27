@@ -7768,6 +7768,7 @@ export const ar: Record<string, string> = {
     "orders.autoSend.off": "الإرسال التلقائي طافي: اضغط حتى تشغّله",
     "nav.expandSidebar": "توسيع القائمة",
     "nav.collapseSidebar": "طي القائمة",
+    "nav.openMenu": "افتح القائمة",
     "theme.toLight": "الوضع الفاتح",
     "theme.toDark": "الوضع الداكن",
     "app.error.title": "صار خطأ ما متوقع",

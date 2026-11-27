@@ -30,7 +30,7 @@ import {
 import { GuideFirstOrder } from "./guide-first-order";
 import { GuideList, type GuideListItem } from "./guide-list";
 import { GuideNote } from "./guide-note";
-import { GuideTour } from "./guide-tour";
+import { GuideTourSteps } from "./guide-tour";
 import type { GuideAnswers, GuidePhases } from "./use-merchant-guide-data";
 
 const FIRST_ORDER = { id: "first_order", labelKey: "guide.phase.firstOrder", minutes: 4 } as const;
@@ -105,21 +105,19 @@ export function GuideAfterBasics({
     if (active) {
         const stops = phaseStops(active, facts);
         const record = phases[active.id];
-        const stop = nextTourStop(stops, record);
-        if (stop) {
+        if (nextTourStop(stops, record)) {
             return (
-                <GuideTour
-                    key={`${active.id}:${stop.id}`}
+                <GuideTourSteps
+                    key={active.id}
                     label={t(active.labelKey)}
-                    stop={stop}
-                    index={stops.indexOf(stop)}
-                    count={stops.length}
+                    stops={stops}
+                    record={record}
                     locale={locale}
                     soundOn={soundOn}
                     onToggleSound={onToggleSound}
                     pillLeft={pillLeft}
                     saving={saving}
-                    onNext={() => setTour(active.id, seeStop(stops, record, stop.id, now_iso()))}
+                    onSee={(stop) => setTour(active.id, seeStop(stops, record, stop.id, now_iso()))}
                 />
             );
         }

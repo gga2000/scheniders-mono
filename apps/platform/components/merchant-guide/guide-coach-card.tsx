@@ -62,11 +62,21 @@ export interface GuideCoachCardProps {
     /** Where the card rests (beside the pill) when it has nothing to point at. */
     dockLeft: number;
     /** Position within a step that walks several fields (name, photo...). */
-    part?: { index: number; count: number; onBack: () => void; onNext: () => void };
+    part?: { index: number; count: number; onNext: () => void };
+    /** The step or field before this one. Null shows the arrow switched off (the very first one); left out, there is none. */
+    onBack?: (() => void) | null;
     /** Shown when the merchant isn't on the step's page or screen. */
     onGo?: () => void;
     /** A stop that only explains: the merchant moves on with this button. */
     next?: { label: string; onClick: () => void; busy?: boolean };
+    /** What the card waits for when it has no button: the step to tick, or the merchant's click on the light. */
+    waitingFor?: "step" | "click";
+    /** The last resort when the thing to click can't be found: a small link that goes there. */
+    onLost?: () => void;
+    /** A finished step the merchant came back to. */
+    done?: boolean;
+    /** The light is on something in the sidebar, the phone menu or a sheet: the card sits above them too. */
+    raised?: boolean;
     onMinimize: () => void;
     children?: ReactNode;
 }
@@ -80,8 +90,13 @@ export function GuideCoachCard({
     box,
     dockLeft,
     part,
+    onBack,
     onGo,
     next,
+    waitingFor = "step",
+    onLost,
+    done = false,
+    raised = false,
     onMinimize,
     children,
 }: GuideCoachCardProps) {
@@ -110,13 +125,22 @@ export function GuideCoachCard({
             aria-label={heading}
             data-testid="merchant-guide-card"
             className={cn(
-                "merchant-guide-card fixed z-[46] grid w-[min(360px,calc(100vw-32px))] gap-3 rounded-2xl bg-neutral-900 p-4 text-white shadow-[0_18px_40px_-16px_rgba(0,0,0,0.6)]",
+                "merchant-guide-card fixed grid w-[min(360px,calc(100vw-32px))] gap-3 rounded-2xl bg-neutral-900 p-4 text-white shadow-[0_18px_40px_-16px_rgba(0,0,0,0.6)]",
+                raised ? "z-[63]" : "z-[46]",
                 // Out of the keyboard's way while the merchant types on a phone.
                 typing && "hidden",
             )}
         >
             <div className="flex items-center justify-between gap-2 text-xs text-neutral-400">
-                <span dir={dir}>{heading}</span>
+                <span dir={dir} className="inline-flex flex-wrap items-center gap-x-2">
+                    {heading}
+                    {done && (
+                        <span data-testid="merchant-guide-step-done" className="inline-flex items-center gap-1 font-semibold text-[#EFFF00]">
+                            <Check className="h-3.5 w-3.5" aria-hidden="true" />
+                            {t("guide.stepDone")}
+                        </span>
+                    )}
+                </span>
                 <div className="flex items-center gap-1">
                     <GuideSoundButton soundOn={soundOn} speaking={voice.speaking} onToggle={onToggleSound} />
                     <button
@@ -141,6 +165,19 @@ export function GuideCoachCard({
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
+                {onBack !== undefined && (
+                    <button
+                        type="button"
+                        onClick={onBack ?? undefined}
+                        disabled={onBack === null}
+                        aria-label={t("guide.back")}
+                        title={t("guide.back")}
+                        data-testid="merchant-guide-back"
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/20 hover:bg-white/10 disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#EFFF00]"
+                    >
+                        <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                )}
                 {onGo ? (
                     <button
                         type="button"
@@ -166,21 +203,10 @@ export function GuideCoachCard({
                     <>
                         <button
                             type="button"
-                            onClick={part.onBack}
-                            disabled={part.index === 0}
-                            aria-label={t("guide.back")}
-                            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/20 hover:bg-white/10 disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#EFFF00]"
-                        >
-                            <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-                        </button>
-                        <button
-                            type="button"
                             onClick={part.onNext}
                             disabled={part.index >= part.count - 1}
                             data-testid="merchant-guide-next"
-                            className={cn(
-                                "inline-flex h-9 items-center gap-1 rounded-full bg-[#EFFF00] px-4 text-sm font-bold text-neutral-900 hover:opacity-90 disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white",
-                            )}
+                            className="inline-flex h-9 items-center gap-1 rounded-full bg-[#EFFF00] px-4 text-sm font-bold text-neutral-900 hover:opacity-90 disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
                         >
                             {t("guide.next")}
                             <ChevronRight className="h-4 w-4" aria-hidden="true" />
@@ -190,7 +216,19 @@ export function GuideCoachCard({
                         </span>
                     </>
                 ) : (
-                    <span className="text-xs text-neutral-500">{t("guide.waiting")}</span>
+                    <span dir={dir} className="text-xs text-neutral-500">
+                        {t(waitingFor === "click" ? "guide.route.waiting" : "guide.waiting")}
+                    </span>
+                )}
+                {onLost && (
+                    <button
+                        type="button"
+                        onClick={onLost}
+                        data-testid="merchant-guide-lost"
+                        className="ml-auto text-xs text-neutral-400 underline-offset-2 hover:text-white hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#EFFF00]"
+                    >
+                        <span dir={dir}>{t("guide.route.lost")}</span>
+                    </button>
                 )}
             </div>
         </div>

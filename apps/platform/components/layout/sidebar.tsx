@@ -107,6 +107,11 @@ const NAV_SECTIONS: { titleKey: string; items: NavItem[] }[] = [
 // Flat list for the mobile drawer and the loading placeholder.
 const NAV_ITEMS: NavItem[] = NAV_SECTIONS.flatMap(section => section.items);
 
+/** The setup guide finds a menu item by its page: "/products" is "nav-products" (lib/merchant-guide/route.ts). */
+function navGuideId(href: string): string {
+    return `nav-${href.slice(1)}`;
+}
+
 
 interface SidebarProps {
     collapsed: boolean;
@@ -206,6 +211,7 @@ export function Sidebar({
                 <TransitionLink
                     href={item.href}
                     prefetch={true}
+                    data-guide={navGuideId(item.href)}
                     onMouseEnter={() => {
                         // Intent-based rigorous prefetching
                         if (["/products", "/finances"].includes(item.href)) prefetchProducts();
@@ -334,6 +340,7 @@ export function Sidebar({
                 {/* Collapse Toggle Button */}
                 <motion.button
                     onClick={() => setCollapsed(!collapsed)}
+                    data-guide="nav-toggle"
                     whileHover={{ scale: 1.08 }}
                     whileTap={{ scale: 0.92 }}
                     className="absolute -right-3 top-16 z-10 w-8 h-8 rounded-full bg-[#E4B5D1] hover:bg-[#d9a0c4] flex items-center justify-center shadow-md hover:shadow-lg border-[3px] border-[#1E1E1E]"
@@ -579,6 +586,7 @@ export function Sidebar({
                                             key={item.href}
                                             href={item.href}
                                             prefetch={true}
+                                            data-guide={navGuideId(item.href)}
                                             onClick={handleNavClick}
                                             onMouseEnter={() => {
                                                 // Intent-based rigorous prefetching

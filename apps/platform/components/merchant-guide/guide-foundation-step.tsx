@@ -4,8 +4,12 @@ import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import type { StoreConfigV2 } from "@scheniders/shared";
 import { useLanguage } from "@/hooks/use-language";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
 import { foundationDoneCount, FOUNDATION_STEPS, type FoundationStatus, type FoundationStep } from "@/lib/merchant-guide/foundation";
-import { lineText, type GuideLocale } from "@/lib/merchant-guide/script";
+import { productWalkStage } from "@/lib/merchant-guide/product-walk";
+import { atGoalPage, inStoreEditor, routeStop, type RouteGoal } from "@/lib/merchant-guide/route";
+import { lineText, type GuideLineId, type GuideLocale } from "@/lib/merchant-guide/script";
 import {
     DELIVERY_CHOICES,
     FOUNDATION_PLACES,
@@ -19,11 +23,16 @@ import { GuideCoachCard } from "./guide-coach-card";
 import { GuidePill } from "./guide-pill";
 import { GuideProductWalk } from "./guide-product-walk";
 import { useGuideSetup } from "./guide-setup-store";
-import { productWalkStage } from "@/lib/merchant-guide/product-walk";
 import { GuideSpotlight } from "./guide-spotlight";
 import { useGuideVoice } from "./use-guide-voice";
-import { useTargetBox } from "./use-target-rect";
+import { useFirstTargetBox, useTargetBox } from "./use-target-rect";
 import { useMissingAfterGrace } from "./use-missing-after-grace";
+
+/**
+ * How long the guide looks for the next thing to click before offering a
+ * plain link there: long enough for a page to load over a slow connection.
+ */
+const ROUTE_GRACE_MS = 5000;
 
 function pickTarget(
     step: FoundationStep,
@@ -40,30 +49,48 @@ function pickTarget(
     return place.targets[Math.min(part, place.targets.length - 1)];
 }
 
+/**
+ * One basics step. On its page the light walks the step's own fields. Off
+ * it, the light walks the way there (lib/merchant-guide/route.ts): the menu,
+ * the page, the button, each clicked by the merchant.
+ */
 export function GuideFoundationStep({
     step,
+    done,
     status,
     working,
     locale,
     soundOn,
     onToggleSound,
     pillLeft,
+    onBack,
+    onReturn,
 }: {
     step: FoundationStep;
+    /** A finished step the merchant came back to with the back arrow. */
+    done: boolean;
     status: FoundationStatus;
     working: StoreConfigV2 | null;
     locale: GuideLocale;
     soundOn: boolean;
     onToggleSound: () => void;
     pillLeft: number;
+    /** To the step before; null on the first one. */
+    onBack: (() => void) | null;
+    /** From a finished step, back to the step the merchant stopped at. */
+    onReturn: () => void;
 }) {
     const { t } = useLanguage();
-    const pathname = usePathname();
+    const pathname = usePathname() ?? "/";
     const router = useRouter();
+    const phone = useIsMobile();
+    const sidebarCollapsed = useSidebarCollapsed();
     const place = FOUNDATION_PLACES[step];
     // The delivery answer starts over with each step (this card is keyed by step).
     const [choice, setChoice] = useState<DeliveryChoice | null>(null);
     const [minimized, setMinimized] = useState(false);
+    // The "empty for now" stop on the products page is read once per step.
+    const [emptyRead, setEmptyRead] = useState(false);
     // The first product walks itself: the light sits on the first field that
     // still needs something. Back and Next override that only until the
     // merchant fills or clears a field.
@@ -77,35 +104,65 @@ export function GuideFoundationStep({
                 : autoPart
             : 0;
 
-    const onPage = pathname.startsWith(place.path);
-    const target = pickTarget(step, working, part, step === "delivery" ? choice : null);
-    const box = useTargetBox(onPage && !minimized ? target.selector : null);
-    const missing = useMissingAfterGrace(target.selector, box !== null);
-    const voice = useGuideVoice(target.line, lineText(target.line, locale), locale, soundOn && !minimized);
+    // A finished first product is shown in the list: a second new one isn't the point.
+    const goal: RouteGoal = step === "product" && done ? "products-list" : step;
+    const onPage = atGoalPage(goal, pathname);
+    const target: GuideTarget | null = goal === "products-list" ? null : pickTarget(step, working, part, step === "delivery" ? choice : null);
+    const fieldBox = useTargetBox(onPage && !minimized && target ? target.selector : null);
+    // The store editor's address doesn't say which screen is open, its fields do:
+    // until the step's field shows, the way there is inside the editor.
+    const route =
+        !onPage || (inStoreEditor(pathname) && target !== null && fieldBox === null)
+            ? routeStop(goal, { pathname, phone, sidebarCollapsed, emptyRead })
+            : null;
+    const routeHit = useFirstTargetBox(route && !minimized ? route.targets.map((r) => r.selector) : null);
+    const routeTarget = route && routeHit && routeHit.index >= 0 ? (route.targets[routeHit.index] ?? null) : null;
+    const routeMissing = useMissingAfterGrace(route ? route.id : null, routeHit !== null, ROUTE_GRACE_MS);
+    const fieldMissing = useMissingAfterGrace(onPage && !route && target ? target.selector : null, fieldBox !== null);
 
-    const done = foundationDoneCount(status);
+    const line: GuideLineId = route ? (routeTarget?.line ?? route.idle) : done || !target ? "step.doneAgain" : target.line;
+    const voice = useGuideVoice(line, lineText(line, locale), locale, soundOn && !minimized);
+    const box = route ? (routeHit?.box ?? null) : fieldBox;
+
     const label = t("guide.phase.foundation");
+    const doneCount = foundationDoneCount(status);
+    if (minimized) {
+        return <GuidePill left={pillLeft} label={label} done={doneCount} total={FOUNDATION_STEPS.length} onOpen={() => setMinimized(false)} />;
+    }
+
     const heading = `${label} · ${t(place.labelKey)} · ${t("guide.progress", { done: FOUNDATION_STEPS.indexOf(step) + 1, total: FOUNDATION_STEPS.length })}`;
 
+    // The last resort when the thing to click never shows: go there directly.
     const go = (): void => {
-        if (onPage && place.path === STORE_EDITOR_PATH && place.editorScreen !== undefined) {
+        if (goal === "products-list") {
+            router.push("/products");
+            return;
+        }
+        if (inStoreEditor(pathname) && place.path === STORE_EDITOR_PATH && place.editorScreen !== undefined) {
             window.dispatchEvent(new CustomEvent(OPEN_EDITOR_SCREEN_EVENT, { detail: place.editorScreen }));
             return;
         }
         router.push(place.href);
     };
-    const showGo = !onPage || missing;
+    const lost = route ? routeMissing : fieldMissing;
 
-    if (minimized) {
-        return <GuidePill left={pillLeft} label={label} done={done} total={FOUNDATION_STEPS.length} onOpen={() => setMinimized(false)} />;
-    }
-
+    const arrived = route === null && onPage;
     const setPart = (n: number): void => setManualPart({ forAuto: autoPart, value: n });
-    const walk = step === "product" ? { index: part, count: place.targets.length, onBack: () => setPart(Math.max(0, part - 1)), onNext: () => setPart(Math.min(place.targets.length - 1, part + 1)) } : undefined;
+    const walk =
+        step === "product" && arrived && !done
+            ? { index: part, count: place.targets.length, onNext: () => setPart(Math.min(place.targets.length - 1, part + 1)) }
+            : undefined;
+    // Back goes to the field before in the product walk, then to the step before.
+    const back = walk && part > 0 ? () => setPart(part - 1) : onBack;
+    const next = routeTarget?.explain
+        ? { label: t("guide.next"), onClick: () => setEmptyRead(true) }
+        : done
+          ? { label: t("guide.next"), onClick: onReturn }
+          : undefined;
 
     return (
         <>
-            {box && <GuideSpotlight box={box} />}
+            {box && <GuideSpotlight box={box} raised={!!routeTarget?.raised} />}
             <GuideCoachCard
                 heading={heading}
                 voice={voice}
@@ -115,11 +172,16 @@ export function GuideFoundationStep({
                 box={box}
                 dockLeft={pillLeft}
                 part={walk}
-                onGo={showGo ? go : undefined}
+                onBack={back}
+                next={next}
+                waitingFor={route ? "click" : "step"}
+                onLost={lost ? go : undefined}
+                done={done}
+                raised={!!routeTarget?.raised}
                 onMinimize={() => setMinimized(true)}
             >
-                {step === "product" && onPage && !showGo && <GuideProductWalk draft={productDraft} stage={part} />}
-                {step === "delivery" && onPage && !showGo && (
+                {walk && <GuideProductWalk draft={productDraft} stage={part} />}
+                {step === "delivery" && arrived && (
                     <GuideChoice<DeliveryChoice>
                         tone="dark"
                         label={lineText("delivery.ask", locale)}
@@ -132,7 +194,7 @@ export function GuideFoundationStep({
                     />
                 )}
             </GuideCoachCard>
-            <GuidePill left={pillLeft} label={label} done={done} total={FOUNDATION_STEPS.length} />
+            <GuidePill left={pillLeft} label={label} done={doneCount} total={FOUNDATION_STEPS.length} />
         </>
     );
 }

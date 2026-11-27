@@ -6950,6 +6950,7 @@ export const en: Record<string, string> = {
     "orders.autoSend.off": "Auto-send: OFF — Click to enable",
     "nav.expandSidebar": "Expand sidebar",
     "nav.collapseSidebar": "Collapse sidebar",
+    "nav.openMenu": "Open menu",
     "theme.toLight": "Switch to light mode",
     "theme.toDark": "Switch to dark mode",
     "app.error.title": "Something went wrong",

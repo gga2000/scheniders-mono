@@ -8,6 +8,7 @@
 // each status means, an order from the merchant's own store, confirming one,
 // switching on the WhatsApp bot, who delivers, and printing at the dispatch
 // desk. Ending the phase bins the practice orders and the store test orders.
+// The back arrow re-reads a finished stop; Next returns to the current one.
 // =====================================================================
 
 import { useState } from "react";
@@ -69,6 +70,8 @@ export function GuideFirstOrder({
     const prime = usePrimeConnection();
     // Captured once per render pass for the "Later" check; a day-long wait needs no ticking clock.
     const [now] = useState(() => Date.now());
+    // A finished stop the merchant went back to with the back arrow.
+    const [viewing, setViewing] = useState<FirstOrderStop | null>(null);
     // Both switches are read before a stop shows, so a done stop never flashes.
     const facts: FirstOrderFacts | null =
         autoSend.isLoading || !(prime.checked || prime.failed) ? null : { autoSendOn: autoSend.enabled, primeLinked: prime.connected };
@@ -135,11 +138,18 @@ export function GuideFirstOrder({
                     primary={{ label: t("guide.fo.finish"), onClick: finish, busy: actions.ending }}
                 />
             );
-        case "stop":
+        case "stop": {
+            // Stops before the current one are all done: any of them may be re-read.
+            const currentIndex = FIRST_ORDER_STOPS.indexOf(view.stop);
+            const shown = viewing !== null && FIRST_ORDER_STOPS.indexOf(viewing) < currentIndex ? viewing : view.stop;
+            const shownIndex = FIRST_ORDER_STOPS.indexOf(shown);
             return (
                 <FirstOrderStopCard
-                    key={view.stop}
-                    stop={view.stop}
+                    key={shown}
+                    stop={shown}
+                    review={shown !== view.stop}
+                    onBack={shownIndex > 0 ? () => setViewing(FIRST_ORDER_STOPS[shownIndex - 1]) : null}
+                    onReturn={() => setViewing(null)}
                     done={firstOrderDoneCount(record ?? {}, ordersQ.data ?? [], facts ?? { autoSendOn: false, primeLinked: false })}
                     locale={locale}
                     soundOn={soundOn}
@@ -149,11 +159,15 @@ export function GuideFirstOrder({
                     onCourier={(courier) => onPatch({ courier })}
                 />
             );
+        }
     }
 }
 
 function FirstOrderStopCard({
     stop,
+    review,
+    onBack,
+    onReturn,
     done,
     locale,
     soundOn,
@@ -163,6 +177,12 @@ function FirstOrderStopCard({
     onCourier,
 }: {
     stop: FirstOrderStop;
+    /** A finished stop, re-read: it explains again but asks for nothing. */
+    review: boolean;
+    /** To the stop before; null on the first one. */
+    onBack: (() => void) | null;
+    /** From a finished stop, back to the current one. */
+    onReturn: () => void;
     done: number;
     locale: GuideLocale;
     soundOn: boolean;
@@ -183,7 +203,7 @@ function FirstOrderStopCard({
     const onPage = place.selector === null || pathname.startsWith(place.path);
     const box = useTargetBox(onPage && !minimized ? place.selector : null);
     const missing = useMissingAfterGrace(place.selector, box !== null);
-    const autoOff = stop === "whatsapp" && !autoSend.isLoading && !autoSend.enabled;
+    const autoOff = !review && stop === "whatsapp" && !autoSend.isLoading && !autoSend.enabled;
     const line: GuideLineId = autoOff ? "fo.whatsappOff" : place.line;
     const voice = useGuideVoice(line, lineText(line, locale), locale, soundOn && !minimized);
 
@@ -194,9 +214,10 @@ function FirstOrderStopCard({
 
     const heading = `${label} · ${t(place.labelKey)} · ${t("guide.progress", { done: FIRST_ORDER_STOPS.indexOf(stop) + 1, total: FIRST_ORDER_STOPS.length })}`;
     // The confirm button sits on a practice card; a filter or a status tab can hide it.
-    const hiddenCard = stop === "confirm" && onPage && missing;
-    const next =
-        !onPage
+    const hiddenCard = !review && stop === "confirm" && onPage && missing;
+    const next = review
+        ? { label: t("guide.next"), onClick: onReturn }
+        : !onPage
             ? undefined
             : stop === "statuses"
               ? { label: t("guide.next"), onClick: () => onSeen("statuses") }
@@ -215,13 +236,15 @@ function FirstOrderStopCard({
                 checkText={t(place.checkKey)}
                 box={box}
                 dockLeft={pillLeft}
-                onGo={!onPage ? () => router.push(place.path) : undefined}
+                onBack={onBack}
+                onGo={!onPage && !review ? () => router.push(place.path) : undefined}
                 next={next}
+                done={review}
                 onMinimize={() => setMinimized(true)}
             >
                 {stop === "statuses" && onPage && <StatusWalk />}
-                {stop === "store_order" && <StoreOrderButton />}
-                {stop === "courier" && (
+                {stop === "store_order" && !review && <StoreOrderButton />}
+                {stop === "courier" && !review && (
                     <div className="grid grid-cols-2 gap-2">
                         <button
                             type="button"
@@ -245,7 +268,8 @@ function FirstOrderStopCard({
                         </button>
                     </div>
                 )}
-                {stop === "whatsapp" && onPage && (
+                {stop === "whatsapp" && onPage && review && <WhatsAppBubble />}
+                {stop === "whatsapp" && onPage && !review && (
                     <>
                         {autoOff && (
                             <p dir={dir} className="text-sm text-neutral-300">
@@ -267,7 +291,7 @@ function FirstOrderStopCard({
                         </button>
                     </>
                 )}
-                {stop === "dispatch" && onPage && (
+                {stop === "dispatch" && onPage && !review && (
                     <p dir={dir} className="text-xs text-neutral-300">
                         {t("guide.fo.multiNote")}
                     </p>

@@ -278,6 +278,7 @@ export function MobileOrdersPage() {
                     {/* Sidebar Menu Button */}
                     <button
                         onClick={() => setMobileMenuOpen?.(true)}
+                        data-guide="nav-menu"
                         className="h-full px-3.5 flex items-center justify-center text-muted-foreground hover:bg-muted/50 transition-colors border-l border-[var(--card-border)] shrink-0"
                         aria-label="Open menu"
                     >

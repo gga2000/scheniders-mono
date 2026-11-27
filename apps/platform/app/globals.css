@@ -3480,6 +3480,8 @@ html[lang="ar"] .till-screen .tracking-wide {
   transition: top 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), left 0.5s cubic-bezier(0.2, 0.8, 0.2, 1),
     width 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), height 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
+/* Over the sidebar (50), the phone menu (60) and bottom sheets (61) when the light is on something inside them. */
+.merchant-guide-spot[data-raised="true"] { z-index: 62; }
 .merchant-guide-spot::after {
   content: "";
   position: absolute;

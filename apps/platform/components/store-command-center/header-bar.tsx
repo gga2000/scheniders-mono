@@ -81,6 +81,7 @@ export function HeaderBar({ businessName, status, storefrontUrl, published, isBr
                 )}
                 <Link
                     href={isBrandNew ? "/store/onboarding" : "/store/edit"}
+                    data-guide="store-customize"
                     className="inline-flex items-center gap-1.5 rounded-xl bg-foreground px-4 py-2 text-sm font-semibold text-background shadow-(--card-shadow) transition-all duration-150 hover:-translate-y-px hover:shadow-(--card-shadow-hover)"
                 >
                     <Pencil className="w-3.5 h-3.5" />
