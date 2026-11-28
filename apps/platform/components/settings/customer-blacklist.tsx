@@ -11,6 +11,7 @@ import { PERMISSIONS } from "@/lib/permissions";
 import { addToBlacklist, listBlacklist, removeFromBlacklist } from "@/lib/blacklist";
 import { normalizePhoneForSearch } from "@/lib/order-utils";
 import { formatPhoneDisplay } from "@/lib/customer-format";
+import { latinDigitsValue } from "@/lib/latin-digits-input";
 
 /**
  * Settings › Blacklist. Reads and writes the same `blacklist` table as the
@@ -118,7 +119,7 @@ export function CustomerBlacklist() {
                                     type="tel"
                                     placeholder="07XXXXXXXXX"
                                     value={phone}
-                                    onChange={(e) => { setPhone(e.target.value); setPhoneError(""); }}
+                                    onChange={(e) => { setPhone(latinDigitsValue(e)); setPhoneError(""); }}
                                     onKeyDown={(e) => e.key === "Enter" && handleAdd()}
                                     className="w-full h-9 pl-8 pr-3 rounded-xl border border-(--card-border) bg-background text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-(--pastel-pink) focus:border-transparent"
                                 />

@@ -10,6 +10,7 @@ import type { PrimeDeskState } from "@/lib/prime/desk-state";
 import { primePhone, primePhoneDigits } from "@/lib/prime/phone";
 import { cn } from "@/lib/utils";
 import type { Order } from "@/lib/supabase";
+import { latinDigitsValue } from "@/lib/latin-digits-input";
 
 const amountFormat = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
 
@@ -110,7 +111,7 @@ function PrimeDeskFix({ order, reason, onSaved }: { order: Order; reason: "bad_p
                         type="tel"
                         inputMode="tel"
                         value={value}
-                        onChange={(e) => setValue(e.target.value)}
+                        onChange={(e) => setValue(latinDigitsValue(e))}
                         aria-label={t("printing.prime.newPhone")}
                         className={cn(fieldClass, "font-mono tabular-nums")}
                     />

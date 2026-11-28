@@ -32,6 +32,7 @@ import { getPageLabel } from "./page-tree";
 import type { LocaleCode } from "@scheniders/shared";
 import type { SettingsSectionId } from "./page-tree";
 import { ScreenHeader } from "./screen-header";
+import { latinDigitsValue } from "@/lib/latin-digits-input";
 
 /* ─────────────────────────────────────────────────────────────────── */
 /* Props                                                               */
@@ -515,7 +516,7 @@ export function HealthChecklistScreen(
                                                     inputMode="tel"
                                                     value={waValue}
                                                     onChange={(e) => {
-                                                        setWaValue(e.target.value);
+                                                        setWaValue(latinDigitsValue(e));
                                                         setWaError(false);
                                                     }}
                                                     onKeyDown={(e) => {

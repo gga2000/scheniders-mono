@@ -1891,7 +1891,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
     <section data-st="2" hidden>
       <h3>رقم واتسابك</h3>
       <p class="hp">نرسلك رمز تأكيد بالواتساب. وهو الرقم اللي نرد عليك منه.</p>
-      <input type="tel" id="sPhone" placeholder="07XX XXX XXXX" inputmode="numeric" autocomplete="tel" maxlength="13">
+      <input type="tel" id="sPhone" dir="ltr" placeholder="07XX XXX XXXX" inputmode="tel" autocomplete="tel" maxlength="20">
       <p class="er" id="sErr"></p>
       <button class="rb" id="go2">افتح متجري</button>
       <p class="tn">بدون أي دفع. تجربتك 7 أيام تبدي من هسه.</p>
@@ -2681,8 +2681,20 @@ if (typeof module !== 'undefined') module.exports = FermiMotion;
   function slug(v){var s=v.trim().toLowerCase().split('').map(function(ch){return tr[ch]!==undefined?tr[ch]:ch}).join('').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');return s||'metjarak'}
   $('#sName').addEventListener('input',function(){var v=this.value;$('#sAddr').textContent=slug(v)+'.usefermi.com';$('#go1').disabled=!v.trim()});
   $('#go1').addEventListener('click',function(){show(2);setTimeout(function(){$('#sPhone').focus()},50)});
-  $('#go2').addEventListener('click',function(){var p=$('#sPhone').value.replace(/\D/g,'');
-    if(!/^07\d{9}$/.test(p)){$('#sErr').textContent='اكتب الرقم مثل 07XX XXX XXXX';return}
+  /* Arabic (٠-٩) and Persian (۰-۹) digits as 0-9: many phone keyboards here type Arabic digits.
+     Written back into the field as typed, caret kept (each digit stays one character). */
+  function latin(v){return v.replace(/[\u0660-\u0669]/g,function(d){return String(d.charCodeAt(0)-0x660)}).replace(/[\u06f0-\u06f9]/g,function(d){return String(d.charCodeAt(0)-0x6f0)})}
+  /* An Iraqi mobile as 07XXXXXXXXX, typed any common way (+964, 00964, no leading 0, spaces), or null:
+     the same rule as the sign-up page (packages/shared phone.ts normalizeIraqiMobile). */
+  function iqMobile(v){var d=latin(v).replace(/\D/g,'');
+    if(d.indexOf('00964')===0)d=d.slice(5);else if(d.indexOf('964')===0)d=d.slice(3);
+    if(d.charAt(0)==='0')d=d.slice(1);
+    return /^7\d{9}$/.test(d)?'0'+d:null}
+  $('#sPhone').addEventListener('input',function(){var v=latin(this.value);
+    if(v!==this.value){var a=this.selectionStart,b=this.selectionEnd;this.value=v;this.setSelectionRange(a,b)}
+    $('#sErr').textContent=''});
+  $('#go2').addEventListener('click',function(){var p=iqMobile($('#sPhone').value);
+    if(!p){$('#sErr').textContent='اكتب الرقم مثل 07XX XXX XXXX';return}
     $('#sErr').textContent='';
     /* The Meta Lead for this hand-over is sent by the sign-up page on arrival (with the number
        for matching): a request fired here as the page navigates away can be cancelled. */

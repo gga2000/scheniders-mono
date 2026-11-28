@@ -6,6 +6,7 @@ import { IRAQ_GOVERNORATES } from "@scheniders/shared";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { normalizeIraqiPhone } from "@/lib/order-utils";
 import { PrimeConnectHelp } from "./prime-connect-help";
+import { latinDigitsValue } from "@/lib/latin-digits-input";
 
 const IRAQI_MOBILE = /^07\d{9}$/;
 /** The same rule the server checks: letters, digits and . _ - @, 3 to 40 long. */
@@ -90,7 +91,7 @@ export function PrimeNewAccountForm({
             <div className="grid grid-cols-2 gap-3">
                 <div className="grid min-w-0 gap-1.5">
                     {label("phone", "prime.link.new.phone")}
-                    <input id="prime-new-phone" type="tel" inputMode="tel" autoComplete="tel" placeholder="07XXXXXXXXX" value={form.phone} onChange={(e) => set("phone", e.target.value)} aria-invalid={invalid.includes("phone")} className={`${INPUT} tabular-nums`} />
+                    <input id="prime-new-phone" type="tel" inputMode="tel" autoComplete="tel" placeholder="07XXXXXXXXX" value={form.phone} onChange={(e) => set("phone", latinDigitsValue(e))} aria-invalid={invalid.includes("phone")} className={`${INPUT} tabular-nums`} />
                     {hint("phone", "prime.link.phoneInvalid")}
                 </div>
                 <div className="grid min-w-0 gap-1.5">

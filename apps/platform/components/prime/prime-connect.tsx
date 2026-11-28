@@ -19,6 +19,7 @@ import { PRIME_LINK_OUTCOMES } from "@/lib/prime/link-outcomes";
 import { cn } from "@/lib/utils";
 import { PrimeConnectHelp } from "./prime-connect-help";
 import { PrimeNewAccountForm, type PrimeNewAccount } from "./prime-new-account-form";
+import { latinDigitsValue } from "@/lib/latin-digits-input";
 
 const IRAQI_MOBILE = /^07\d{9}$/;
 
@@ -307,7 +308,7 @@ export function PrimeConnect() {
                 inputMode="tel"
                 autoComplete="tel"
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                onChange={(e) => setPhone(latinDigitsValue(e))}
                 placeholder="07XXXXXXXXX"
                 aria-invalid={invalid}
                 className="h-11 rounded-xl border border-[var(--card-border)] bg-[var(--background)] px-3 text-base tabular-nums text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
