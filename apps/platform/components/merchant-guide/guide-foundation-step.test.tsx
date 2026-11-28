@@ -36,7 +36,7 @@ afterEach(() => {
     HTMLElement.prototype.getBoundingClientRect = realRect;
 });
 
-const OPEN: FoundationStatus = { shop: false, product: false, delivery: false, open: false };
+const OPEN: FoundationStatus = { shop: false, product: false, open: false };
 
 interface More {
     done?: boolean;

@@ -3,8 +3,9 @@
 // =====================================================================
 // MerchantGuide — the setup guide that runs on the app's own pages
 // =====================================================================
-// Phase 1 ("the basics") walks a new shop owner through four real steps:
-// shop name and logo, a first product, delivery prices, and publishing.
+// Phase 1 ("the basics") walks a new shop owner through three real steps:
+// shop name and logo, a first product, and publishing. Delivery prices wait
+// for the follow-up delivery tour (Ali, 28 Nov).
 // Each step lights up the real field, says one line (Ali's recorded voice,
 // or a caption), and ticks only when the shop itself shows it is done
 // (lib/merchant-guide/foundation.ts). Off a step's page the light walks the

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { GUIDE_LINES, RECORDED_LINES, guideVoiceSrc, type GuideLineId } from "./script";
-import { DELIVERY_CHOICES, FOUNDATION_PLACES, guideHiddenOn } from "./steps";
+import { FOUNDATION_PLACES, guideHiddenOn } from "./steps";
 import { translations } from "@/lib/i18n";
 
 describe("guide script", () => {
@@ -25,16 +25,12 @@ describe("guide script", () => {
         expect(guideVoiceSrc("shop.name")).toBe("/guide-voice/shop.name.mp3");
     });
 
-    it("every step and choice speaks a real line and has its labels translated", () => {
+    it("every step speaks a real line and has its labels translated", () => {
         const lines = new Set(Object.keys(GUIDE_LINES) as GuideLineId[]);
         for (const place of Object.values(FOUNDATION_PLACES)) {
             for (const target of place.targets) expect(lines.has(target.line)).toBe(true);
             expect(translations.ar).toHaveProperty(place.labelKey);
             expect(translations.ar).toHaveProperty(place.checkKey);
-        }
-        for (const choice of Object.values(DELIVERY_CHOICES)) {
-            expect(lines.has(choice.line)).toBe(true);
-            expect(translations.ar).toHaveProperty(choice.labelKey);
         }
     });
 

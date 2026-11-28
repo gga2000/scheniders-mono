@@ -33,7 +33,7 @@ afterEach(() => {
     HTMLElement.prototype.getBoundingClientRect = realRect;
 });
 
-const STATUS: FoundationStatus = { shop: true, product: true, delivery: false, open: false };
+const STATUS: FoundationStatus = { shop: true, product: true, open: false };
 /** Short enough for a test, long enough to see the light stay off first. */
 const HINT_MS = 300;
 

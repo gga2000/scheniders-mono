@@ -64,11 +64,11 @@ describe("routeStop: the first product", () => {
     });
 });
 
-describe("routeStop: shop details and delivery prices", () => {
+describe("routeStop: shop details and opening", () => {
     it("goes through the menu to Store, then Customize", () => {
         expect(routeStop("shop", desk("/dashboard", { sidebarCollapsed: true }))?.id).toBe("menu-open");
         expect(selectors(desk("/dashboard"), "shop")).toEqual(['[data-guide="nav-store"]']);
-        expect(selectors(desk("/store"), "delivery")).toEqual(['[data-guide="store-customize"]']);
+        expect(selectors(desk("/store"), "open")).toEqual(['[data-guide="store-customize"]']);
     });
 
     it("in the editor lights the settings screen, behind the phone menu or an open screen", () => {
@@ -77,7 +77,6 @@ describe("routeStop: shop details and delivery prices", () => {
             '[data-testid="mobile-editor-menu"]',
             '[data-guide="screen-back"]',
         ]);
-        expect(selectors(phone("/store/edit"), "delivery")[0]).toBe('[data-testid="page-tree-setting-shipping"]');
     });
 
     it("publishing only needs the open screen closed (phones hide the button behind it)", () => {
@@ -98,7 +97,7 @@ describe("routeStop: a finished first product, revisited", () => {
 describe("route lines", () => {
     it("has an Arabic and an English line for every stop", () => {
         const wheres = [desk("/dashboard"), desk("/dashboard", { sidebarCollapsed: true }), phone("/dashboard"), desk("/store"), desk("/store/edit"), desk("/products")];
-        for (const goal of ["shop", "product", "delivery", "open", "products-list"] as const) {
+        for (const goal of ["shop", "product", "open", "products-list"] as const) {
             for (const where of wheres) {
                 const stop = routeStop(goal, where);
                 if (!stop) continue;

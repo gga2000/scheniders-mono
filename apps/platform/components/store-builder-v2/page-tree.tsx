@@ -282,19 +282,16 @@ export interface PageTreeProps {
      */
     settingBadges?: Partial<Record<SettingsSectionId, number>>;
     /**
-     * A new shop doing the basics with the setup guide: show only the two
-     * screens the basics need (Brand kit, Delivery prices) and lock the rest
-     * until the basics are done.
+     * A new shop doing the basics with the setup guide: show only the screen
+     * the basics need (Brand kit) and lock the rest until the basics are done.
      */
     setupMode?: boolean;
 }
 
-/** The two screens a new shop needs for the basics. */
-const SETUP_SETTINGS: SettingsNode[] = [
-    PRIMARY_SETTINGS[0],
-    { id: "shipping", icon: Truck, labelKey: "setting_shipping", label: "Shipping rates" },
-];
-const SETUP_LOCKED = ["setup_locked_pages", "setup_locked_offers", "setup_locked_tracking", "setup_locked_advanced"] as const;
+/** The screen a new shop needs for the basics. */
+const SETUP_SETTINGS: SettingsNode[] = [PRIMARY_SETTINGS[0]];
+/** Delivery prices wait until after the basics too (Ali, 28 Nov); checkout charges the default fee meanwhile. */
+const SETUP_LOCKED = ["setting_shipping", "setup_locked_pages", "setup_locked_offers", "setup_locked_tracking", "setup_locked_advanced"] as const;
 
 export function PageTree({
     active,

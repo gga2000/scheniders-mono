@@ -13,7 +13,7 @@ import type { GuideFirstProduct } from "./use-merchant-guide-data";
 
 const R = 10;
 const C = 2 * Math.PI * R;
-const ITEMS = ["guide.done.item.shop", "guide.done.item.product", "guide.done.item.delivery", "guide.done.item.open"];
+const ITEMS = ["guide.done.item.shop", "guide.done.item.product", "guide.done.item.open"];
 
 /**
  * The finish of the basics. The reward is the thing the merchant just made:

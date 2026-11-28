@@ -28,8 +28,8 @@ export const GUIDE_LINES = {
         en: "Who works with you? Just you, or do you have staff?",
     },
     "welcome.go": {
-        ar: "تمام، يلا نبدي بالأساس. أربع خطوات وتخلص.",
-        en: "Great, let's start with the basics. Four steps and you're done.",
+        ar: "تمام، يلا نبدي بالأساس. ثلاث خطوات وتخلص.",
+        en: "Great, let's start with the basics. Three steps and you're done.",
     },
     "shop.name": {
         ar: "أول شي نسمي محلك. اكتب اسمه مثل ما تريد الزباين يشوفوه.",
@@ -63,18 +63,6 @@ export const GUIDE_LINES = {
         ar: "احفظ المنتج، وصار أول منتج بمحلك.",
         en: "Save the product, and it's the first one in your shop.",
     },
-    "delivery.ask": {
-        ar: "سعر التوصيل عندك نفسه لكل المحافظات، لو يختلف من محافظة لمحافظة؟",
-        en: "Is your delivery price the same for every governorate, or does it change?",
-    },
-    "delivery.flat": {
-        ar: "اختار «أجرة واحدة لكل المحافظات» واكتب السعر، وينحط لكل المحافظات.",
-        en: "Choose one price for all governorates and type it. Every governorate gets it.",
-    },
-    "delivery.byGov": {
-        ar: "اختار «أجرة لكل محافظة». اكتب سعر افتراضي، وبعدين غير بس المحافظات اللي تختلف.",
-        en: "Choose a price per governorate. Type a default price, then change only the ones that differ.",
-    },
     "route.menu": {
         ar: "هاي قائمة محلك. افتحها حتى تشوف كل صفحاتك.",
         en: "This is your shop's menu. Open it to see all your pages.",
@@ -94,10 +82,6 @@ export const GUIDE_LINES = {
     "route.brandKit": {
         ar: "اسم محلك واللوگو هنا. اضغط «هوية العلامة».",
         en: "Your shop's name and logo live here. Click Style & branding.",
-    },
-    "route.shipping": {
-        ar: "أسعار التوصيل هنا. اضغط «أجور التوصيل».",
-        en: "Delivery prices live here. Click Delivery fees.",
     },
     "route.editorMenu": {
         ar: "اضغط زر القائمة فوق. بيه إعدادات محلك.",
@@ -198,6 +182,10 @@ export const GUIDE_LINES = {
     "tour.done": {
         ar: "عاشت إيدك! خلصت هالمرحلة.",
         en: "Well done! That part is finished.",
+    },
+    "courier.rates": {
+        ar: "هنا أجور التوصيل اللي يدفعها الزبون: أجرة وحدة لكل المحافظات، لو سعر لكل محافظة. لحد ما تحددها، تنحسب 5,000 دينار، ومجاني للطلب فوق 75,000.",
+        en: "Here you set what customers pay for delivery: one price for every governorate, or a price for each. Until you do, it's 5,000 IQD, free on orders over 75,000.",
     },
     "courier.request": {
         ar: "من هنا تكتب رقمك المسجل ببرايم ونربطه بنفس اللحظة. إذا برايم بعد ما ربط حسابك ويانا، نبلغك أول ما يصير.",

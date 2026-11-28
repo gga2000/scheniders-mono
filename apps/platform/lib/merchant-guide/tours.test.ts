@@ -27,10 +27,20 @@ describe("which phases and stops a shop gets", () => {
         expect(phaseAvailable(phase("till"), { ...plain, inShop: true })).toBe(true);
     });
 
-    it("courier asks to link Prime when not linked, and teaches Prime on Orders once linked", () => {
-        expect(phaseStops(phase("courier"), plain).map((s) => s.id)).toEqual(["request"]);
-        expect(phaseStops(phase("courier"), { ...plain, primeLinked: true }).map((s) => s.id)).toEqual(["queues", "strip"]);
-        expect(phaseStops(phase("courier"), { ...plain, primeLinked: true }).every((s) => s.path === "/orders")).toBe(true);
+    it("delivery starts with the delivery prices, left out of the basics (Ali, 28 Nov)", () => {
+        for (const facts of [plain, { ...plain, primeLinked: true }]) {
+            const [first] = phaseStops(phase("courier"), facts);
+            expect(first.id).toBe("rates");
+            expect(first.href).toBe("/store/edit?screen=shipping");
+            expect(first.selector).toBe('[data-guide="shipping-modes"]');
+        }
+    });
+
+    it("then asks to link Prime when not linked, and teaches Prime on Orders once linked", () => {
+        expect(phaseStops(phase("courier"), plain).map((s) => s.id)).toEqual(["rates", "request"]);
+        const linkedStops = phaseStops(phase("courier"), { ...plain, primeLinked: true });
+        expect(linkedStops.map((s) => s.id)).toEqual(["rates", "queues", "strip"]);
+        expect(linkedStops.slice(1).every((s) => s.path === "/orders")).toBe(true);
     });
 
     it("the ads stop only for shops with Meta ads linked", () => {

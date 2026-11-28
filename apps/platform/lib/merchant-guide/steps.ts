@@ -10,7 +10,7 @@ import type { FoundationStep } from "./foundation";
 import type { GuideLineId } from "./script";
 
 /** Store editor screens the guide may open. */
-export type GuideEditorScreen = "brand_kit" | "shipping";
+export type GuideEditorScreen = "brand_kit";
 
 export interface GuideTarget {
     selector: string;
@@ -56,14 +56,6 @@ export const FOUNDATION_PLACES: Record<FoundationStep, GuideStepPlace> = {
             { selector: '[data-guide="product-save"]', line: "product.save" },
         ],
     },
-    delivery: {
-        path: STORE_EDITOR_PATH,
-        href: `${STORE_EDITOR_PATH}?screen=shipping`,
-        editorScreen: "shipping",
-        labelKey: "guide.step.delivery",
-        checkKey: "guide.check.delivery",
-        targets: [{ selector: '[data-guide="shipping-modes"]', line: "delivery.ask" }],
-    },
     open: {
         path: STORE_EDITOR_PATH,
         href: STORE_EDITOR_PATH,
@@ -74,22 +66,15 @@ export const FOUNDATION_PLACES: Record<FoundationStep, GuideStepPlace> = {
     },
 };
 
-/** The delivery step's two answers, and the real card each one lights up. */
-export const DELIVERY_CHOICES = {
-    same: { labelKey: "guide.delivery.same", selector: '[data-testid="shipping-mode-flat"]', line: "delivery.flat" },
-    each: { labelKey: "guide.delivery.each", selector: '[data-testid="shipping-mode-by_governorate"]', line: "delivery.byGov" },
-} as const satisfies Record<string, { labelKey: string } & GuideTarget>;
-export type DeliveryChoice = keyof typeof DELIVERY_CHOICES;
-
 /**
  * The store editor listens for this to open a screen without a reload, so
- * the guide can move between the shop-details and delivery screens while
- * the editor keeps its unsaved state.
+ * the guide can open the shop-details screen while the editor keeps its
+ * unsaved state.
  */
 export const OPEN_EDITOR_SCREEN_EVENT = "merchant-guide:open-editor-screen";
 
 export function isGuideEditorScreen(value: unknown): value is GuideEditorScreen | null {
-    return value === null || value === "brand_kit" || value === "shipping";
+    return value === null || value === "brand_kit";
 }
 
 /** Pages where the guide never shows: sign-in, the setup wizard, the till. */

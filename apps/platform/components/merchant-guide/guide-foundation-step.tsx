@@ -10,15 +10,7 @@ import { foundationDoneCount, FOUNDATION_STEPS, type FoundationStatus, type Foun
 import { productWalkStage } from "@/lib/merchant-guide/product-walk";
 import { atGoalPage, inStoreEditor, routeStop, type RouteGoal } from "@/lib/merchant-guide/route";
 import { lineText, type GuideLineId, type GuideLocale } from "@/lib/merchant-guide/script";
-import {
-    DELIVERY_CHOICES,
-    FOUNDATION_PLACES,
-    OPEN_EDITOR_SCREEN_EVENT,
-    STORE_EDITOR_PATH,
-    type DeliveryChoice,
-    type GuideTarget,
-} from "@/lib/merchant-guide/steps";
-import { GuideChoice } from "./guide-choice";
+import { FOUNDATION_PLACES, OPEN_EDITOR_SCREEN_EVENT, STORE_EDITOR_PATH, type GuideTarget } from "@/lib/merchant-guide/steps";
 import { GuideCoachCard } from "./guide-coach-card";
 import { GuidePill } from "./guide-pill";
 import { GuideProductWalk } from "./guide-product-walk";
@@ -35,18 +27,12 @@ import { useTypingIn } from "./use-typing-in";
  */
 const ROUTE_GRACE_MS = 5000;
 
-function pickTarget(
-    step: FoundationStep,
-    working: StoreConfigV2 | null,
-    part: number,
-    choice: DeliveryChoice | null,
-): GuideTarget {
+function pickTarget(step: FoundationStep, working: StoreConfigV2 | null, part: number): GuideTarget {
     const place = FOUNDATION_PLACES[step];
     if (step === "shop") {
         // Name first; once a name is saved the light moves to the logo.
         return place.targets[working?.brand_kit?.identity?.name?.trim() ? 1 : 0];
     }
-    if (step === "delivery" && choice) return DELIVERY_CHOICES[choice];
     return place.targets[Math.min(part, place.targets.length - 1)];
 }
 
@@ -96,8 +82,6 @@ export function GuideFoundationStep({
     const phone = useIsMobile();
     const sidebarCollapsed = useSidebarCollapsed();
     const place = FOUNDATION_PLACES[step];
-    // The delivery answer starts over with each step (this card is keyed by step).
-    const [choice, setChoice] = useState<DeliveryChoice | null>(null);
     const [minimized, setMinimized] = useState(false);
     // The "empty for now" stop on the products page is read once per step.
     const [emptyRead, setEmptyRead] = useState(false);
@@ -121,7 +105,7 @@ export function GuideFoundationStep({
     // A finished first product is shown in the list: a second new one isn't the point.
     const goal: RouteGoal = step === "product" && done ? "products-list" : step;
     const onPage = atGoalPage(goal, pathname);
-    const target: GuideTarget | null = goal === "products-list" ? null : pickTarget(step, working, part, step === "delivery" ? choice : null);
+    const target: GuideTarget | null = goal === "products-list" ? null : pickTarget(step, working, part);
     const fieldBox = useTargetBox(onPage && !minimized && target ? target.selector : null);
     // The store editor's address doesn't say which screen is open, its fields do:
     // until the step's field shows, the way there is inside the editor.
@@ -209,18 +193,6 @@ export function GuideFoundationStep({
                 onMinimize={() => setMinimized(true)}
             >
                 {walk && <GuideProductWalk draft={productDraft} stage={part} />}
-                {step === "delivery" && arrived && (
-                    <GuideChoice<DeliveryChoice>
-                        tone="dark"
-                        label={lineText("delivery.ask", locale)}
-                        value={choice}
-                        onChange={setChoice}
-                        options={[
-                            { id: "same", label: t(DELIVERY_CHOICES.same.labelKey) },
-                            { id: "each", label: t(DELIVERY_CHOICES.each.labelKey) },
-                        ]}
-                    />
-                )}
             </GuideCoachCard>
             <GuidePill left={pillLeft} label={label} done={doneCount} total={FOUNDATION_STEPS.length} />
         </>
