@@ -104,6 +104,10 @@ body {
    Light & dark resolve from --card-bg / --foreground, no class-string matching.
    ============================================ */
 :root { --z-header: 40; --z-header-overlay: 60; }
+/* A page's own sticky toolbar: above the header (40) but under the setup
+   guide's light (44) and card (46), or the toolbar pokes through the dim and
+   hides the card. Sidebar, menus and dialogs stay at 50 and above. */
+:root { --z-page-sticky: 41; }
 
 .app-header {
   position: sticky;
