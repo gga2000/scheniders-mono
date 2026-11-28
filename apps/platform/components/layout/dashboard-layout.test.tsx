@@ -28,6 +28,10 @@ vi.mock("@/components/auth/password-reminder-banner", () => ({
 vi.mock("@/components/billing/billing-lock-gate", () => ({
     BillingLockGate: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
+// So does the phone's setup gate (computer-setup-gate.test.tsx).
+vi.mock("@/components/computer-setup/computer-setup-gate", () => ({
+    ComputerSetupGate: ({ children }: { children: ReactNode }) => <>{children}</>,
+}));
 vi.mock("./sidebar", () => ({ Sidebar: () => <nav data-testid="oms-sidebar" /> }));
 vi.mock("./global-search", () => ({ TopBar: () => <header data-testid="oms-topbar" /> }));
 

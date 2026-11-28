@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import type { ReactNode } from "react";
 import { BellRing, CopyX, ShieldCheck } from "lucide-react";
 import { balooArabic } from "@/app/fonts/baloo";
 import { AnimatedShaderHero } from "@/components/ui/animated-shader-hero";
@@ -15,7 +16,8 @@ import { cn } from "@/lib/utils";
  *   usefermi.com, stays near the top.
  * - `login`: the promise only. A returning owner needs the door, not the pitch.
  */
-export function AuthHero({ variant }: { variant: "signup" | "login" }) {
+/** `footer` goes under the subtitle (sign-in: the scan code, wide screens only). */
+export function AuthHero({ variant, footer }: { variant: "signup" | "login"; footer?: ReactNode }) {
     const { t } = useLanguage();
     const dir = useTextDir();
     const points = [
@@ -54,6 +56,7 @@ export function AuthHero({ variant }: { variant: "signup" | "login" }) {
                     ))}
                 </ul>
             )}
+            {footer}
         </AnimatedShaderHero>
     );
 }

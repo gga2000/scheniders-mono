@@ -7,6 +7,7 @@ import { orderHistoryTranslations } from "@/lib/i18n-order-history";
 import { shieldTranslations } from "@/lib/i18n-shield";
 import { tillTranslations } from "@/lib/i18n-till";
 import { guideTranslations } from "@/lib/i18n-guide";
+import { computerSetupTranslations } from "@/lib/i18n-computer-setup";
 import { financeSummaryTranslations } from "@/lib/i18n-finance-summary";
 import { planTranslations } from "@/lib/i18n-plans";
 import { whatsappTranslations } from "@/lib/i18n-whatsapp";
@@ -19,6 +20,7 @@ export const en: Record<string, string> = {
     ...shieldTranslations("en"),
     ...tillTranslations("en"),
     ...guideTranslations("en"),
+    ...computerSetupTranslations("en"),
     ...financeSummaryTranslations("en"),
     ...planTranslations("en"),
     ...whatsappTranslations("en"),

@@ -54,6 +54,10 @@ const phasesSchema = z.object({
     logo_later_at: z.string().optional(),
     /** «دليلك» hidden for good from its list; Settings brings it back. */
     list_hidden_at: z.string().optional(),
+    /** No laptop or iPad: the owner chose to set up on the phone (components/computer-setup). */
+    phone_setup_at: z.string().optional(),
+    /** Setup finished on a computer and the owner opened the app on the phone. */
+    phone_open_at: z.string().optional(),
 });
 export type GuidePhases = z.infer<typeof phasesSchema>;
 export type GuideTourRecord = z.infer<typeof tourRecordSchema>;
