@@ -1023,7 +1023,7 @@ function ProductsContent() {
                             <div ref={filterSentinelRef} aria-hidden className="h-px -mb-6" />
 
                             {/* Filters & Search Bar — sticky primary toolbar (constant height, no layout shift) */}
-                            <div className="sticky top-0 z-50 pt-3 pb-3 bg-background/85 backdrop-blur-md rounded-b-2xl">
+                            <div className="sticky top-0 z-(--z-page-sticky) pt-3 pb-3 bg-background/85 backdrop-blur-md rounded-b-2xl">
                             <motion.div
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}

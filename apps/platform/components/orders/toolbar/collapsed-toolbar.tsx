@@ -49,7 +49,7 @@ export function CollapsedToolbar({
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -8 }}
                     transition={{ duration: 0.25, ease: EASE_CHROME }}
-                    className="sticky top-2 z-50"
+                    className="sticky top-2 z-(--z-page-sticky)"
                 >
                     <div className="flex items-center justify-between gap-3 px-5 py-3.5 rounded-2xl orders-collapsed-toolbar bg-[var(--card-bg)] border border-[var(--card-border)] shadow-lg">
                         {/* Left: Select All + Order count and status */}
