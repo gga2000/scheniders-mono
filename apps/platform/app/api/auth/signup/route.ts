@@ -17,6 +17,9 @@ import { env } from '@/lib/env';
 import { buildStorefrontUrl } from '@/lib/storefront-url';
 import { linkSignupProof, loadSignupWhatsApp, releaseSignupProof, sendSignupWelcome, spendSignupProof } from '@/lib/signup-phone-code';
 import { TRIAL_DAYS } from '@/lib/trial';
+import { passwordIsWeak } from '@/lib/password-policy';
+import { recordPasswordStrength } from '@/lib/password-reminder';
+import { newSignupWaitTicket } from '@/lib/signup-wait';
 
 /**
  * Every self-serve signup starts a 7-day trial on Team, with no order cap
@@ -183,11 +186,15 @@ async function handlePOST(request: NextRequest) {
 
         // ── 1. Create Supabase auth user ──
         // Unconfirmed: the browser then asks Supabase to send the confirm mail, and
-        // the account cannot sign in until its owner opens that link.
+        // the account cannot sign in until its owner opens that link. The link is
+        // often opened on the owner's phone; the ticket lets the page left open
+        // on the computer notice and carry on (/api/auth/signup/wait).
+        const waitTicket = newSignupWaitTicket();
         const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
             email,
             password,
             email_confirm: false,
+            app_metadata: { signup_wait: waitTicket.hash },
         });
 
         if (authError) {
@@ -322,12 +329,24 @@ async function handlePOST(request: NextRequest) {
             );
         }
 
-        // ── 4-7. Create supporting records (tenant_members, subscription, wallet, usage_tracking) ──
-        // If any of these fail, mark the tenant as 'incomplete' for admin review.
-        // We don't rollback — the user + tenant are already created and valuable.
+        // If any of the steps below fail, the store is still made.
         let partialFailure = false;
         const setupErrors: string[] = [];
 
+        // ── 3b. A weak password is kept; its owner is asked for a stronger one in a week ──
+        // The account works without it, so a failure is reported, not a reason to hold the store.
+        if (passwordIsWeak(password)) {
+            try {
+                await recordPasswordStrength(adminClient, userId, password);
+            } catch (reminderError) {
+                reportOrderError(reminderError, { operation: 'signup-password-reminder', tenantId: tenant.id });
+                setupErrors.push('password_reminders');
+            }
+        }
+
+        // ── 4-7. Create supporting records (tenant_members, subscription, wallet, usage_tracking) ──
+        // If any of these fail, mark the tenant as 'incomplete' for admin review.
+        // We don't rollback — the user + tenant are already created and valuable.
         try {
             // ── 4. Create tenant membership ──
             const { error: memberError } = await adminClient
@@ -470,6 +489,7 @@ async function handlePOST(request: NextRequest) {
             tenant_slug: tenant.slug,
             trial_ends_at: trialEndsAt,
             confirm_email: true,
+            wait_ticket: waitTicket.ticket,
             message: partialFailure
                 ? `Account created but some setup steps failed. An admin will review your account shortly.`
                 : `Account created! You have a ${TRIAL_DAYS}-day free trial.`,

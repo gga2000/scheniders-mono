@@ -382,11 +382,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { error };
     }, []);
 
-    const updatePassword = useCallback(async (password: string) => {
-        const { error } = await supabase.auth.updateUser({ password });
-        return { error };
-    }, []);
-
     const signInWithGoogle = useCallback(async (returnTo: string = '/orders') => {
         // PKCE OAuth → Google → back to /api/auth/callback, which exchanges the
         // code for a COOKIE session (createServerClient) and forwards to `next`.
@@ -467,7 +462,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 signUp,
                 signOut,
                 resetPassword,
-                updatePassword,
                 signInWithGoogle,
                 linkGoogle,
                 googleLinked,

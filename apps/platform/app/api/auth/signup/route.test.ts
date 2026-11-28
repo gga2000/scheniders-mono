@@ -75,6 +75,7 @@ vi.mock("next/server", async (importOriginal) => ({
 import { AuthApiError, AuthWeakPasswordError } from "@supabase/supabase-js";
 import { NextRequest } from "next/server";
 import { POST } from "./route";
+import { signupWaitTicketMatches } from "@/lib/signup-wait";
 
 function request(body: Record<string, unknown>, headers: Record<string, string> = { "x-forwarded-for": "203.0.113.9" }) {
     return new NextRequest("https://app.test/api/auth/signup", {
@@ -372,6 +373,39 @@ describe("POST /api/auth/signup", () => {
                 storeUrl: "https://shop.scheniders.com",
                 videoUrl: "https://youtu.be/abc",
             });
+        });
+    });
+    describe("the page left open on the computer (confirm link opened on the phone)", () => {
+        it("keeps only the ticket's hash on the new account and hands the page the ticket", async () => {
+            const res = await POST(request(base));
+            expect(res.status).toBe(201);
+            const body = await res.json();
+            expect(typeof body.wait_ticket).toBe("string");
+            const meta = createUser.mock.calls[0][0].app_metadata as { signup_wait: string };
+            expect(meta.signup_wait).toMatch(/^[0-9a-f]{64}$/);
+            expect(meta.signup_wait).not.toContain(body.wait_ticket);
+            expect(signupWaitTicketMatches(body.wait_ticket, meta.signup_wait)).toBe(true);
+        });
+    });
+
+    describe("a weak password (accepted, with a reminder a week on)", () => {
+        const DAY_MS = 24 * 60 * 60 * 1000;
+
+        it("makes the store and asks for a stronger password in a week", async () => {
+            const res = await POST(request({ ...base, password: "layla2024" }));
+            expect(res.status).toBe(201);
+            const reminder = tableUpserts.find((u) => u.table === "password_reminders");
+            const rows = reminder?.rows as { user_id: string; remind_at: string };
+            expect(rows.user_id).toBe("user-1");
+            const inDays = (Date.parse(rows.remind_at) - Date.now()) / DAY_MS;
+            expect(inDays).toBeGreaterThan(6.9);
+            expect(inDays).toBeLessThanOrEqual(7);
+        });
+
+        it("sets no reminder for a password that is not weak", async () => {
+            const res = await POST(request({ ...base, password: "Layla2024!" }));
+            expect(res.status).toBe(201);
+            expect(tableUpserts.find((u) => u.table === "password_reminders")).toBeUndefined();
         });
     });
 });

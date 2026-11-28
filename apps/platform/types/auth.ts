@@ -38,7 +38,6 @@ export interface AuthContextType {
     signUp: (email: string, password: string) => Promise<{ error: AuthError | null }>;
     signOut: () => Promise<void>;
     resetPassword: (email: string, captchaToken?: string) => Promise<{ error: AuthError | null }>;
-    updatePassword: (password: string) => Promise<{ error: AuthError | null }>;
     signInWithGoogle: (returnTo?: string) => Promise<{ error: AuthError | null }>;
     linkGoogle: () => Promise<{ error: AuthError | null }>;
     googleLinked: boolean;

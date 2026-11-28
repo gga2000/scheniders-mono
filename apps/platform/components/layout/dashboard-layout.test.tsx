@@ -21,6 +21,9 @@ vi.mock("@/components/billing/trial-banner", () => ({
 vi.mock("@/components/billing/tenant-paused-banner", () => ({
     TenantPausedBanner: () => <div data-testid="paused-banner" />,
 }));
+vi.mock("@/components/auth/password-reminder-banner", () => ({
+    PasswordReminderBanner: () => <div data-testid="password-reminder-banner" />,
+}));
 // The lock gate has its own tests (billing-lock-gate.test.tsx); here it lets the page through.
 vi.mock("@/components/billing/billing-lock-gate", () => ({
     BillingLockGate: ({ children }: { children: ReactNode }) => <>{children}</>,
