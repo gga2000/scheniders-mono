@@ -34,6 +34,14 @@ vi.mock("./transition-link", () => ({
 
 import { Sidebar } from "./sidebar";
 
+// jsdom has no ResizeObserver; the link list's edge fade watches its size.
+class FakeResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+}
+vi.stubGlobal("ResizeObserver", FakeResizeObserver);
+
 afterEach(() => {
     cleanup();
 });

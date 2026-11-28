@@ -45,6 +45,8 @@ import { useLanguage } from "@/hooks/use-language";
 import dynamic from "next/dynamic";
 import { useEffect } from "react";
 import { useGuideSetup } from "@/components/merchant-guide/guide-setup-store";
+import { useSidebar } from "@/components/layout/dashboard-layout";
+import { cn } from "@/lib/utils";
 
 // Collapsed-by-default sections: their code (jsbarcode, qrcode, batch and
 // location tooling) loads when the section is opened, not with the editor.
@@ -68,6 +70,10 @@ export function ProductEditorPage({ product, mode, defaultIsSupply = false }: Pr
     // the count cannot be read, the database still refuses a bad untick.
     const recipeUses = checkRecipeUses ? (recipeUsesCount ?? (recipeUsesFailed ? 0 : null)) : 0;
     const { t } = useLanguage();
+    // Content and sidebar stand side by side only when the form keeps a usable
+    // width: from lg with the app menu folded, from xl with it open (at 1024px
+    // an open menu would leave the form about 350px beside the sidebar).
+    const { sidebarExpanded } = useSidebar();
     // Product cost and margin are for admins only; a supply's cost is its
     // price, so whoever adds supplies keeps seeing it (useProductEditor).
     const { can } = usePermission();
@@ -139,9 +145,11 @@ export function ProductEditorPage({ product, mode, defaultIsSupply = false }: Pr
                 )}
             </AnimatePresence>
 
-            {/* Three-column layout: Nav | Content | Sidebar */}
+            {/* Nav | (Content | Sidebar). The nav stands beside the columns only
+                where it is the vertical list (xl); below that it is the tab strip,
+                which runs full width above them and never takes a column. */}
             <div className="max-w-7xl mx-auto px-6 py-8">
-                <div className="flex flex-col lg:flex-row gap-8">
+                <div className="flex flex-col xl:flex-row gap-8">
                     {/* Section Navigation (desktop vertical + mobile horizontal) */}
                     <SectionNav
                         visibleSections={guideFocus ? ["basic", "media", "pricing", "inventory"] : [
@@ -159,6 +167,7 @@ export function ProductEditorPage({ product, mode, defaultIsSupply = false }: Pr
                         ]}
                     />
 
+                    <div className={cn("flex-1 min-w-0 flex flex-col gap-8", sidebarExpanded ? "xl:flex-row" : "lg:flex-row")}>
                     {/* Main content */}
                     <div className="flex-1 min-w-0 space-y-6">
                         {/* === CORE SECTIONS === */}
@@ -451,8 +460,10 @@ export function ProductEditorPage({ product, mode, defaultIsSupply = false }: Pr
                     </div>
 
                     {/* Sidebar */}
-                    <div className="w-full lg:w-80 shrink-0">
-                        <div className="lg:sticky lg:top-24">
+                    <div className={cn("w-full shrink-0", sidebarExpanded ? "xl:w-80" : "lg:w-80")}>
+                        {/* Sticky only beside the vertical nav (xl): below that the tab strip holds the
+                            top of the screen, and a tall sidebar pinned under it could not be scrolled to its end. */}
+                        <div className="xl:sticky xl:top-24">
                             <ProductEditorSidebar
                                 formData={editor.formData}
                                 updateField={editor.updateField}
@@ -465,6 +476,7 @@ export function ProductEditorPage({ product, mode, defaultIsSupply = false }: Pr
                                 averageOrderValue={product?.average_order_value}
                             />
                         </div>
+                    </div>
                     </div>
                 </div>
             </div>
