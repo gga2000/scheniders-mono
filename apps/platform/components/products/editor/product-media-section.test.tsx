@@ -13,6 +13,16 @@ afterEach(cleanup);
 
 const form = { image_url: "https://img.example/p.jpg", is_supply: false } as ProductEditorFormData;
 
+describe("ProductMediaSection setup guide", () => {
+    it("gives the guide the photo upload alone to light, not the section heading", () => {
+        const { container } = render(<ProductMediaSection formData={form} updateField={vi.fn()} productId="p1" />);
+        const lit = container.querySelector('[data-guide="product-media"]');
+        expect(lit).toBeTruthy();
+        expect(lit?.textContent).not.toContain("products.ed.media");
+        expect(lit?.textContent).not.toContain("products.ed.editImage");
+    });
+});
+
 describe("ProductMediaSection image editor", () => {
     it("opens and closes the editor without breaking the hook order", () => {
         render(<ProductMediaSection formData={form} updateField={vi.fn()} productId="p1" />);
