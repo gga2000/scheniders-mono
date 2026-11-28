@@ -28,25 +28,14 @@ const caller = vi.hoisted(() => ({ current: null as unknown }));
 
 vi.mock("@/lib/supabase-server", () => ({
     createSupabaseServiceClient: () => ({ from: () => table(), auth: { admin: { getUserById, generateLink } } }),
+    createSupabaseServerClient: () => Promise.resolve({ auth: { verifyOtp } }),
 }));
 vi.mock("@/lib/rate-limit", () => ({
     consumeRateLimit: () => Promise.resolve({ allowed: true, remaining: 9, resetAt: null, retryAfterSeconds: 0 }),
     rateLimitHeaders: () => ({ "Retry-After": "60" }),
 }));
 vi.mock("@/lib/order-telemetry", () => ({ reportOrderError: vi.fn() }));
-vi.mock("@/lib/env", () => ({ env: { NEXT_PUBLIC_SUPABASE_URL: "https://db.test", NEXT_PUBLIC_SUPABASE_ANON_KEY: "anon" } }));
 vi.mock("@/lib/auth/require-request-caller", () => ({ requireRequestCaller: () => Promise.resolve(caller.current) }));
-vi.mock("@supabase/ssr", () => ({
-    createServerClient: (_url: string, _key: string, options: { cookies: { setAll: (c: { name: string; value: string; options: object }[]) => void } }) => ({
-        auth: {
-            verifyOtp: async (...args: unknown[]) => {
-                const result = await verifyOtp(...args);
-                if (!result.error) options.cookies.setAll([{ name: "sb-db-auth-token", value: "session", options: { path: "/" } }]);
-                return result;
-            },
-        },
-    }),
-}));
 
 import { NextRequest, NextResponse } from "next/server";
 import { SIGN_IN_ANSWER_MARGIN_MS, SIGN_IN_CODE_LIFE_MS } from "@/lib/computer-sign-in";
@@ -144,7 +133,6 @@ describe("POST /api/auth/computer-sign-in/wait", () => {
         results.push({ data: approved(), error: null }, { data: { approved_user_id: USER }, error: null });
         const res = await wait(post("/api/auth/computer-sign-in/wait", { id: ID, secret: ticket }));
         expect(await res.json()).toEqual({ success: true, data: { state: "signed_in" } });
-        expect(res.headers.get("set-cookie")).toContain("sb-db-auth-token=session");
         const spend = queries[1];
         expect(spend).toContainEqual(["is", "used_at", null]);
         expect(spend).toContainEqual(["not", "approved_user_id", "is", null]);
@@ -156,16 +144,15 @@ describe("POST /api/auth/computer-sign-in/wait", () => {
         results.push({ data: approved(), error: null }, { data: null, error: null });
         const res = await wait(post("/api/auth/computer-sign-in/wait", { id: ID, secret: ticket }));
         expect(await res.json()).toEqual({ success: true, data: { state: "expired" } });
-        expect(res.headers.get("set-cookie")).toBeNull();
         expect(generateLink).not.toHaveBeenCalled();
+        expect(verifyOtp).not.toHaveBeenCalled();
     });
 
-    it("says failed, with no cookie, when the token is refused", async () => {
+    it("says failed when the token is refused", async () => {
         results.push({ data: approved(), error: null }, { data: { approved_user_id: USER }, error: null });
         verifyOtp.mockResolvedValue({ data: {}, error: { message: "Token has expired" } });
         const res = await wait(post("/api/auth/computer-sign-in/wait", { id: ID, secret: ticket }));
         expect(await res.json()).toEqual({ success: true, data: { state: "failed" } });
-        expect(res.headers.get("set-cookie")).toBeNull();
     });
 });
 

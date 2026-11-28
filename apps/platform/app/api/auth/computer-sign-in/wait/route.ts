@@ -1,14 +1,12 @@
-import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
-import { env } from "@/lib/env";
 import { withFailureReport } from "@/lib/job-monitor";
 import { reportOrderError } from "@/lib/order-telemetry";
 import { requestIp } from "@/lib/request-ip";
 import { secretTicketMatches } from "@/lib/secret-ticket";
 import { SIGN_IN_COLLECT_MS, computerSignInState } from "@/lib/computer-sign-in";
 import { COMPUTER_SIGN_INS, NO_STORE, readComputerSignIn, spendLimits } from "@/lib/computer-sign-in-server";
-import { createSupabaseServiceClient } from "@/lib/supabase-server";
+import { createSupabaseServerClient, createSupabaseServiceClient } from "@/lib/supabase-server";
 
 export const dynamic = "force-dynamic";
 
@@ -83,23 +81,14 @@ async function handlePOST(request: NextRequest): Promise<NextResponse> {
         return answer("failed");
     }
 
-    const response = answer("signed_in");
-    const supabase = createServerClient(env.NEXT_PUBLIC_SUPABASE_URL, env.NEXT_PUBLIC_SUPABASE_ANON_KEY, {
-        cookies: {
-            getAll() {
-                return request.cookies.getAll();
-            },
-            setAll(cookiesToSet) {
-                cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
-            },
-        },
-    });
+    // The shared cookie client writes the new session onto this response.
+    const supabase = await createSupabaseServerClient();
     const { error: verifyError } = await supabase.auth.verifyOtp({ token_hash: link.properties.hashed_token, type: "magiclink" });
     if (verifyError) {
         reportOrderError(new Error(`computer sign-in: token refused (${verifyError.message})`), { operation: "computer-sign-in-verify" });
         return answer("failed");
     }
-    return response;
+    return answer("signed_in");
 }
 
 export const POST = withFailureReport("api/auth/computer-sign-in/wait POST", handlePOST);
