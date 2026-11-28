@@ -20,8 +20,8 @@ const FORMALITY = ["formal", "casual", "playful", "luxe"];
 const HEX = /^#[0-9a-f]{6}$/;
 
 describe("store templates", () => {
-    it("ships exactly six directions with unique ids", () => {
-        expect(STORE_TEMPLATES).toHaveLength(6);
+    it("ships exactly seven directions with unique ids", () => {
+        expect(STORE_TEMPLATES).toHaveLength(7);
         const ids = STORE_TEMPLATES.map((t) => t.id);
         expect(new Set(ids).size).toBe(ids.length);
     });
@@ -90,11 +90,11 @@ describe("store templates", () => {
         }
     });
 
-    it("the six directions are visually distinct on primary and surface", () => {
+    it("the directions are visually distinct on primary and surface", () => {
         const primaries = STORE_TEMPLATES.map((t) => t.brand_kit.colors.primary);
         const surfaces = STORE_TEMPLATES.map((t) => t.brand_kit.colors.surface);
-        expect(new Set(primaries).size).toBe(6);
-        expect(new Set(surfaces).size).toBe(6);
+        expect(new Set(primaries).size).toBe(STORE_TEMPLATES.length);
+        expect(new Set(surfaces).size).toBe(STORE_TEMPLATES.length);
     });
 
     it("every direction covers home, product, and the four policy pages", () => {

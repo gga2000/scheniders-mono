@@ -21,6 +21,7 @@ import type {
     StoreConfigV2,
 } from "@scheniders/shared";
 import { STORE_TEMPLATES, applyStoreTemplate, getStoreTemplate } from "./store-templates";
+import { SOFT_LIGHT_ID } from "./store-templates/soft-light";
 import { applyContentPack, packCategoryRows, resolveContentPack } from "./store-templates/content-packs";
 import type { ContentPack, PackAttribute } from "./store-templates/content-packs";
 import { applyStoreCopy, type StoreCopy } from "./store-copy";
@@ -42,12 +43,12 @@ export interface StarterVertical {
 }
 
 export const STARTER_VERTICALS: StarterVertical[] = [
-    { id: "fashion", label: "Fashion & apparel", recommendedTemplateId: "cobalt_broadsheet" },
-    { id: "beauty", label: "Beauty & cosmetics", recommendedTemplateId: "aurora_glass" },
-    { id: "electronics", label: "Electronics & gadgets", recommendedTemplateId: "kinetic_ink" },
-    { id: "food", label: "Food & grocery", recommendedTemplateId: "sunbleach" },
-    { id: "home_goods", label: "Home & furniture", recommendedTemplateId: "cobalt_broadsheet" },
-    { id: "general", label: "Something else", recommendedTemplateId: "sunbleach" },
+    { id: "fashion", label: "Fashion & apparel", recommendedTemplateId: SOFT_LIGHT_ID },
+    { id: "beauty", label: "Beauty & cosmetics", recommendedTemplateId: SOFT_LIGHT_ID },
+    { id: "electronics", label: "Electronics & gadgets", recommendedTemplateId: SOFT_LIGHT_ID },
+    { id: "food", label: "Food & grocery", recommendedTemplateId: SOFT_LIGHT_ID },
+    { id: "home_goods", label: "Home & furniture", recommendedTemplateId: SOFT_LIGHT_ID },
+    { id: "general", label: "Something else", recommendedTemplateId: SOFT_LIGHT_ID },
 ];
 
 /** Recommended template id for a vertical, falling back to the first template. */
@@ -257,5 +258,5 @@ export function starterTaxonomy(packId: string | undefined): {
 }
 
 /** The direction a brand-new store is published with at sign-up. */
-export const SIGNUP_TEMPLATE_ID = STORE_TEMPLATES[0].id;
+export const SIGNUP_TEMPLATE_ID = SOFT_LIGHT_ID;
 
