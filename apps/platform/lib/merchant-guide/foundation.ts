@@ -62,9 +62,18 @@ export function foundationStatus(input: FoundationInput): FoundationStatus {
     };
 }
 
+/**
+ * The order the steps come in. A merchant with no logo yet can put the shop
+ * step off («بعدين», Ali 28 Nov): the product and delivery come first, and
+ * the logo comes back before the shop opens, since opening needs it.
+ */
+export function foundationOrder(logoLater: boolean): readonly FoundationStep[] {
+    return logoLater ? ["product", "delivery", "shop", "open"] : FOUNDATION_STEPS;
+}
+
 /** The first step still to do, or null when the foundation is finished. */
-export function nextFoundationStep(status: FoundationStatus): FoundationStep | null {
-    return FOUNDATION_STEPS.find((step) => !status[step]) ?? null;
+export function nextFoundationStep(status: FoundationStatus, logoLater = false): FoundationStep | null {
+    return foundationOrder(logoLater).find((step) => !status[step]) ?? null;
 }
 
 export function foundationDoneCount(status: FoundationStatus): number {

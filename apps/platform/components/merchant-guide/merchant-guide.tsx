@@ -92,6 +92,8 @@ export function MerchantGuide() {
     // A finished basics step the merchant went back to with the back arrow.
     // Only steps before the one they stopped at count; it lives for this visit.
     const [viewing, setViewing] = useState<FoundationStep | null>(null);
+    // «بعدين» on the logo, before the saved record comes back.
+    const [logoLaterNow, setLogoLaterNow] = useState(false);
 
     const persist = useCallback(
         (patch: GuidePatch) => {
@@ -130,7 +132,8 @@ export function MerchantGuide() {
     }, [showRequested, enabled, progressQ.isSuccess, progress?.phases, persist, searchParams, router, pathname]);
 
     const status = shopQ.data?.status ?? null;
-    const next = status ? nextFoundationStep(status) : null;
+    const logoLater = logoLaterNow || !!progress?.phases.logo_later_at;
+    const next = status ? nextFoundationStep(status, logoLater) : null;
     const welcomed = !!progress?.answers.channel;
 
     // Tell the pages which basics step is running, so the editor and the
@@ -244,14 +247,23 @@ export function MerchantGuide() {
         );
     }
 
+    // The back arrow walks the steps in their usual order, so a logo put off
+    // for later is one tap back from the product step.
     const stepShown = viewing !== null && FOUNDATION_STEPS.indexOf(viewing) < nextIndex ? viewing : next;
     const shownIndex = FOUNDATION_STEPS.indexOf(stepShown);
+    const putLogoOff = (): void => {
+        setLogoLaterNow(true);
+        persist({ phases: { ...phases, logo_later_at: new Date().toISOString() } });
+    };
 
     return (
         <GuideFoundationStep
             key={stepShown}
             step={stepShown}
-            done={stepShown !== next}
+            done={status[stepShown]}
+            revisit={stepShown !== next}
+            logoLater={logoLater}
+            onLater={putLogoOff}
             onBack={shownIndex > 0 ? () => setViewing(FOUNDATION_STEPS[shownIndex - 1]) : null}
             onReturn={() => setViewing(null)}
             status={status}

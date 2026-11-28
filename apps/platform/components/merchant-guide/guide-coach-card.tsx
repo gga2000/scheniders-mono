@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { GuideCaption } from "./guide-caption";
 import { useGuidePillBottom } from "./guide-setup-store";
 import { GuideSoundButton } from "./guide-sound-button";
+import { useGlide } from "./use-glide";
 import type { GuideVoice } from "./use-guide-voice";
 import { GUIDE_PHONE_MAX_WIDTH, usePhoneTyping } from "./use-phone-typing";
 import type { TargetBox } from "./use-target-rect";
@@ -69,6 +70,8 @@ export interface GuideCoachCardProps {
     onGo?: () => void;
     /** A stop that only explains: the merchant moves on with this button. */
     next?: { label: string; onClick: () => void; busy?: boolean };
+    /** A way to put the step off for now, shown while the card waits («بعدين» on the logo). */
+    later?: { label: string; onClick: () => void };
     /** What the card waits for when it has no button: the step to tick, or the merchant's click on the light. */
     waitingFor?: "step" | "click";
     /** The last resort when the thing to click can't be found: a small link that goes there. */
@@ -93,6 +96,7 @@ export function GuideCoachCard({
     onBack,
     onGo,
     next,
+    later,
     waitingFor = "step",
     onLost,
     done = false,
@@ -105,13 +109,14 @@ export function GuideCoachCard({
     const ref = useRef<HTMLDivElement>(null);
     const pillBottom = useGuidePillBottom();
     const typing = usePhoneTyping();
+    // Glides when the light moves to another element or the card docks; it
+    // follows a scrolling element without lagging behind it.
+    const glide = useGlide(box?.of ?? null);
 
     useLayoutEffect(() => {
         const card = ref.current;
         if (!card || typing) return;
         placeCard(card, box, dockLeft, pillBottom);
-        // Glide only between places, never in from the corner on first show.
-        card.dataset.placed = "true";
         const onResize = (): void => placeCard(card, box, dockLeft, pillBottom);
         window.addEventListener("resize", onResize);
         return () => window.removeEventListener("resize", onResize);
@@ -124,6 +129,7 @@ export function GuideCoachCard({
             aria-live="polite"
             aria-label={heading}
             data-testid="merchant-guide-card"
+            data-glide={glide ? "true" : undefined}
             className={cn(
                 "merchant-guide-card fixed grid w-[min(360px,calc(100vw-32px))] gap-3 rounded-2xl bg-neutral-900 p-4 text-white shadow-[0_18px_40px_-16px_rgba(0,0,0,0.6)]",
                 raised ? "z-[63]" : "z-[46]",
@@ -215,6 +221,15 @@ export function GuideCoachCard({
                             {part.index + 1}/{part.count}
                         </span>
                     </>
+                ) : later ? (
+                    <button
+                        type="button"
+                        onClick={later.onClick}
+                        data-testid="merchant-guide-later"
+                        className="inline-flex h-9 items-center rounded-full border border-white/20 px-4 text-sm hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#EFFF00]"
+                    >
+                        <span dir={dir}>{later.label}</span>
+                    </button>
                 ) : (
                     <span dir={dir} className="text-xs text-neutral-500">
                         {t(waitingFor === "click" ? "guide.route.waiting" : "guide.waiting")}

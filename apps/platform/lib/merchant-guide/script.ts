@@ -39,6 +39,10 @@ export const GUIDE_LINES = {
         ar: "هسه حط اللوگو مالتك. أي صورة واضحة تمشي.",
         en: "Now add your logo. Any clear picture works.",
     },
+    "shop.logoLast": {
+        ar: "باقي اللوگو بس. حطه هسه ونفتح محلك.",
+        en: "Only the logo is left. Add it now and we'll open your shop.",
+    },
     "product.name": {
         ar: "هسه نضيف أول منتج. اكتب اسمه مثل ما يشوفه الزبون.",
         en: "Now let's add your first product. Type its name the way a customer would see it.",
