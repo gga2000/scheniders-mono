@@ -17,6 +17,9 @@
 // screen and the light shows the field. A shop that is already complete never sees it, unless
 // someone opens any page with ?guide=start to replay it.
 //
+// Once the first product is in, a short practice (guide-find-product.tsx)
+// drops the merchant on Orders to find their own way back to it.
+//
 // Phase 2 ("First order", guide-first-order.tsx) follows once the basics'
 // finish card is closed: three practice orders and a walk through a day's
 // work on the Orders page and the dispatch desk.
@@ -35,6 +38,7 @@ import { FOUNDATION_STEPS, nextFoundationStep, type FoundationStep } from "@/lib
 import { STORE_EDITOR_PATH, guideHiddenOn } from "@/lib/merchant-guide/steps";
 import { GuideDone } from "./guide-done";
 import { GuideAfterBasics } from "./guide-after-basics";
+import { GuideFindProduct } from "./guide-find-product";
 import { GuideFoundationStep } from "./guide-foundation-step";
 import { GuideStaffTour } from "./guide-staff-tour";
 import { GuideWelcome } from "./guide-welcome";
@@ -221,6 +225,25 @@ export function MerchantGuide() {
     if (next === null) return null;
 
     const nextIndex = FOUNDATION_STEPS.indexOf(next);
+    const productIndex = FOUNDATION_STEPS.indexOf("product");
+
+    // The first product is in: a short practice, from Orders back to it.
+    if (viewing === null && status.product && !phases.find_product?.done_at) {
+        return (
+            <GuideFindProduct
+                record={phases.find_product}
+                status={status}
+                locale={locale}
+                soundOn={soundOn}
+                onToggleSound={toggleSound}
+                pillLeft={pillLeft}
+                saving={saving}
+                onRecord={(find_product) => persist({ phases: { ...phases, find_product } })}
+                onBack={productIndex < nextIndex ? () => setViewing("product") : null}
+            />
+        );
+    }
+
     const stepShown = viewing !== null && FOUNDATION_STEPS.indexOf(viewing) < nextIndex ? viewing : next;
     const shownIndex = FOUNDATION_STEPS.indexOf(stepShown);
 

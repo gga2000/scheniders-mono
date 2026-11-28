@@ -27,6 +27,7 @@ import { GuideSpotlight } from "./guide-spotlight";
 import { useGuideVoice } from "./use-guide-voice";
 import { useFirstTargetBox, useTargetBox } from "./use-target-rect";
 import { useMissingAfterGrace } from "./use-missing-after-grace";
+import { useTypingIn } from "./use-typing-in";
 
 /**
  * How long the guide looks for the next thing to click before offering a
@@ -95,7 +96,11 @@ export function GuideFoundationStep({
     // still needs something. Back and Next override that only until the
     // merchant fills or clears a field.
     const productDraft = useGuideSetup((s) => s.productDraft);
-    const autoPart = productWalkStage(productDraft);
+    // A field being typed in keeps the light: the walk moves on when the
+    // merchant leaves it, not at the first letter.
+    const typingIn = useTypingIn(step === "product" ? place.targets.map((target) => target.selector) : null);
+    const filledUpTo = productWalkStage(productDraft);
+    const autoPart = typingIn >= 0 && typingIn < filledUpTo ? typingIn : filledUpTo;
     const [manualPart, setManualPart] = useState<{ forAuto: number; value: number } | null>(null);
     const part =
         step === "product"
