@@ -35,6 +35,16 @@ describe("useGroupedPhoneInput", () => {
         expect(screen.getByTestId("raw").textContent).toBe("07801234567");
     });
 
+    it("writes Arabic and Persian digits as 0-9, in the field and in the stored value", () => {
+        render(<Harness />);
+        const input = screen.getByLabelText("phone") as HTMLInputElement;
+        fireEvent.change(input, { target: { value: "٠٧٨٠١٢٣٤٥٦٧" } });
+        expect(screen.getByTestId("raw").textContent).toBe("07801234567");
+        expect(input.value).toBe("0780 123 4567");
+        fireEvent.change(input, { target: { value: "۰۷۸۰ ۱۲۳" } });
+        expect(screen.getByTestId("raw").textContent).toBe("0780123");
+    });
+
     it("keeps a pasted international number as typed (minus spaces)", () => {
         render(<Harness />);
         const input = screen.getByLabelText("phone") as HTMLInputElement;

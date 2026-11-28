@@ -9,6 +9,7 @@ import { toast } from "@/hooks/use-toast";
 import { computeCodAmount } from "@/lib/order-money";
 import { primePhone } from "@/lib/prime/phone";
 import type { Order } from "@/types/order";
+import { latinDigitsValue } from "@/lib/latin-digits-input";
 
 export type PrimeResendOrder = Pick<
     Order,
@@ -132,7 +133,7 @@ export function PrimeResendForm({ order, autoFocus }: { order: PrimeResendOrder;
                         inputMode="tel"
                         autoFocus={autoFocus}
                         value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
+                        onChange={(e) => setPhone(latinDigitsValue(e))}
                         className={`${inputClass} font-mono tabular-nums`}
                     />
                 </label>

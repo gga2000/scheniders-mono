@@ -28,6 +28,7 @@ import { useLanguage } from "@/hooks/use-language";
 import { ContactSupportButton } from "@/components/support/contact-support-button";
 import { SettingsPreviewPane, SettingsWithPreview } from "@/components/settings/settings-preview";
 import { StorefrontPreview } from "@/components/settings/storefront-preview";
+import { latinDigitsValue } from "@/lib/latin-digits-input";
 
 /** Where the store's colours are edited: the store editor's brand screen, the one the storefront reads. */
 export const STORE_COLORS_EDIT_HREF = "/store/edit?screen=brand_kit";
@@ -252,7 +253,7 @@ function BusinessSettingsForm({ tenant, tenantId }: { tenant: TenantData; tenant
                                 id="biz-whatsapp"
                                 type="tel"
                                 value={whatsappNumber}
-                                onChange={(e) => setWhatsappNumber(e.target.value)}
+                                onChange={(e) => setWhatsappNumber(latinDigitsValue(e))}
                                 className={INPUT}
                                 placeholder="07XXXXXXXXX"
                             />
@@ -270,7 +271,7 @@ function BusinessSettingsForm({ tenant, tenantId }: { tenant: TenantData; tenant
                                     id="biz-phone"
                                     type="tel"
                                     value={contactPhone}
-                                    onChange={(e) => setContactPhone(e.target.value)}
+                                    onChange={(e) => setContactPhone(latinDigitsValue(e))}
                                     className={INPUT}
                                     placeholder="07XXXXXXXXX"
                                 />

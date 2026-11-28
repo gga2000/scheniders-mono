@@ -7708,6 +7708,7 @@ export const en: Record<string, string> = {
     "signup.err.emailMissing": "Type your email.",
     "signup.err.emailInvalid": "This email doesn't look right. Write it like name@gmail.com",
     "signup.err.emailTaken": "There's already an account with this email. Sign in, or use another email.",
+    "signup.err.phoneInvalid": "Type an Iraqi mobile number, like 07701234567.",
     "signup.err.passwordRules": "The password needs at least {n} characters, with English letters and numbers.",
     "signup.err.passwordLeaked": "This password has shown up in leaks before, so it's easy to guess. Pick another one you don't use anywhere else.",
     "signup.err.tooMany": "Too many tries. Wait a little and try again.",

@@ -57,6 +57,7 @@ import { useLanguage } from "@/hooks/use-language";
 import { authedFetch } from "@/lib/authed-fetch";
 import { attributeTemplatesFor, industryIdFor, mergeAttributeSets, packIdFor } from "@/lib/business-types";
 import { SetupHelpOffer } from "./setup-help-offer";
+import { latinDigitsValue } from "@/lib/latin-digits-input";
 
 interface OnboardingWizardProps {
     tenantId: string;
@@ -524,7 +525,7 @@ function BasicsStep({
                 <input
                     type="tel"
                     value={whatsapp}
-                    onChange={(e) => onWhatsapp(e.target.value)}
+                    onChange={(e) => onWhatsapp(latinDigitsValue(e))}
                     placeholder="07XXXXXXXX"
                     className={inputCls}
                 />

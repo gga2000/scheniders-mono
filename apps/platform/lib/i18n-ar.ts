@@ -8571,6 +8571,7 @@ export const ar: Record<string, string> = {
     "signup.err.emailMissing": "اكتب إيميلك.",
     "signup.err.emailInvalid": "هذا الإيميل مو صحيح. اكتبه مثل name@gmail.com",
     "signup.err.emailTaken": "اكو حساب بهذا الإيميل من قبل. سجّل دخول، أو استخدم إيميل ثاني.",
+    "signup.err.phoneInvalid": "اكتب رقم موبايل عراقي، مثل 07701234567.",
     "signup.err.passwordRules": "كلمة المرور لازم تكون {n} أحرف على الأقل، بيها حروف إنكليزية وأرقام.",
     "signup.err.passwordLeaked": "هاي الكلمة طالعة بتسريبات قبل، فسهل أحد يخمّنها. اختار كلمة ثانية ما مستخدمها بأي مكان.",
     "signup.err.tooMany": "جرّبت هواية مرات. استنى شوية وجرّب مرة ثانية.",

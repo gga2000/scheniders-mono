@@ -7,6 +7,7 @@ import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useLanguage } from "@/hooks/use-language";
 import { authedFetch } from "@/lib/authed-fetch";
+import { latinDigitsValue } from "@/lib/latin-digits-input";
 
 interface StaffEntry {
     phone: string;
@@ -211,7 +212,7 @@ export function StaffAlertsSettings() {
                                 placeholder="07XXXXXXXXX"
                                 value={phone}
                                 onChange={(e) => {
-                                    setPhone(e.target.value);
+                                    setPhone(latinDigitsValue(e));
                                     setPhoneError("");
                                 }}
                                 onKeyDown={(e) => e.key === "Enter" && handleAdd()}

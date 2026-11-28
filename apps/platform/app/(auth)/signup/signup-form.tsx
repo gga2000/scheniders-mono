@@ -31,7 +31,7 @@ import {
     type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
-import { governorateLabel, IRAQ_GOVERNORATES, resolveI18n } from "@scheniders/shared";
+import { governorateLabel, IRAQ_GOVERNORATES, isValidIraqiMobile, resolveI18n, toLatinDigits } from "@scheniders/shared";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { BUSINESS_TYPES, type BusinessTypeId } from "@/lib/business-types";
 import type { SignupHandover } from "@/lib/signup-handover";
@@ -52,6 +52,7 @@ import {
 } from "@/lib/password-policy";
 import { trackSignupComplete } from "@/lib/fermi-pixel";
 import { TRIAL_DAYS } from "@/lib/trial";
+import { latinDigitsValue } from "@/lib/latin-digits-input";
 
 const BUSINESS_TYPE_ICONS: Record<string, LucideIcon> = {
     Shirt,
@@ -163,7 +164,7 @@ export function SignupForm({ handover }: { handover: SignupHandover }) {
         if (early.businessName !== null) setBusinessName(early.businessName);
         if (early.email !== null) setEmail(early.email);
         if (early.password !== null) setPassword(early.password);
-        if (early.phone !== null) setContactPhone(early.phone);
+        if (early.phone !== null) setContactPhone(toLatinDigits(early.phone));
         if (early.city !== null) setCity(early.city);
     }, []);
 
@@ -234,6 +235,10 @@ export function SignupForm({ handover }: { handover: SignupHandover }) {
         if (!passwordMeetsRules(password)) {
             return { field: "password", message: t("signup.err.passwordRules", { n: PASSWORD_MIN_LENGTH }) };
         }
+        // Optional, but a number that is there must be an Iraqi mobile: it is the store's WhatsApp.
+        if (contactPhone.trim().length > 0 && !isValidIraqiMobile(contactPhone)) {
+            return { field: "phone", message: t("signup.err.phoneInvalid") };
+        }
         if (phoneCode.on === true && phoneProof === null) return { field: "phone", message: t("signup.code.again") };
         return null;
     };
@@ -254,6 +259,7 @@ export function SignupForm({ handover }: { handover: SignupHandover }) {
                 return { field: "password" as const, message: t("signup.err.passwordRules", { n: PASSWORD_MIN_LENGTH }) };
             }
             if (data.field === "business_name") return { field: "businessName" as const, message: t("signup.err.businessName") };
+            if (data.field === "contact_phone") return { field: "phone" as const, message: t("signup.err.phoneInvalid") };
         }
         return null;
     };
@@ -597,12 +603,21 @@ export function SignupForm({ handover }: { handover: SignupHandover }) {
                                     <input
                                         id="signup-phone"
                                         type="tel"
+                                        dir="ltr"
+                                        inputMode="tel"
+                                        autoComplete="tel"
                                         value={contactPhone}
-                                        onChange={(e) => setContactPhone(e.target.value)}
-                                        placeholder="07XXXXXXXX"
-                                        className="w-full h-[52px] pl-10 pr-3 rounded-2xl bg-white border border-[#E2DCCF] text-[15.5px] text-[#1E1E1E] placeholder:text-[#C2BCB0] shadow-[0_1px_2px_rgba(30,30,30,0.04)] hover:border-[#CFC8B9] focus:border-[#1E1E1E] focus:outline-none focus:ring-4 focus:ring-[#EFFF00]/50 transition"
+                                        onChange={(e) => {
+                                            clearError("phone");
+                                            setContactPhone(latinDigitsValue(e));
+                                        }}
+                                        placeholder="07XXXXXXXXX"
+                                        aria-invalid={errorFor("phone") ? true : undefined}
+                                        aria-describedby={errorFor("phone") ? "signup-phone-error" : undefined}
+                                        className={`w-full h-[52px] pl-10 pr-3 rounded-2xl bg-white border ${borderFor("phone")} text-[15.5px] text-[#1E1E1E] placeholder:text-[#C2BCB0] shadow-[0_1px_2px_rgba(30,30,30,0.04)] focus:outline-none focus:ring-4 focus:ring-[#EFFF00]/50 transition`}
                                     />
                                 </div>
+                                <FieldError id="signup-phone-error" message={errorFor("phone")} dir={dir} />
                             </div>
                             {cityField}
                         </div>

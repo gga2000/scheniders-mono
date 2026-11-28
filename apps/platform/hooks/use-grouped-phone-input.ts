@@ -1,6 +1,7 @@
 "use client";
 
 import { useLayoutEffect, useRef, type ChangeEvent } from "react";
+import { toLatinDigits } from "@scheniders/shared";
 import { formatPhoneInput, unformatPhoneInput } from "@/lib/order-utils";
 
 /** Index in `display` just after the `nonSpaceCount`-th non-whitespace character. */
@@ -41,7 +42,8 @@ export function useGroupedPhoneInput(raw: string, onRawChange: (value: string) =
         const target = e.target;
         const caret = target.selectionStart ?? target.value.length;
         pendingCaret.current = unformatPhoneInput(target.value.slice(0, caret)).length;
-        onRawChange(unformatPhoneInput(target.value));
+        // Arabic and Persian digits are kept as 0-9: one character each, so the caret count above still holds.
+        onRawChange(toLatinDigits(unformatPhoneInput(target.value)));
     };
 
     return { ref, value, onChange };

@@ -38,7 +38,24 @@ const signupSchema = z.object({
     email: z.string().trim().toLowerCase().pipe(z.email()),
     password: z.string().min(8, 'Password must be at least 8 characters').max(72),
     business_name: z.string().trim().min(1).max(120),
-    contact_phone: optionalText,
+    /**
+     * The owner's mobile, the store's WhatsApp. Optional; one that is there
+     * must be an Iraqi mobile, and it is saved as 07XXXXXXXXX whether it was
+     * typed with Arabic, Persian or English digits, spaces or +964.
+     */
+    contact_phone: z
+        .string()
+        .max(40)
+        .optional()
+        .transform((v, ctx) => {
+            if (v === undefined || v.trim() === '') return null;
+            const mobile = normalizeIraqiMobile(v);
+            if (!mobile) {
+                ctx.addIssue({ code: 'custom', message: 'Not an Iraqi mobile number' });
+                return z.NEVER;
+            }
+            return mobile;
+        }),
     city: optionalText,
     /**
      * «شنو تبيع؟» (Fermi B10), in the order ticked. The form asks for at least
@@ -101,7 +118,7 @@ async function handlePOST(request: NextRequest) {
                 { status: 400 },
             );
         }
-        const { email, password, business_name, contact_phone: typedPhone, city, business_types, slug: chosenSlug, captcha_token, phone_proof } = parsed.data;
+        const { email, password, business_name, contact_phone: mobile, city, business_types, slug: chosenSlug, captcha_token, phone_proof } = parsed.data;
 
         // This route creates the account with the service role, so Supabase's
         // own CAPTCHA never sees it: check the Turnstile token here first.
@@ -150,7 +167,7 @@ async function handlePOST(request: NextRequest) {
         const signupWhatsApp = await loadSignupWhatsApp(adminClient);
         let verified: { phone: string; proof: string } | null = null;
         if (signupWhatsApp.phone_code) {
-            const phone = normalizeIraqiMobile(typedPhone);
+            const phone = mobile;
             if (!phone || !phone_proof || !(await spendSignupProof(adminClient, phone_proof, phone))) {
                 return NextResponse.json(
                     { error: 'Confirm your WhatsApp number first.', code: 'phone_unverified' },
@@ -159,7 +176,7 @@ async function handlePOST(request: NextRequest) {
             }
             verified = { phone, proof: phone_proof };
         }
-        const contact_phone = verified?.phone ?? typedPhone;
+        const contact_phone = verified?.phone ?? mobile;
         const giveBackProof = async () => {
             if (verified) await releaseSignupProof(adminClient, verified.proof);
         };

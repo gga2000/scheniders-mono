@@ -290,18 +290,42 @@ describe("POST /api/auth/signup", () => {
     describe("the owner's WhatsApp number, proven by a code (B11)", () => {
         const PROOF = "c0000000-0000-4000-8000-000000000002";
 
-        it("while the switch is off, keeps the number as typed and checks nothing", async () => {
+        it("while the switch is off, saves the number in its plain form and checks no code", async () => {
             const res = await POST(request({ ...base, contact_phone: "0770 123 4567" }));
             expect(res.status).toBe(201);
             const tenant = tableInserts.find((i) => i.table === "tenants");
-            expect(tenant?.row).toMatchObject({ contact_phone: "0770 123 4567", contact_phone_verified_at: null });
+            expect(tenant?.row).toMatchObject({ contact_phone: "07701234567", contact_phone_verified_at: null });
             expect(phoneCode.spend).not.toHaveBeenCalled();
             expect(phoneCode.later).toHaveLength(0);
         });
 
+        it("takes a number typed in Arabic or Persian digits and saves it in 0-9", async () => {
+            for (const typed of ["٠٧٧٠١٢٣٤٥٦٧", "۰۷۷۰ ۱۲۳ ۴۵۶۷", "+٩٦٤ ٧٧٠ ١٢٣ ٤٥٦٧"]) {
+                tableInserts.length = 0;
+                const res = await POST(request({ ...base, contact_phone: typed }));
+                expect(res.status).toBe(201);
+                const tenant = tableInserts.find((i) => i.table === "tenants");
+                expect(tenant?.row.contact_phone).toBe("07701234567");
+            }
+        });
+
+        it("refuses a number that is not an Iraqi mobile, on the phone field, before making anything", async () => {
+            const res = await POST(request({ ...base, contact_phone: "12345" }));
+            expect(res.status).toBe(400);
+            expect(await res.json()).toMatchObject({ code: "invalid", field: "contact_phone" });
+            expect(createUser).not.toHaveBeenCalled();
+        });
+
+        it("saves no number when the field was left empty", async () => {
+            const res = await POST(request({ ...base, contact_phone: "  " }));
+            expect(res.status).toBe(201);
+            const tenant = tableInserts.find((i) => i.table === "tenants");
+            expect(tenant?.row.contact_phone).toBeNull();
+        });
+
         it("while it is on, makes no account without a proven number", async () => {
             phoneCode.settings = { phone_code: true, welcome: false, welcome_video_url: null };
-            for (const body of [{ ...base }, { ...base, contact_phone: "07701234567" }, { ...base, contact_phone: "123", phone_proof: PROOF }]) {
+            for (const body of [{ ...base }, { ...base, contact_phone: "07701234567" }, { ...base, phone_proof: PROOF }]) {
                 const res = await POST(request(body));
                 expect(res.status).toBe(422);
                 expect((await res.json()).code).toBe("phone_unverified");

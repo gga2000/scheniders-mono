@@ -16,6 +16,7 @@ import { z } from "zod";
 import { formatIraqiPhoneDisplay, normalizeIraqiMobile } from "@scheniders/shared";
 import type { useAuthCaptcha } from "@/components/auth/auth-captcha";
 import type { useLanguage } from "@/hooks/use-language";
+import { latinDigitsValue } from "@/lib/latin-digits-input";
 
 type Translate = ReturnType<typeof useLanguage>["t"];
 
@@ -205,7 +206,7 @@ export function SignupPhoneCheck({
                         inputMode="tel"
                         autoComplete="tel"
                         value={phone}
-                        onChange={(e) => onPhoneChange(e.target.value)}
+                        onChange={(e) => onPhoneChange(latinDigitsValue(e))}
                         disabled={stage === "code"}
                         placeholder="07XX XXX XXXX"
                         maxLength={40}
