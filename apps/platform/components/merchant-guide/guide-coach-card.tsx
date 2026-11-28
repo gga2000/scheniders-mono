@@ -1,55 +1,49 @@
 "use client";
 
-import { useLayoutEffect, useRef, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, type ReactNode } from "react";
 import { ArrowRight, Check, ChevronLeft, ChevronRight, Minus } from "lucide-react";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { cn } from "@/lib/utils";
+import { CARD_EDGE, cardSpot, freeArea, KEEP_CLEAR_ATTR, type CardSide } from "./card-spot";
 import { GuideCaption } from "./guide-caption";
 import { useGuidePillBottom } from "./guide-setup-store";
 import { GuideSoundButton } from "./guide-sound-button";
-import { useGlide } from "./use-glide";
+import { GUIDE_GLIDE_MS, useGlide } from "./use-glide";
 import type { GuideVoice } from "./use-guide-voice";
 import { GUIDE_PHONE_MAX_WIDTH, usePhoneTyping } from "./use-phone-typing";
 import type { TargetBox } from "./use-target-rect";
 
-const GAP = 18;
-const EDGE = 16;
 /** The pill's band under the card: the pill (44px) and a 16px gap. */
 const PILL_BAND = 60;
 
+/** Where the card is now, so the same element keeps its side while it scrolls. */
+interface Placed {
+    of: string | null;
+    side: CardSide | "dock";
+}
+
 /**
- * Next to the element when there's room: below, else above, right, left.
- * Always clear of the pill's band. On a phone there is no room beside
- * anything, so the card rests at the bottom above the pill and the light
- * alone shows the element.
+ * Next to the element when there's room (card-spot.ts), clear of the pill's
+ * band and of the desktop menu. On a phone there is no room beside anything,
+ * so the card rests at the bottom above the pill and the light alone shows
+ * the element.
  */
-function placeCard(card: HTMLElement, box: TargetBox | null, dockLeft: number, pillBottom: number): void {
+function placeCard(card: HTMLElement, box: TargetBox | null, dockLeft: number, pillBottom: number, now: Placed | null): Placed {
     const w = card.offsetWidth;
     const h = card.offsetHeight;
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    const dockBottom = pillBottom + PILL_BAND;
-    let left: number;
-    let top: number;
-    if (!box || vw < GUIDE_PHONE_MAX_WIDTH) {
-        left = dockLeft;
-        top = vh - dockBottom - h;
-    } else if (box.top + box.height + GAP + h <= vh - dockBottom) {
-        top = box.top + box.height + GAP;
-        left = box.left + box.width / 2 - w / 2;
-    } else if (box.top - GAP - h >= EDGE) {
-        top = box.top - GAP - h;
-        left = box.left + box.width / 2 - w / 2;
-    } else if (box.left + box.width + GAP + w <= vw - EDGE) {
-        left = box.left + box.width + GAP;
-        top = box.top + box.height / 2 - h / 2;
-    } else {
-        left = box.left - GAP - w;
-        top = box.top + box.height / 2 - h / 2;
+    const view = { width: window.innerWidth, height: window.innerHeight };
+    const bottomBand = pillBottom + PILL_BAND;
+    if (!box || view.width < GUIDE_PHONE_MAX_WIDTH) {
+        card.style.left = `${Math.max(CARD_EDGE, Math.min(view.width - w - CARD_EDGE, dockLeft))}px`;
+        card.style.top = `${Math.max(CARD_EDGE, view.height - bottomBand - h)}px`;
+        return { of: null, side: "dock" };
     }
-    card.style.left = `${Math.max(EDGE, Math.min(vw - w - EDGE, left))}px`;
-    // Never under the guide pill in the bottom corner.
-    card.style.top = `${Math.max(EDGE, Math.min(vh - h - dockBottom, top))}px`;
+    const keepClear = Array.from(document.querySelectorAll(`[${KEEP_CLEAR_ATTR}]`), (el) => el.getBoundingClientRect());
+    const keep = now && now.of === box.of && now.side !== "dock" ? now.side : null;
+    const spot = cardSpot(box, { width: w, height: h }, freeArea(view, bottomBand, keepClear), keep);
+    card.style.left = `${spot.left}px`;
+    card.style.top = `${spot.top}px`;
+    return { of: box.of, side: spot.side };
 }
 
 export interface GuideCoachCardProps {
@@ -113,14 +107,29 @@ export function GuideCoachCard({
     // follows a scrolling element without lagging behind it.
     const glide = useGlide(box?.of ?? null);
 
+    const placed = useRef<Placed | null>(null);
+    const hopTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
     useLayoutEffect(() => {
         const card = ref.current;
         if (!card || typing) return;
-        placeCard(card, box, dockLeft, pillBottom);
-        const onResize = (): void => placeCard(card, box, dockLeft, pillBottom);
-        window.addEventListener("resize", onResize);
-        return () => window.removeEventListener("resize", onResize);
+        const place = (): void => {
+            const before = placed.current;
+            const after = placeCard(card, box, dockLeft, pillBottom, before);
+            placed.current = after;
+            // The same element ran out of room on its side: the card glides
+            // across to the new side instead of jumping there.
+            if (before && before.of === after.of && before.side !== after.side) {
+                card.dataset.hop = "true";
+                clearTimeout(hopTimer.current);
+                hopTimer.current = setTimeout(() => delete card.dataset.hop, GUIDE_GLIDE_MS);
+            }
+        };
+        place();
+        window.addEventListener("resize", place);
+        return () => window.removeEventListener("resize", place);
     });
+    useEffect(() => () => clearTimeout(hopTimer.current), []);
 
     return (
         <div

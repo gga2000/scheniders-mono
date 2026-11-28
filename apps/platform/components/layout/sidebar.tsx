@@ -350,6 +350,8 @@ export function Sidebar({
                     paddingRight: collapsed ? 0 : 24,
                 }}
                 transition={sidebarSpring}
+                // Paints over the setup guide's card, so the card keeps clear of it (merchant-guide/card-spot.ts).
+                data-guide-keep-clear=""
                 className="fixed left-4 top-4 bottom-4 w-[256px] px-6 bg-[#1E1E1E] rounded-[32px] flex flex-col py-6 text-white shadow-lg shadow-black/20 z-50 border border-white/5"
             >
                 {/* Collapse Toggle Button */}
