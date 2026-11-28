@@ -8,9 +8,9 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { useLanguage } from "@/hooks/use-language";
 import { canAccessRoute } from "@/lib/route-permissions";
 import type { GuideLocale } from "@/lib/merchant-guide/script";
-import { STAFF_TOUR_STOPS, nextTourStop, seeStop, type TourRecord } from "@/lib/merchant-guide/tours";
+import { STAFF_TOUR_STOPS, seeStop, type TourRecord } from "@/lib/merchant-guide/tours";
 import { GuideNote } from "./guide-note";
-import { GuideTour } from "./guide-tour";
+import { GuideTourSteps } from "./guide-tour";
 
 export function GuideStaffTour({
     record,
@@ -52,21 +52,17 @@ export function GuideStaffTour({
         );
     }
 
-    const stop = nextTourStop(stops, record);
-    if (!stop) return null;
     return (
-        <GuideTour
-            key={stop.id}
+        <GuideTourSteps
             label={t("guide.staff.title")}
-            stop={stop}
-            index={stops.indexOf(stop)}
-            count={stops.length}
+            stops={stops}
+            record={record}
             locale={locale}
             soundOn={soundOn}
             onToggleSound={onToggleSound}
             pillLeft={pillLeft}
             saving={saving}
-            onNext={() => onRecord(seeStop(stops, record, stop.id, now()))}
+            onSee={(stop) => onRecord(seeStop(stops, record, stop.id, now()))}
         />
     );
 }

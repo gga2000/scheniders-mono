@@ -953,6 +953,7 @@ function ProductsContent() {
                             {canEditProducts && (
                             <button
                                 onClick={handleAddProduct}
+                                data-guide="products-add"
                                 className="flex items-center gap-2 px-5 py-3 bg-[var(--ink)] text-white rounded-xl font-medium hover:opacity-90 transition-all shadow-lg"
                             >
                                 <Plus className="w-5 h-5" />
@@ -1146,7 +1147,7 @@ function ProductsContent() {
 
                             {/* Products Grid/List — Virtualized */}
                             {filteredProducts.length === 0 ? (
-                                <div className="pastel-card p-12 text-center">
+                                <div data-guide={products.length === 0 ? "products-empty" : undefined} className="pastel-card p-12 text-center">
                                     <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[var(--background)] flex items-center justify-center">
                                         <Package className="h-8 w-8 text-muted" />
                                     </div>

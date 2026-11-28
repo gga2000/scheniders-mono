@@ -16,13 +16,14 @@ export function ProductBasicSection({ formData, updateField }: ProductBasicSecti
     // A clothing shop sees a shirt as the example, never a perfume (B10).
     const businessTypes = useBusinessTypes();
     return (
-        <div data-guide="product-name" className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-6 space-y-5">
+        <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-6 space-y-5">
             <h2 className="text-sm font-semibold text-muted uppercase tracking-wider">
                 {t("products.ed.basic")}
             </h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
+                {/* The setup guide lights this field alone, not the whole box. */}
+                <div data-guide="product-name">
                     <label htmlFor="product-name" className="block text-sm font-medium text-foreground mb-2">
                         {t("products.ed.name")} <span className="text-rose-500">*</span>
                     </label>

@@ -26,7 +26,7 @@ export function ProductPricingSection({
 }: ProductPricingSectionProps) {
     const { t } = useLanguage();
     return (
-        <div data-guide="product-price" className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-6 space-y-5">
+        <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-6 space-y-5">
             <h2 className="text-sm font-semibold text-muted uppercase tracking-wider flex items-center gap-2">
                 <DollarSign className="w-4 h-4" />
                 {formData.is_supply ? t("products.ed.costPricing") : t("products.ed.pricing")}
@@ -35,7 +35,8 @@ export function ProductPricingSection({
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {!formData.is_supply && (
                     <>
-                        <div>
+                        {/* The setup guide lights this field alone, not the whole box. */}
+                        <div data-guide="product-price">
                             <label htmlFor="product-price" className="block text-sm font-medium text-foreground mb-2">
                                 {t("products.ed.price")} <span className="text-rose-500">*</span>
                             </label>

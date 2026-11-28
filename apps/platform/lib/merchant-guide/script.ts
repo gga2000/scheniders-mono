@@ -71,6 +71,58 @@ export const GUIDE_LINES = {
         ar: "اختار «أجرة لكل محافظة». اكتب سعر افتراضي، وبعدين غير بس المحافظات اللي تختلف.",
         en: "Choose a price per governorate. Type a default price, then change only the ones that differ.",
     },
+    "route.menu": {
+        ar: "هاي قائمة محلك. افتحها حتى تشوف كل صفحاتك.",
+        en: "This is your shop's menu. Open it to see all your pages.",
+    },
+    "route.menuPhone": {
+        ar: "اضغط زر القائمة. بيه كل صفحات محلك.",
+        en: "Tap the menu button. All your shop's pages are in it.",
+    },
+    "route.store": {
+        ar: "كل شي يخص شكل محلك بصفحة «المتجر». اضغط عليها.",
+        en: "Everything about how your shop looks is under Store. Click it.",
+    },
+    "route.customize": {
+        ar: "اضغط «تخصيص» حتى ينفتح محرر المتجر.",
+        en: "Click Customize to open the store editor.",
+    },
+    "route.brandKit": {
+        ar: "اسم محلك واللوگو هنا. اضغط «هوية العلامة».",
+        en: "Your shop's name and logo live here. Click Style & branding.",
+    },
+    "route.shipping": {
+        ar: "أسعار التوصيل هنا. اضغط «أجور التوصيل».",
+        en: "Delivery prices live here. Click Delivery fees.",
+    },
+    "route.editorMenu": {
+        ar: "اضغط زر القائمة فوق. بيه إعدادات محلك.",
+        en: "Tap the menu button at the top. Your shop's settings are in it.",
+    },
+    "route.screenBack": {
+        ar: "ارجع للمحرر من سهم الرجوع.",
+        en: "Go back to the editor with the back arrow.",
+    },
+    "route.leaveEditor": {
+        ar: "نطلع من المحرر. اضغط سهم الرجوع.",
+        en: "Let's leave the editor. Click the back arrow.",
+    },
+    "route.products": {
+        ar: "منتجاتك كلها بصفحة «المنتجات». اضغط عليها.",
+        en: "All your products live under Products. Click it.",
+    },
+    "route.productsEmpty": {
+        ar: "هاي صفحة منتجاتك. فارغة هسه، بس راح نعبيها سوه بسهولة.",
+        en: "This is your products page. It's empty for now, but we'll fill it together, easily.",
+    },
+    "route.productsAdd": {
+        ar: "اضغط «إضافة منتج» ونبدي بأول واحد.",
+        en: "Click Add product and we'll start with the first one.",
+    },
+    "step.doneAgain": {
+        ar: "خلصت هاي الخطوة. غيّر اللي تريده، لو اضغط التالي ونرجع لوين ما وگفت.",
+        en: "This step is done. Change anything you like, or press Next to go back to where you stopped.",
+    },
     "open.publish": {
         ar: "لا تشيل هم شكل المحل هسه. انشره، وبعدين نرجعله سوه ونخليه حلو وعلى ذوقك.",
         en: "Don't worry about how the shop looks yet. Publish it, and later we'll come back and make it beautiful, your way.",

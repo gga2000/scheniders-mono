@@ -71,6 +71,7 @@ export function ScreenHeader({
                         type="button"
                         onClick={onBack}
                         data-testid={backTestId}
+                        data-guide="screen-back"
                         aria-label={t(STRINGS.toolbar.back_to_canvas, locale)}
                         className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
                     >

@@ -20,14 +20,19 @@ export function TrialChip() {
     if (!tenant || tenant.status !== "trial" || isBillingExempt(tenant.plan) || !tenant.trial_ends_at) return null;
     const daysLeft = trialDaysLeft(tenant.trial_ends_at);
     if (daysLeft === null) return null;
+    const label = t("billing.trialChip", { left: t("billing.trial.daysLeft", { count: daysLeft }) });
     return (
         <Link
             href={BILLING_PAY_PATH}
             data-testid="trial-chip"
-            className="ml-2 inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-100 transition-colors dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200"
+            title={label}
+            aria-label={label}
+            className="ml-1.5 md:ml-2 inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-100 transition-colors dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200"
         >
             <Hourglass className="h-3.5 w-3.5" />
-            {t("billing.trialChip", { left: t("billing.trial.daysLeft", { count: daysLeft }) })}
+            {/* A phone's bar also holds the menu button, so there the chip shows the days left alone. */}
+            <span className="tabular-nums md:hidden">{daysLeft}</span>
+            <span className="hidden md:inline">{label}</span>
         </Link>
     );
 }

@@ -7,6 +7,7 @@
 // Next moves on (the last stop says Finish). A piece that isn't on the page
 // right now (no low stock, no flags yet) still gets its line: the card docks
 // in the corner and says the piece shows up once there is something to show.
+// The back arrow re-reads the stops before; Next walks forward again.
 // =====================================================================
 
 import { useState } from "react";
@@ -14,7 +15,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Info } from "lucide-react";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { lineText, type GuideLocale } from "@/lib/merchant-guide/script";
-import type { TourStop } from "@/lib/merchant-guide/tours";
+import { nextTourStop, type TourRecord, type TourStop } from "@/lib/merchant-guide/tours";
 import { GuideCoachCard } from "./guide-coach-card";
 import { GuidePill } from "./guide-pill";
 import { GuideSpotlight } from "./guide-spotlight";
@@ -41,6 +42,7 @@ export function GuideTour({
     onToggleSound,
     pillLeft,
     onNext,
+    onBack,
     saving,
 }: {
     /** The phase's name: "Money", "Your pages"… */
@@ -53,6 +55,8 @@ export function GuideTour({
     onToggleSound: () => void;
     pillLeft: number;
     onNext: () => void;
+    /** To the stop before; null on the first one. */
+    onBack: (() => void) | null;
     saving: boolean;
 }) {
     const { t } = useLanguage();
@@ -85,6 +89,7 @@ export function GuideTour({
                 checkText={t("guide.tour.check")}
                 box={box}
                 dockLeft={pillLeft}
+                onBack={onBack}
                 onGo={!onPage ? () => router.push(stop.href) : undefined}
                 next={onPage ? { label: t(last ? "guide.fo.finish" : "guide.next"), onClick: onNext, busy: saving } : undefined}
                 onMinimize={() => setMinimized(true)}
@@ -98,5 +103,51 @@ export function GuideTour({
             </GuideCoachCard>
             <GuidePill left={pillLeft} label={label} done={index} total={count} />
         </>
+    );
+}
+
+/**
+ * A walk-through phase from where the merchant stopped: the first stop not
+ * seen yet, or one before it they went back to. Going back marks nothing;
+ * Next from a stop already seen moves to the one after it.
+ */
+export function GuideTourSteps({
+    stops,
+    record,
+    onSee,
+    ...card
+}: {
+    stops: readonly TourStop[];
+    record: TourRecord | undefined;
+    /** Marks the stop seen (and the phase done after the last one). */
+    onSee: (stop: TourStop) => void;
+    label: string;
+    locale: GuideLocale;
+    soundOn: boolean;
+    onToggleSound: () => void;
+    pillLeft: number;
+    saving: boolean;
+}) {
+    const [viewing, setViewing] = useState<string | null>(null);
+    const current = nextTourStop(stops, record);
+    if (!current) return null;
+    const currentIndex = stops.indexOf(current);
+    const viewIndex = viewing === null ? -1 : stops.findIndex((s) => s.id === viewing);
+    const index = viewIndex >= 0 && viewIndex < currentIndex ? viewIndex : currentIndex;
+    const stop = stops[index];
+    const onNext = (): void => {
+        if (index < currentIndex) setViewing(index + 1 < currentIndex ? stops[index + 1].id : null);
+        else onSee(stop);
+    };
+    return (
+        <GuideTour
+            {...card}
+            key={stop.id}
+            stop={stop}
+            index={index}
+            count={stops.length}
+            onNext={onNext}
+            onBack={index > 0 ? () => setViewing(stops[index - 1].id) : null}
+        />
     );
 }

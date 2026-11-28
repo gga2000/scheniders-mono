@@ -38,6 +38,13 @@ describe("ProductInventorySection storefront stock toggle", () => {
         expect(updateField).toHaveBeenCalledWith("storefront_stock", 0);
     });
 
+    it("gives the setup guide the stock field alone to light", () => {
+        const { container } = render(<ProductInventorySection formData={form(null)} updateField={vi.fn()} />);
+        const lit = container.querySelector('[data-guide="product-stock"]');
+        expect(lit?.querySelector("#product-stock")).toBeTruthy();
+        expect(lit?.querySelector("#product-low-stock")).toBeNull();
+    });
+
     it("marks the product out of stock on the store with its own switch", () => {
         const updateField = vi.fn();
         render(<ProductInventorySection formData={form(null)} updateField={updateField} />);

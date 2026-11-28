@@ -7,7 +7,9 @@
 // shop name and logo, a first product, delivery prices, and publishing.
 // Each step lights up the real field, says one line (Ali's recorded voice,
 // or a caption), and ticks only when the shop itself shows it is done
-// (lib/merchant-guide/foundation.ts). The basics can't be skipped, but the
+// (lib/merchant-guide/foundation.ts). Off a step's page the light walks the
+// way there, one real click at a time (lib/merchant-guide/route.ts), and the
+// back arrow revisits finished steps. The basics can't be skipped, but the
 // card can be tucked away into the corner pill while the merchant works.
 //
 // Who sees it: the store's admins, on a computer or a phone, on a shop whose
@@ -20,7 +22,7 @@
 // work on the Orders page and the dispatch desk.
 // =====================================================================
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useSideReadsHeld } from "@/lib/first-load-hold";
@@ -29,7 +31,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useIsMobileEditor } from "@/hooks/use-is-mobile-editor";
 import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
 import { toast } from "@/hooks/use-toast";
-import { nextFoundationStep } from "@/lib/merchant-guide/foundation";
+import { FOUNDATION_STEPS, nextFoundationStep, type FoundationStep } from "@/lib/merchant-guide/foundation";
 import { STORE_EDITOR_PATH, guideHiddenOn } from "@/lib/merchant-guide/steps";
 import { GuideDone } from "./guide-done";
 import { GuideAfterBasics } from "./guide-after-basics";
@@ -83,6 +85,9 @@ export function MerchantGuide() {
     const finished = !!progress?.foundation_done_at;
     const shopQ = useGuideShop(tenantId, isAdmin && enabled && progressQ.isSuccess && !progress?.done_seen_at, !!progress && !finished);
     const { save, saving } = useSaveGuideProgress(tenantId, userId);
+    // A finished basics step the merchant went back to with the back arrow.
+    // Only steps before the one they stopped at count; it lives for this visit.
+    const [viewing, setViewing] = useState<FoundationStep | null>(null);
 
     const persist = useCallback(
         (patch: GuidePatch) => {
@@ -215,10 +220,17 @@ export function MerchantGuide() {
 
     if (next === null) return null;
 
+    const nextIndex = FOUNDATION_STEPS.indexOf(next);
+    const stepShown = viewing !== null && FOUNDATION_STEPS.indexOf(viewing) < nextIndex ? viewing : next;
+    const shownIndex = FOUNDATION_STEPS.indexOf(stepShown);
+
     return (
         <GuideFoundationStep
-            key={next}
-            step={next}
+            key={stepShown}
+            step={stepShown}
+            done={stepShown !== next}
+            onBack={shownIndex > 0 ? () => setViewing(FOUNDATION_STEPS[shownIndex - 1]) : null}
+            onReturn={() => setViewing(null)}
             status={status}
             working={shopQ.data.working}
             locale={locale}

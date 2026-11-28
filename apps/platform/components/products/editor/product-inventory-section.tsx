@@ -37,14 +37,15 @@ export function ProductInventorySection({ formData, updateField, reservedQuantit
     };
 
     return (
-        <div data-guide="product-stock" className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-6 space-y-5">
+        <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-6 space-y-5">
             <h2 className="text-sm font-semibold text-muted uppercase tracking-wider flex items-center gap-2">
                 <Package className="w-4 h-4" />
                 {t("products.ed.inventory")}
             </h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
+                {/* The setup guide lights this field alone, not the whole box. */}
+                <div data-guide="product-stock">
                     <label htmlFor="product-stock" className="block text-sm font-medium text-foreground mb-2">
                         {t("products.ed.stock")}
                     </label>
