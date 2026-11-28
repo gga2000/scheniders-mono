@@ -253,8 +253,8 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         initialSystemScreen !== undefined ? initialSystemScreen : null,
     );
 
-    // The merchant guide moves between the shop-details and delivery screens
-    // without reloading the editor (lib/merchant-guide/steps.ts).
+    // The merchant guide opens the shop-details screen without reloading the
+    // editor (lib/merchant-guide/steps.ts).
     useEffect(() => {
         const onOpen = (event: Event): void => {
             if (!(event instanceof CustomEvent)) return;

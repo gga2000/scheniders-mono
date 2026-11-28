@@ -7,15 +7,15 @@ import { FOUNDATION_STEPS } from "./foundation";
 import { FOUNDATION_PLACES } from "./steps";
 import { TOUR_PHASES, phaseAvailable, type GuideShopFacts } from "./tours";
 
-/** About how long the four basics take a first-time merchant. */
-export const BASICS_MINUTES = 6;
+/** About how long the three basics take a first-time merchant. */
+export const BASICS_MINUTES = 5;
 export const FIRST_ORDER_MINUTES = 4;
 
 export interface WelcomePathRow {
     id: string;
     labelKey: string;
     minutes: number;
-    /** The steps inside this row, shown as small labels (the basics' four). */
+    /** The steps inside this row, shown as small labels (the basics' three). */
     stepKeys: readonly string[];
     /** Added by an answer on this screen. */
     added: boolean;

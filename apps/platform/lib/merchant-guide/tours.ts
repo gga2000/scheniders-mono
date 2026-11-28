@@ -12,6 +12,7 @@
 // =====================================================================
 
 import type { GuideLineId } from "./script";
+import { STORE_EDITOR_PATH } from "./steps";
 
 /** What a shop has, which decides the phases and stops it is shown. */
 export interface GuideShopFacts {
@@ -55,9 +56,19 @@ export const TOUR_PHASES: readonly TourPhase[] = [
     {
         id: "courier",
         labelKey: "guide.tour.courier",
-        minutes: 3,
+        minutes: 4,
         offerOn: "/prime",
         stops: [
+            // Delivery prices left the basics (Ali, 28 Nov: not important at
+            // the start); until they are set, checkout charges the default fee.
+            {
+                id: "rates",
+                path: STORE_EDITOR_PATH,
+                href: `${STORE_EDITOR_PATH}?screen=shipping`,
+                selector: '[data-guide="shipping-modes"]',
+                line: "courier.rates",
+                labelKey: "guide.tour.stop.deliveryRates",
+            },
             {
                 id: "request",
                 path: "/prime",

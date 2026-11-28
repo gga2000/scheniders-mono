@@ -62,13 +62,12 @@ function menuStop(page: keyof typeof NAV_LINES, at: RouteWhere): RouteStop {
     return { id: `menu-${page}`, targets: [item], idle: item.line };
 }
 
-/** Inside the store editor, to one of its settings screens. */
-function editorScreenStop(screen: "brand_kit" | "shipping"): RouteStop {
-    const line: GuideLineId = screen === "brand_kit" ? "route.brandKit" : "route.shipping";
-    const item: RouteTarget = { selector: `[data-testid="page-tree-setting-${screen}"]`, line, raised: true };
+/** Inside the store editor, to its shop-details screen. */
+function brandKitStop(): RouteStop {
+    const item: RouteTarget = { selector: '[data-testid="page-tree-setting-brand_kit"]', line: "route.brandKit", raised: true };
     // Phones keep the editor's settings in a sheet behind the menu button,
     // and an open settings screen hides both: its back arrow comes first.
-    return { id: `editor-${screen}`, targets: [item, EDITOR_MENU, SCREEN_BACK], idle: line };
+    return { id: "editor-brand_kit", targets: [item, EDITOR_MENU, SCREEN_BACK], idle: item.line };
 }
 
 const LEAVE_EDITOR: RouteStop = {
@@ -110,10 +109,9 @@ export function atGoalPage(goal: RouteGoal, pathname: string): boolean {
  */
 export function routeStop(goal: RouteGoal, at: RouteWhere): RouteStop | null {
     const { pathname } = at;
-    if (goal === "shop" || goal === "delivery" || goal === "open") {
+    if (goal === "shop" || goal === "open") {
         if (inStoreEditor(pathname)) {
-            if (goal === "shop") return editorScreenStop("brand_kit");
-            if (goal === "delivery") return editorScreenStop("shipping");
+            if (goal === "shop") return brandKitStop();
             // Publish sits in the editor's top bar; on a phone a settings screen covers it.
             return { id: "editor-canvas", targets: [SCREEN_BACK], idle: SCREEN_BACK.line };
         }
