@@ -7,7 +7,10 @@ vi.mock("@/components/auth/auth-provider", () => ({ useAuth: () => ({ session: n
 vi.mock("@/hooks/use-products-crud", () => ({ useProductsCrud: () => ({ products: [] }) }));
 vi.mock("@/hooks/use-language", () => ({ useLanguage: () => ({ t: (k: string) => k, locale: "ar" }) }));
 vi.mock("@/app/actions/orders", () => ({ checkOrderLimitsAction: vi.fn(async () => ({ success: true })) }));
-vi.mock("@/hooks/use-toast", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+const toasts = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn(), warning: vi.fn() }));
+vi.mock("@/hooks/use-toast", () => ({ toast: toasts }));
+const fetched = vi.hoisted(() => ({ authedFetch: vi.fn() }));
+vi.mock("@/lib/authed-fetch", () => fetched);
 
 import { useCreateOrderModel } from "./use-create-order-model";
 
@@ -75,5 +78,66 @@ describe("create order date", () => {
         act(() => result.current.setCustomCreatedAt(picked));
         await act(async () => { await result.current.handleCreate(); });
         expect(sent[1].custom_created_at).toBe(picked);
+    });
+});
+
+/**
+ * «احجي الطلب»: what Gemini heard fills the customer fields. A field it did
+ * not hear keeps what the merchant typed, and spoken notes go after typed ones.
+ */
+describe("voice order fill", () => {
+    const heard = (data: Record<string, string>, status = 200) =>
+        fetched.authedFetch.mockResolvedValueOnce(new Response(JSON.stringify({ success: true, data }), { status }));
+    const empty = { customer_name: "", phone: "", secondary_phone: "", city: "", address: "", notes: "" };
+
+    function open() {
+        return renderHook(() =>
+            useCreateOrderModel({ open: true, onClose: vi.fn(), onCreate: vi.fn(), initialData: { customer_name: "", notes: "قطعة وحدة" } }),
+        );
+    }
+
+    it("fills what it heard and keeps what it did not", async () => {
+        const { result } = open();
+        act(() => result.current.setFormData((f) => ({ ...f, secondary_phone: "07801112222" })));
+        heard({ ...empty, customer_name: "حيدر كاظم", phone: "07701234567", city: "بغداد", address: "الكرادة قرب جامع الأورفلي", notes: "اتصلوا بعد العصر" });
+        await act(async () => { await result.current.handleVoiceOrder(new Blob(["x"], { type: "audio/webm" })); });
+
+        const sent = fetched.authedFetch.mock.calls.at(-1);
+        expect(sent?.[0]).toBe("/api/orders/analyze-voice");
+        expect((sent?.[1]?.body as FormData).get("audio")).toBeInstanceOf(Blob);
+        const f = result.current.formData;
+        expect(f.customer_name).toBe("حيدر كاظم");
+        expect(f.phone).toBe("07701234567");
+        expect(f.secondary_phone).toBe("07801112222");
+        expect(f.city).toBe("بغداد");
+        expect(f.address_details).toBe("الكرادة قرب جامع الأورفلي");
+        expect(f.notes).toBe("قطعة وحدة اتصلوا بعد العصر");
+        expect(result.current.voiceFilled).toBe(true);
+        expect(result.current.isAnalyzingVoice).toBe(false);
+        expect(toasts.success).toHaveBeenCalledWith("voice.order.filled");
+    });
+
+    it("warns and changes nothing when no order was heard", async () => {
+        const { result } = open();
+        heard(empty);
+        await act(async () => { await result.current.handleVoiceOrder(new Blob(["x"])); });
+        expect(toasts.warning).toHaveBeenCalledWith("voice.order.nothing");
+        expect(result.current.formData.customer_name).toBe("");
+        expect(result.current.voiceFilled).toBe(false);
+    });
+
+    it("says the day's tries are used up on 429", async () => {
+        const { result } = open();
+        fetched.authedFetch.mockResolvedValueOnce(new Response("{}", { status: 429 }));
+        await act(async () => { await result.current.handleVoiceOrder(new Blob(["x"])); });
+        expect(toasts.error).toHaveBeenCalledWith("voice.order.limit");
+        expect(result.current.isAnalyzingVoice).toBe(false);
+    });
+
+    it("says it could not read the recording on a server failure", async () => {
+        const { result } = open();
+        fetched.authedFetch.mockResolvedValueOnce(new Response("{}", { status: 502 }));
+        await act(async () => { await result.current.handleVoiceOrder(new Blob(["x"])); });
+        expect(toasts.error).toHaveBeenCalledWith("voice.order.failed");
     });
 });
