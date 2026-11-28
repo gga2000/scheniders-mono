@@ -62,13 +62,16 @@ export function GuideFindProduct({
     const [minimized, setMinimized] = useState(false);
     // Started here, before the saved record comes back.
     const [startedNow, setStartedNow] = useState(false);
-    // Only a way back counts: the products page ticks once the merchant has
-    // been somewhere else since the practice started.
-    const [left, setLeft] = useState(false);
+    // «يلا نبدي» was pressed on the products page and the way to Orders is
+    // still loading: that page isn't a way back yet. Only this moment is held
+    // here. The guide can start over while Orders loads (it waits for the
+    // order list) or after a reload, and then the products page with a saved
+    // start always counts as found (Ali, 28 Nov: it sent him back to Orders).
+    const [leaving, setLeaving] = useState(false);
     const started = startedNow || !!record?.started_at;
     const home = atGoalPage("products-list", pathname);
-    if (started && !left && !home) setLeft(true);
-    const stage: "intro" | "find" | "found" = !started || (home && !left) ? "intro" : home ? "found" : "find";
+    if (leaving && !home) setLeaving(false);
+    const stage: "intro" | "find" | "found" = !started || (home && leaving) ? "intro" : home ? "found" : "find";
 
     const route =
         stage === "find" ? routeStop("products-list", { pathname, phone, sidebarCollapsed, emptyRead: true }) : null;
@@ -94,6 +97,7 @@ export function GuideFindProduct({
     const raised = box !== null && !!routeTarget?.raised;
     const start = (): void => {
         setStartedNow(true);
+        if (home) setLeaving(true);
         if (!record?.started_at) onRecord({ ...record, started_at: new Date().toISOString() });
         router.push(PRACTICE_START);
     };

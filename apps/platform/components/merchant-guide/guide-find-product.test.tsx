@@ -99,11 +99,30 @@ describe("GuideFindProduct: back to the first product, alone", () => {
         expect(onRecord).toHaveBeenCalledWith({ started_at: started.started_at, done_at: expect.any(String) });
     });
 
-    it("doesn't count the products page the merchant never left", () => {
+    it("doesn't tick the products page it starts from while Orders is still opening", () => {
         nav.pathname = "/products";
-        renderPractice(null, { started_at: "2026-11-28T10:00:00Z" });
-        expect(caption()).toBe(line("practice.intro"));
+        const { rerender } = renderPractice(null, undefined);
         fireEvent.click(screen.getByTestId("merchant-guide-next"));
         expect(nav.push).toHaveBeenCalledWith("/orders");
+        // The saved start comes back before the page changes.
+        const started = { started_at: "2026-11-28T10:00:00Z" };
+        rerender(started);
+        expect(caption()).toBe(line("practice.intro"));
+        nav.pathname = "/orders";
+        rerender(started);
+        expect(caption()).toBe(line("practice.find"));
+        nav.pathname = "/products";
+        rerender(started);
+        expect(caption()).toBe(line("practice.found"));
+    });
+
+    it("counts the products page after the guide starts over on the way (Ali, 28 Nov: it sent him back to Orders)", () => {
+        // The guide waits while Orders loads its list, so it can start over
+        // there, or the page reloads: what it knew in between is gone.
+        nav.pathname = "/products";
+        renderPractice(null, { started_at: "2026-11-28T10:00:00Z" });
+        expect(caption()).toBe(line("practice.found"));
+        expect(screen.getByTestId("merchant-guide-step-done")).toBeTruthy();
+        expect(nav.push).not.toHaveBeenCalled();
     });
 });

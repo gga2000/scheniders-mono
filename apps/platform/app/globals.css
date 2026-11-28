@@ -3501,7 +3501,9 @@ html[lang="ar"] .till-screen .tracking-wide {
   100% { opacity: 0; transform: scale(var(--guide-pulse-x, 1.1), var(--guide-pulse-y, 1.4)); }
 }
 .merchant-guide-card { animation: merchant-guide-in 0.3s ease both; }
-.merchant-guide-card[data-glide="true"] {
+/* A glide to a new element, or across to another side of the same one (card-spot.ts). */
+.merchant-guide-card[data-glide="true"],
+.merchant-guide-card[data-hop="true"] {
   transition: top 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), left 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 @keyframes merchant-guide-in {
@@ -3576,7 +3578,8 @@ html[lang="ar"] .till-screen .tracking-wide {
   .merchant-guide-spot,
   .merchant-guide-spot[data-glide="true"],
   .merchant-guide-card,
-  .merchant-guide-card[data-glide="true"] { transition: none; animation: none; }
+  .merchant-guide-card[data-glide="true"],
+  .merchant-guide-card[data-hop="true"] { transition: none; animation: none; }
   .merchant-guide-ring,
   .merchant-guide-wave[data-speaking="true"] i,
   .merchant-guide-mark::before,
