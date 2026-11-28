@@ -12,6 +12,7 @@ import { CreateOrderCustomerSection } from "./create-order/create-order-customer
 import { CreateOrderProductsSection } from "./create-order/create-order-products-section";
 import { CreateOrderTakeSection } from "./create-order/create-order-take-section";
 import { useTenant } from "@/hooks/use-tenant";
+import { VoiceMicButton } from "@/components/voice/voice-mic-button";
 export type { CreateOrderModalInitialData } from "./create-order/use-create-order-model";
 
 export function CreateOrderModal(props: CreateOrderModalProps) {
@@ -108,13 +109,20 @@ export function CreateOrderModal(props: CreateOrderModalProps) {
                                     <span className="text-[11px] font-semibold text-amber-700">{t("orders.create.orderNotes")}</span>
                                     <span className="text-[11px] text-amber-400">{t("orders.create.onInvoice")}</span>
                                 </div>
-                                <textarea
-                                    value={formData.notes}
-                                    onChange={(e) => updateField("notes", e.target.value)}
-                                    placeholder={t("orders.create.orderNotesPlaceholder")}
-                                    rows={2}
-                                    className="w-full px-3 py-2 bg-amber-50/40 border border-amber-200/80 rounded-lg text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-amber-200 resize-none"
-                                />
+                                <div className="relative">
+                                    <textarea
+                                        value={formData.notes}
+                                        onChange={(e) => updateField("notes", e.target.value)}
+                                        placeholder={t("orders.create.orderNotesPlaceholder")}
+                                        rows={2}
+                                        className="w-full pl-3 pr-10 py-2 bg-amber-50/40 border border-amber-200/80 rounded-lg text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-amber-200 resize-none"
+                                    />
+                                    <VoiceMicButton
+                                        value={formData.notes ?? ""}
+                                        onValueChange={(next) => updateField("notes", next)}
+                                        className="right-1.5 top-1.5"
+                                    />
+                                </div>
                             </div>
                             <div className="space-y-1">
                                 <div className="flex items-center gap-1.5 px-1">
@@ -122,13 +130,20 @@ export function CreateOrderModal(props: CreateOrderModalProps) {
                                     <span className="text-[11px] font-semibold text-blue-700">{t("orders.create.internalNotes")}</span>
                                     <span className="text-[11px] text-blue-400">{t("orders.create.staffOnly")}</span>
                                 </div>
-                                <textarea
-                                    value={formData.internal_notes || ""}
-                                    onChange={(e) => updateField("internal_notes", e.target.value)}
-                                    placeholder={t("orders.create.internalNotesPlaceholder")}
-                                    rows={2}
-                                    className="w-full px-3 py-2 bg-blue-50/40 border border-blue-200/80 rounded-lg text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-blue-200 resize-none"
-                                />
+                                <div className="relative">
+                                    <textarea
+                                        value={formData.internal_notes || ""}
+                                        onChange={(e) => updateField("internal_notes", e.target.value)}
+                                        placeholder={t("orders.create.internalNotesPlaceholder")}
+                                        rows={2}
+                                        className="w-full pl-3 pr-10 py-2 bg-blue-50/40 border border-blue-200/80 rounded-lg text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-blue-200 resize-none"
+                                    />
+                                    <VoiceMicButton
+                                        value={formData.internal_notes || ""}
+                                        onValueChange={(next) => updateField("internal_notes", next)}
+                                        className="right-1.5 top-1.5"
+                                    />
+                                </div>
                             </div>
                         </div>
                     </div>

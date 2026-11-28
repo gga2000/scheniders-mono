@@ -7,6 +7,7 @@ import { Expense, EXPENSE_CATEGORIES, ExpenseCategory } from "@/types/expense";
 import { useLanguage } from "@/hooks/use-language";
 import { useExpenseCategoryLabel } from "@/hooks/use-expense-category-label";
 import { baghdadDayKey } from "@/lib/order-window";
+import { VoiceMicButton } from "@/components/voice/voice-mic-button";
 
 interface ExpenseFormModalProps {
     isOpen: boolean;
@@ -190,13 +191,20 @@ export function ExpenseFormModal({
                             <label className="block text-sm font-medium text-foreground mb-2">
                                 {t("finances.expense.form.description")}
                             </label>
-                            <input
-                                type="text"
-                                value={formData.description}
-                                onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
-                                placeholder={t("finances.expense.form.descriptionPh")}
-                                className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
-                            />
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    value={formData.description}
+                                    onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
+                                    placeholder={t("finances.expense.form.descriptionPh")}
+                                    className="w-full pl-4 pr-12 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
+                                />
+                                <VoiceMicButton
+                                    value={formData.description}
+                                    onValueChange={(next) => setFormData((prev) => ({ ...prev, description: next }))}
+                                    className="right-2.5 top-1/2 -translate-y-1/2"
+                                />
+                            </div>
                         </div>
 
                         {/* Notes */}
@@ -204,13 +212,20 @@ export function ExpenseFormModal({
                             <label className="block text-sm font-medium text-foreground mb-2">
                                 {t("finances.expense.form.notes")}
                             </label>
-                            <textarea
-                                value={formData.notes}
-                                onChange={(e) => setFormData((prev) => ({ ...prev, notes: e.target.value }))}
-                                placeholder={t("finances.expense.form.notesPh")}
-                                rows={2}
-                                className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all resize-none"
-                            />
+                            <div className="relative">
+                                <textarea
+                                    value={formData.notes}
+                                    onChange={(e) => setFormData((prev) => ({ ...prev, notes: e.target.value }))}
+                                    placeholder={t("finances.expense.form.notesPh")}
+                                    rows={2}
+                                    className="w-full pl-4 pr-12 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all resize-none"
+                                />
+                                <VoiceMicButton
+                                    value={formData.notes}
+                                    onValueChange={(next) => setFormData((prev) => ({ ...prev, notes: next }))}
+                                    className="right-2.5 top-2.5"
+                                />
+                            </div>
                         </div>
 
                         {/* Recurring */}

@@ -13,6 +13,7 @@ import { GovernorateOptions } from "../governorate-options";
 import type { CreateOrderModel } from "./use-create-order-model";
 import { PrimeDistrictField } from "../prime-district-field";
 import { PrimePhoneHint } from "./prime-phone-hint";
+import { VoiceMicButton } from "@/components/voice/voice-mic-button";
 
 /** One section of CreateOrderModal. */
 export function CreateOrderCustomerSection({ m }: { m: CreateOrderModel }) {
@@ -30,18 +31,25 @@ export function CreateOrderCustomerSection({ m }: { m: CreateOrderModel }) {
                         {/* Customer Name */}
                         <div className="space-y-1">
                             <Label className="text-[11px] text-muted">{t("orders.create.customerName")} <span className="text-red-500">*</span></Label>
-                            <Input
-                                value={formData.customer_name}
-                                onChange={(e) => updateField("customer_name", e.target.value)}
-                                placeholder={t("orders.create.namePlaceholder")}
-                                inputMode="text"
-                                autoComplete="name"
-                                className={cn(
-                                    "h-9 rounded-lg border-[var(--card-border)] bg-[var(--background)] transition-all",
-                                    errors.customer_name && "field-error animate-shake"
-                                )}
-                                data-error={!!errors.customer_name}
-                            />
+                            <div className="relative">
+                                <Input
+                                    value={formData.customer_name}
+                                    onChange={(e) => updateField("customer_name", e.target.value)}
+                                    placeholder={t("orders.create.namePlaceholder")}
+                                    inputMode="text"
+                                    autoComplete="name"
+                                    className={cn(
+                                        "h-9 rounded-lg border-[var(--card-border)] bg-[var(--background)] pr-10 transition-all",
+                                        errors.customer_name && "field-error animate-shake"
+                                    )}
+                                    data-error={!!errors.customer_name}
+                                />
+                                <VoiceMicButton
+                                    value={formData.customer_name}
+                                    onValueChange={(next) => updateField("customer_name", next)}
+                                    className="right-1 top-1"
+                                />
+                            </div>
                             {errors.customer_name && <p className="field-error-text">{errors.customer_name}</p>}
                         </div>
 
@@ -146,17 +154,24 @@ export function CreateOrderCustomerSection({ m }: { m: CreateOrderModel }) {
                                 <MapPin className="h-3 w-3" />
                                 {t("orders.create.fullAddress")}
                             </Label>
-                            <Textarea
-                                value={formData.address_details}
-                                onChange={(e) => updateField("address_details", e.target.value)}
-                                placeholder={t("orders.create.addressPlaceholder")}
-                                rows={2}
-                                className={cn(
-                                    "rounded-lg border-[var(--card-border)] bg-[var(--background)] resize-none transition-all text-sm",
-                                    errors.address_details && "field-error animate-shake"
-                                )}
-                                data-error={!!errors.address_details}
-                            />
+                            <div className="relative">
+                                <Textarea
+                                    value={formData.address_details}
+                                    onChange={(e) => updateField("address_details", e.target.value)}
+                                    placeholder={t("orders.create.addressPlaceholder")}
+                                    rows={2}
+                                    className={cn(
+                                        "rounded-lg border-[var(--card-border)] bg-[var(--background)] pr-10 resize-none transition-all text-sm",
+                                        errors.address_details && "field-error animate-shake"
+                                    )}
+                                    data-error={!!errors.address_details}
+                                />
+                                <VoiceMicButton
+                                    value={formData.address_details ?? ""}
+                                    onValueChange={(next) => updateField("address_details", next)}
+                                    className="right-1.5 top-1.5"
+                                />
+                            </div>
                             {errors.address_details && <p className="field-error-text">{errors.address_details}</p>}
                         </div>
                     )}
