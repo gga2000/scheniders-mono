@@ -51,7 +51,7 @@ function ShopsLiveCard({ shops, asOf }: { shops: LiveShop[]; asOf: number }) {
                         <span className="text-xs text-muted">{t("till.live.salesCount", { n: sales })}</span>
                     </div>
                 )}
-                <Link href="/shops" className="shrink-0 rounded-xl border border-[var(--card-border)] px-3 py-2 text-xs font-semibold text-foreground hover:bg-[var(--background)]">
+                <Link href="/till/shops" className="shrink-0 rounded-xl border border-[var(--card-border)] px-3 py-2 text-xs font-semibold text-foreground hover:bg-[var(--background)]">
                     {t("till.live.manage")}
                 </Link>
             </header>

@@ -9,6 +9,7 @@ export type SettingsSectionId =
     | "overview"
     | "business"
     | "billing"
+    | "vault"
     | "order-reasons"
     | "messages"
     | "delivery-fees"
@@ -40,6 +41,8 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     { id: "overview", group: null, title: "settings.nav.overview" },
     { id: "business", group: "store", title: "settings.nav.storeInfo" },
     { id: "billing", group: "store", title: "settings.nav.subscription" },
+    // The Data Vault: it was its own /vault page, which now opens here.
+    { id: "vault", group: "store", title: "nav.vault" },
     { id: "order-reasons", group: "orders", title: "settings.orders.reasons" },
     { id: "messages", group: "orders", title: "settings.nav.messages" },
     { id: "delivery-fees", group: "orders", title: "settings.orders.fees" },
@@ -50,9 +53,6 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     { id: "staff-alerts", group: "team", title: "settings.nav.staffAlerts" },
     { id: "account", group: "you", title: "settings.nav.account" },
 ];
-
-/** The backup row in the "you" group opens the Data Vault page itself. */
-export const SETTINGS_BACKUP_HREF = "/vault";
 
 /**
  * Ids the old tile page used. Every link in the app, in support answers, in
@@ -66,7 +66,7 @@ const LEGACY_SECTIONS: Readonly<Record<string, { section: SettingsSectionId; foc
     integrations: { section: "waseet" },
     pages: { section: "team", focus: "page-access" },
     "support-activity": { section: "team", focus: "support-activity" },
-    data: { section: "account", focus: "backup" },
+    data: { section: "vault" },
 };
 
 export function isSettingsSectionId(value: string): value is SettingsSectionId {
@@ -128,7 +128,9 @@ export const SETTINGS_SEARCH: readonly SettingsSearchEntry[] = [
     { focus: "sign-in", section: "account", label: "settings.signin.title", keywords: ["google", "login", "sign in", "password", "passkey", "دخول", "كوكل", "كلمة السر"] },
     { focus: "sounds", section: "account", label: "settings.general.testSounds", keywords: ["sound", "notification", "bell", "صوت", "اصوات", "اشعارات", "جرس"] },
     { focus: "guide", section: "account", label: "guide.settings.title", keywords: ["guide", "tour", "setup", "دليل", "جولة"] },
-    { focus: "backup", section: "account", label: "settings.hub.backup.title", keywords: ["backup", "export", "restore", "excel", "csv", "نسخ", "احتياطي", "تصدير", "استرجاع"] },
+    { focus: "vault-create", section: "vault", label: "vault.create.title", keywords: ["backup", "vault", "export", "excel", "csv", "download", "نسخ", "احتياطي", "تصدير", "خزينة", "تنزيل"] },
+    { focus: "vault-restore", section: "vault", label: "vault.restore.title", keywords: ["restore", "import", "recover", "استعادة", "استرجاع", "رجع"] },
+    { focus: "vault-cloud", section: "vault", label: "vault.cloud.title", keywords: ["cloud", "copies", "history", "سحابة", "سحابية", "نسخ سحابية"] },
 ];
 
 const ARABIC_MARKS = /[ً-ٰٟـ]/g;

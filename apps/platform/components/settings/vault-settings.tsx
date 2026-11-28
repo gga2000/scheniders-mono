@@ -50,7 +50,12 @@ type ExportFormat = "vault" | "excel" | "csv";
 type VaultDiff = Awaited<ReturnType<typeof calculateVaultDiff>>;
 type CloudVault = Awaited<ReturnType<typeof fetchCloudVaults>>[number];
 
-export default function VaultPage() {
+/**
+ * The Data Vault, as a Settings section: backup health, encrypted / Excel / CSV
+ * backups, restore with a preview, and cloud copies. It was its own /vault page;
+ * that address now opens this section (see next.config redirects).
+ */
+export function VaultSettings() {
     const { t } = useLanguage();
     // Backup State
     const [exportFormat, setExportFormat] = useState<ExportFormat>("vault");
@@ -313,35 +318,26 @@ export default function VaultPage() {
     };
 
     return (
-        <div className="vault-page flex-1 flex flex-col h-full overflow-y-auto text-[var(--foreground)]">
-            {/* Title bar — a plain div (not <header>) so it isn't caught by global header overrides */}
-            <div className="flex-shrink-0 border-b border-[var(--card-border)] bg-[var(--background)]/70 backdrop-blur-xl sticky top-0 z-30">
-                <div className="flex items-center px-6 md:px-8 h-[80px] max-w-[1600px] mx-auto w-full">
-                    <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-2xl bg-[var(--vault-soft)] text-[var(--vault-accent)] border border-[var(--vault-border)] flex items-center justify-center">
-                            <Database className="w-6 h-6" />
-                        </div>
-                        <div>
-                            <h1 className="text-2xl font-bold tracking-tight">{t("nav.vault", "Data Vault")}</h1>
-                            <div className="flex items-center gap-1.5 mt-1">
-                                <ShieldCheck className="w-4 h-4 text-[var(--vault-accent)]" />
-                                <span className="text-sm text-[var(--foreground-muted)]">{t("vault.subtitle", "Secure Backup & Restore Center")}</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+        <div className="vault-panel @container space-y-5 text-[var(--foreground)]">
+            <div>
+                <h2 className="text-2xl font-bold tracking-tight text-foreground">{t("nav.vault")}</h2>
+                <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                    <ShieldCheck className="h-4 w-4 text-[var(--vault-accent)]" />
+                    {t("vault.subtitle")}
+                </p>
             </div>
 
-            {/* Main Content */}
-            <main className="flex-1 p-6 md:p-8 max-w-[1600px] mx-auto w-full grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+            {/* Backup and restore sit side by side once the Settings pane is wide enough; cloud copies take the full width below. */}
+            <div className="grid grid-cols-1 gap-5 @4xl:grid-cols-2">
 
                 {/* First thing to see: is my data protected? */}
-                <div className="lg:col-span-3">
+                <div className="@4xl:col-span-2" data-setting="vault-health">
                     <BackupHealth activity={activity} isLoading={isLoadingActivity} failed={activityFailed} />
                 </div>
 
                 {/* CREATE BACKUP SECTION */}
                 <motion.section
+                    data-setting="vault-create"
                     initial={{ opacity: 0, y: 16 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
@@ -546,6 +542,7 @@ export default function VaultPage() {
 
                 {/* RESTORE BACKUP SECTION */}
                 <motion.section
+                    data-setting="vault-restore"
                     initial={{ opacity: 0, y: 16 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1], delay: 0.08 }}
@@ -791,16 +788,18 @@ export default function VaultPage() {
                     )}
                 </motion.section>
 
-                <CloudTimeline
-                    vaults={cloudVaults}
-                    isLoading={isFetchingCloud}
-                    downloading={isDownloadingCloud}
-                    onSelect={handleCloudFileSelect}
-                    deleting={isDeletingCloud}
-                    onDelete={handleCloudDelete}
-                />
+                <div className="@4xl:col-span-2" data-setting="vault-cloud">
+                    <CloudTimeline
+                        vaults={cloudVaults}
+                        isLoading={isFetchingCloud}
+                        downloading={isDownloadingCloud}
+                        onSelect={handleCloudFileSelect}
+                        deleting={isDeletingCloud}
+                        onDelete={handleCloudDelete}
+                    />
+                </div>
 
-            </main>
+            </div>
         </div>
     );
 }

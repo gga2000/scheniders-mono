@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { HardDriveDownload, X, ArrowRight, ShieldCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useLanguage } from "@/hooks/use-language";
+import { settingsHref } from "@/lib/settings-sections";
 
 export function BackupPrompt() {
     const [isVisible, setIsVisible] = useState(false);
@@ -38,7 +39,7 @@ export function BackupPrompt() {
     const handleGoToVault = () => {
         setIsVisible(false);
         sessionStorage.setItem("backupPromptDismissed", new Date().toDateString());
-        router.push("/vault");
+        router.push(settingsHref("vault"));
     };
 
     return (

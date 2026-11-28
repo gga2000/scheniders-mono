@@ -3,10 +3,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { reportError } from "@/lib/report-error";
-import { ArrowLeft, ClipboardCheck, Tag, Wind, Clock3, Download, HandCoins, Inbox, Lock, MonitorSmartphone, Receipt, LayoutGrid, Settings2, Store, Volume2, VolumeX } from "lucide-react";
+import { ArrowLeft, ClipboardCheck, Tag, Wind, Clock3, Download, HandCoins, Inbox, Lock, MonitorSmartphone, Receipt, LayoutGrid, MapPinned, Settings2, Store, Volume2, VolumeX } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@scheniders/ui/popover";
 import { normalizeIraqiMobile } from "@scheniders/shared";
 import { useLanguage } from "@/hooks/use-language";
+import { usePermission } from "@/hooks/use-permission";
+import { PERMISSIONS } from "@/lib/permissions";
 import { toast } from "@/hooks/use-toast";
 import { useShops, useTillMembers, useTillRules, type Shop, type TillMember } from "@/hooks/use-shops";
 import {
@@ -74,6 +76,8 @@ function writeStored(key: string, value: string | null) {
  */
 export function TillPage() {
     const { t } = useLanguage();
+    const { can } = usePermission();
+    const canManageShops = can(PERMISSIONS.MANAGE_SHOPS);
     const shops = useShops();
     const members = useTillMembers();
     const rules = useTillRules();
@@ -345,7 +349,7 @@ export function TillPage() {
                     {activeShops.length === 0 ? (
                         <>
                             <p className="text-lg font-semibold text-foreground">{t("till.top.noShops")}</p>
-                            <Link href="/shops" className="inline-flex h-12 items-center rounded-2xl bg-[var(--ink)] px-6 text-sm font-semibold text-white dark:bg-[#EFFF00] dark:text-[#121212]">
+                            <Link href="/till/shops" className="inline-flex h-12 items-center rounded-2xl bg-[var(--ink)] px-6 text-sm font-semibold text-white dark:bg-[#EFFF00] dark:text-[#121212]">
                                 {t("till.shops.addFirst")}
                             </Link>
                         </>
@@ -400,6 +404,10 @@ export function TillPage() {
     }
 
     const isManager = session.cashier.role === "admin";
+    // Shops & rules opens under the signed-in account, so it shows only while a
+    // manager is at the till and that account may manage shops: a cashier who
+    // switched in by PIN does not get the owner's rules from here.
+    const showShopsLink = isManager && canManageShops;
     const held = tickets.filter((x) => x.cart.length > 0);
 
     return (
@@ -408,6 +416,7 @@ export function TillPage() {
             onChangeShop={changeShop}
             cashier={session.cashier.display_name}
             onLock={() => lock()}
+            showShopsLink={showShopsLink}
             today={overview.data?.today}
             mine={overview.data?.mine}
             onHistory={() => {
@@ -553,6 +562,7 @@ function TillFrame({
     onChangeShop,
     cashier,
     onLock,
+    showShopsLink,
     today,
     mine,
     onHistory,
@@ -572,6 +582,8 @@ function TillFrame({
     onChangeShop?: () => void;
     cashier?: string;
     onLock?: () => void;
+    /** A link to Shops & rules, for a manager at the till. */
+    showShopsLink?: boolean;
     today?: { count: number; total: number };
     mine?: { count: number; total: number };
     onHistory?: () => void;
@@ -599,6 +611,13 @@ function TillFrame({
                     <Link href="/orders" className={`${chip} px-3`} aria-label={t("till.top.exit")} title={t("till.top.exit")}>
                         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
                     </Link>
+                    {showShopsLink && (
+                        <Link href="/till/shops" className={`${chip} px-3`} aria-label={t("nav.tillShops")} title={t("nav.tillShops")}>
+                            <MapPinned className="h-4 w-4" aria-hidden="true" />
+                            {/* Touch PCs under 1280px wide keep the icon only, so the top bar still fits. */}
+                            <span className="hidden whitespace-nowrap xl:inline">{t("nav.tillShops")}</span>
+                        </Link>
+                    )}
                     {shopName &&
                         (onChangeShop ? (
                             <button type="button" onClick={onChangeShop} className={chip} title={t("till.top.change")}>

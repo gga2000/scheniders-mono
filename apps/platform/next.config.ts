@@ -127,6 +127,9 @@ const nextConfig: NextConfig = {
       { source: '/recovery', destination: '/store/recovery', permanent: false },
       // The new Finances page lived here while in preview; it is /finances now (the query, e.g. ?tab=, carries over).
       { source: '/finances/new', destination: '/finances', permanent: false },
+      // Shops & rules moved inside the till section; the Data Vault became a Settings section.
+      { source: '/shops', destination: '/till/shops', permanent: false },
+      { source: '/vault', destination: '/settings?section=vault', permanent: false },
     ];
   },
 

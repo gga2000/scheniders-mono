@@ -15,7 +15,7 @@ const ADMINS: readonly UserRole[] = ["admin", "super_admin"];
 const STAFF: readonly UserRole[] = ["admin", "super_admin", "employee"];
 const EVERYONE: readonly UserRole[] = ["admin", "super_admin", "employee", "viewer"];
 
-/** Money pages: salaries, expenses, the wallet and full-data backups. */
+/** Money pages: salaries, expenses and the wallet. (Full-data backups live in Settings, which is admin-only.) */
 const FINANCIALS: RouteRule = { roles: ADMINS, permission: PERMISSIONS.VIEW_FINANCIALS };
 
 export const ROUTE_PERMISSIONS: Readonly<Record<string, RouteRule>> = {
@@ -26,11 +26,12 @@ export const ROUTE_PERMISSIONS: Readonly<Record<string, RouteRule>> = {
     "/finances": FINANCIALS,
     "/ads": FINANCIALS,
     "/salaries": FINANCIALS,
-    "/vault": FINANCIALS,
     "/printing": { roles: STAFF },
     "/prime": { roles: STAFF },
-    // Staff open it to set their till PIN; owner sections need shops.manage.
-    "/shops": { roles: STAFF },
+    // Shops & rules, inside the till section. Staff open it to set their till PIN
+    // (owner sections need shops.manage), so it is wider than the till itself.
+    // An exact rule, so it wins over the "/till" prefix below.
+    "/till/shops": { roles: STAFF },
     "/till": { roles: ADMINS, permission: PERMISSIONS.TILL_SELL },
     "/shipping-export": { roles: STAFF },
     "/products": { roles: EVERYONE },
@@ -85,13 +86,23 @@ export function filterNavItems<T extends { href: string }>(
     return items.filter((item) => canAccessRoute(item.href.split("?")[0], role, permissions));
 }
 
-/** As `filterNavItems`, per titled section, dropping sections left with no links. */
-export function filterNavSections<I extends { href: string }>(
+/**
+ * As `filterNavItems`, per titled section, dropping sections left with no
+ * links. A link's own sub-links are filtered the same way, so a sub-link that
+ * needs more than its parent (the till's selling screen under Shops & rules)
+ * is shown only to those it opens to.
+ */
+export function filterNavSections<S extends { href: string }, I extends { href: string; subItems?: readonly S[] }>(
     sections: readonly { titleKey: string; items: readonly I[] }[],
     role: string | null | undefined,
     permissions: readonly string[],
 ): { titleKey: string; items: I[] }[] {
     return sections
-        .map((section) => ({ titleKey: section.titleKey, items: filterNavItems(section.items, role, permissions) }))
+        .map((section) => ({
+            titleKey: section.titleKey,
+            items: filterNavItems(section.items, role, permissions).map((item) =>
+                item.subItems ? { ...item, subItems: filterNavItems(item.subItems, role, permissions) } : item,
+            ),
+        }))
         .filter((section) => section.items.length > 0);
 }

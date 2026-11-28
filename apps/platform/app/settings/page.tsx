@@ -19,6 +19,7 @@ import { PrintingSettings } from "@/components/settings/printing-settings";
 import { TeamAccessSettings } from "@/components/settings/team-access-settings";
 import { StaffAlertsSettings } from "@/components/settings/staff-alerts-settings";
 import { AccountSettings } from "@/components/settings/account-settings";
+import { VaultSettings } from "@/components/settings/vault-settings";
 
 function OrderReasonsSection() {
     const { t } = useLanguage();
@@ -61,6 +62,7 @@ const SECTION_SCREENS: Record<SettingsSectionId, ComponentType> = {
     overview: SettingsOverview,
     business: BusinessSettings,
     billing: BillingSettings,
+    vault: VaultSettings,
     "order-reasons": OrderReasonsSection,
     messages: WhatsAppMessagesSettings,
     "delivery-fees": DeliveryFeesSummary,
