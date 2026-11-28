@@ -184,7 +184,7 @@ describe("buildStarterStoreConfigV2", () => {
 
     it("stamps the business name onto the hero brand-label field", () => {
         const cfg = buildStarterStoreConfigV2({
-            templateId: FIRST.id, // kinetic_ink → includes a hero_image
+            templateId: "kinetic_ink", // includes a hero_image
             businessName: "Audit Test Store",
         });
         const home = cfg.pages.find((p) => p.page_id === "home");
@@ -204,7 +204,7 @@ describe("buildStarterStoreConfigV2", () => {
 
     it("recommendedTemplateForVertical falls back for an unknown vertical", () => {
         expect(recommendedTemplateForVertical("nope")).toBe(STARTER_TEMPLATES[0].id);
-        expect(recommendedTemplateForVertical("food")).toBe("sunbleach");
+        expect(recommendedTemplateForVertical("food")).toBe("soft_light");
     });
 
     it("leaves the home page empty for an unknown template id", () => {

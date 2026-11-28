@@ -1,7 +1,7 @@
 // =====================================================================
 // Store templates — barrel + apply helper
 // =====================================================================
-// Five full visual directions offered in the onboarding wizard. Picking
+// Full visual directions offered in the onboarding wizard. Picking
 // one sets the store's `brand_kit` AND seeds every page that carries the
 // brand, so two merchants who pick different templates end up with stores
 // that do not look like the same platform.
@@ -19,11 +19,14 @@ import { cobaltBroadsheetTemplate } from "./cobalt-broadsheet";
 import { chromeNightTemplate } from "./chrome-night";
 import { sunbleachTemplate } from "./sunbleach";
 import { signatureDirection } from "./scheniders-signature";
+import { softLightTemplate } from "./soft-light";
 import type { StoreTemplate } from "./types";
 
 export type { StoreTemplate, BrandKitPreset } from "./types";
 
+/** First is the default: sign-up publishes it and the wizard starts on it. */
 export const STORE_TEMPLATES: StoreTemplate[] = [
+    softLightTemplate,
     kineticInkTemplate,
     auroraGlassTemplate,
     cobaltBroadsheetTemplate,
