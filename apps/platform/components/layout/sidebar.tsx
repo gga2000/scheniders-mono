@@ -30,6 +30,7 @@ import { useMemo, useState, type ComponentType } from "react";
 import { canAccessRoute, filterNavSections } from "@/lib/route-permissions";
 import { NotificationCenter } from "@/components/ui/notification-center";
 import { useSettingsAttention } from "@/hooks/use-settings-attention";
+import { useScrollEdgeFade } from "@/hooks/use-scroll-edge-fade";
 import { TransitionLink } from "./transition-link";
 import { NavInkIcon } from "./nav-ink-icon";
 
@@ -175,6 +176,10 @@ export function Sidebar({
     const prefetchProducts = usePrefetchProducts();
     const { t } = useLanguage();
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+    // On a tablet in landscape the link list scrolls with no scrollbar: the end
+    // that hides links fades out, so a link cut in half at the edge reads as
+    // "more this way", not as a broken stray mark. Desktop (xl) keeps its look.
+    const { ref: navScrollRef, edges: navEdges } = useScrollEdgeFade();
 
     // On mobile, always show expanded sidebar in the drawer
     const isCollapsed = isMobile ? false : collapsed;
@@ -389,7 +394,15 @@ export function Sidebar({
                 </motion.div>
 
                 {/* Navigation */}
-                <nav className="flex-1 space-y-0 overflow-y-auto overflow-x-hidden scrollbar-hide px-2">
+                <nav
+                    ref={navScrollRef}
+                    className={cn(
+                        "flex-1 space-y-0 overflow-y-auto overflow-x-hidden scrollbar-hide px-2",
+                        navEdges.top && navEdges.bottom && "max-xl:[mask-image:linear-gradient(to_bottom,transparent,black_28px,black_calc(100%-28px),transparent)]",
+                        navEdges.top && !navEdges.bottom && "max-xl:[mask-image:linear-gradient(to_bottom,transparent,black_28px)]",
+                        !navEdges.top && navEdges.bottom && "max-xl:[mask-image:linear-gradient(to_bottom,black_calc(100%-28px),transparent)]"
+                    )}
+                >
                     {!profileLoaded ? navPlaceholder : (
                         <>
                             {navSections.map((section, sectionIndex) => (
