@@ -11,6 +11,7 @@ import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { AuthCaptcha, useAuthCaptcha } from "@/components/auth/auth-captcha";
 import { AuthCardShell } from "@/components/auth/auth-card-shell";
 import { AuthHero } from "@/components/auth/auth-hero";
+import { ComputerSignInSlot } from "@/components/auth/computer-sign-in-slot";
 import { GoogleMark } from "@/components/auth/google-mark";
 import { LinkUsedNotice } from "@/components/auth/link-used-notice";
 import { emailProblem, loginErrorKey } from "@/lib/login-errors";
@@ -357,6 +358,11 @@ function LoginForm() {
 
             {linkUsed && <LinkUsedNotice onContinue={() => router.push(readReturnTo())} />}
 
+            {/* Tablet widths have no side panel: the scan code sits here instead. */}
+            <div className="mt-6 empty:hidden">
+                <ComputerSignInSlot place="form" />
+            </div>
+
             <AnimatePresence mode="wait">
                 {error && (
                     <motion.div
@@ -586,7 +592,7 @@ function LoginForm() {
 
 export default function LoginPage() {
     return (
-        <AuthCardShell showBack={false} aside={<AuthHero variant="login" />} asideOnPhones={false} bare>
+        <AuthCardShell showBack={false} aside={<AuthHero variant="login" footer={<ComputerSignInSlot place="hero" />} />} asideOnPhones={false} bare>
             <LoginForm />
         </AuthCardShell>
     );

@@ -1,4 +1,4 @@
-import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import { newSecretTicket, secretTicketMatches } from "@/lib/secret-ticket";
 
 /**
  * The sign-up page left open on a computer while its owner opens the confirm
@@ -12,19 +12,13 @@ import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 /** How long after sign-up the page may still ask. */
 export const SIGNUP_WAIT_HOURS = 24;
 
-function hashTicket(ticket: string): string {
-    return createHash("sha256").update(ticket).digest("hex");
-}
-
 export function newSignupWaitTicket(): { ticket: string; hash: string } {
-    const ticket = randomBytes(32).toString("base64url");
-    return { ticket, hash: hashTicket(ticket) };
+    return newSecretTicket();
 }
 
 /** Whether `ticket` is the one whose hash the account keeps, compared in constant time. */
 export function signupWaitTicketMatches(ticket: string, storedHash: unknown): boolean {
-    if (typeof storedHash !== "string" || !/^[0-9a-f]{64}$/.test(storedHash)) return false;
-    return timingSafeEqual(Buffer.from(hashTicket(ticket), "hex"), Buffer.from(storedHash, "hex"));
+    return secretTicketMatches(ticket, storedHash);
 }
 
 /** Whether an account made at `createdAt` is still within the time its page may ask. */

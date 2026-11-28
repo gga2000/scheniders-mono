@@ -12,6 +12,7 @@ import { TrialBanner } from "@/components/billing/trial-banner";
 import { TenantPausedBanner } from "@/components/billing/tenant-paused-banner";
 import { PasswordReminderBanner } from "@/components/auth/password-reminder-banner";
 import { BillingLockGate } from "@/components/billing/billing-lock-gate";
+import { ComputerSetupGate } from "@/components/computer-setup/computer-setup-gate";
 import { AmbientBackdrop } from "./ambient-backdrop";
 import { usePageTabTitle } from "@/hooks/use-page-tab-title";
 
@@ -51,6 +52,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         pathname?.startsWith('/reset-password') ||
         pathname?.startsWith('/signup') ||
         pathname?.startsWith('/join/') ||
+        pathname?.startsWith('/pair/') ||
         pathname?.startsWith('/landing');
 
     if (isAuthPage) {
@@ -74,8 +76,12 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         return <PageGuard>{children}</PageGuard>;
     }
     const isImmersivePage = pathname?.startsWith("/store/edit") || pathname === "/till";
+    // A new shop's owner on a phone sets up on a computer first
+    // (lib/computer-setup-gate.ts): ComputerSetupGate shows that screen in
+    // place of the app until the basics are done. Everyone else: the app.
     if (isImmersivePage) {
         return (
+            <ComputerSetupGate>
             <PageGuard>
                 <div className="flex h-screen flex-col bg-background text-foreground">
                     <div className="shrink-0">
@@ -87,6 +93,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                     </div>
                 </div>
             </PageGuard>
+            </ComputerSetupGate>
         );
     }
 
@@ -100,6 +107,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     // this member may open, so it and the top bar paint at once while a
     // restricted page waits for the member's role (audit R2 speed #3).
     return (
+        <ComputerSetupGate>
         <SidebarContext.Provider value={{ sidebarExpanded: !isCollapsed && !isMobile, setMobileMenuOpen: handleSetMobileMenuOpen }}>
             {/* `isolate` gives the backdrop its own stacking floor: at -z-10 it paints
                 above this root's background and below everything else. */}
@@ -151,5 +159,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 </main>
             </div>
         </SidebarContext.Provider>
+        </ComputerSetupGate>
     );
 }
