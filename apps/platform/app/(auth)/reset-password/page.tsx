@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Lock, Loader2, AlertCircle, CheckCircle2, Eye, EyeOff, Store, KeyRound } from "lucide-react";
-import { isAuthWeakPasswordError } from "@supabase/supabase-js";
 import { useAuth } from "@/hooks/use-auth";
 import { useStoreName } from "@/hooks/use-store-name";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
@@ -11,7 +10,9 @@ import { useRouter } from "next/navigation";
 import { AuthCardShell, AuthCardHeading } from "@/components/auth/auth-card-shell";
 import { PasswordRule } from "@/components/auth/password-rule";
 import { PasswordStrengthMeter } from "@/components/auth/password-strength-meter";
-import { PASSWORD_MIN_LENGTH, passwordRules, weakPasswordReason } from "@/lib/password-policy";
+import { WeakPasswordNote } from "@/components/auth/weak-password-note";
+import { PASSWORD_MIN_LENGTH, passwordIsWeak, passwordLongEnough, WEAK_PASSWORD_MESSAGE_KEYS, weakPasswordReason } from "@/lib/password-policy";
+import Link from "next/link";
 
 /** Same role names the Team page shows, so Arabic readers see Arabic. */
 const ROLE_KEYS: Record<string, string> = {
@@ -75,7 +76,7 @@ function PasswordField({
 export default function ResetPasswordPage() {
     const { t } = useLanguage();
     const dir = useTextDir();
-    const { updatePassword, user, profile, role, tenantId, isLoading: authLoading } = useAuth();
+    const { user, profile, role, tenantId, isLoading: authLoading } = useAuth();
     const router = useRouter();
     const { data: storeName } = useStoreName(tenantId);
 
@@ -83,11 +84,15 @@ export default function ResetPasswordPage() {
     const [confirmPassword, setConfirmPassword] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    /** Supabase wants a fresh sign-in before this session may change the password: offer the reset link instead. */
+    const [needsLink, setNeedsLink] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
 
-    const { longEnough, lettersAndDigits: hasLettersAndDigits } = passwordRules(password);
+    const longEnough = passwordLongEnough(password);
+    // A weak password is accepted (Ali): said so, and asked about again in a week.
+    const weak = longEnough && passwordIsWeak(password);
     const passwordsMatch = password === confirmPassword && confirmPassword.length > 0;
-    const isFormValid = longEnough && hasLettersAndDigits && passwordsMatch;
+    const isFormValid = longEnough && passwordsMatch;
 
     const email = user?.email ?? profile?.email ?? null;
     const displayName = profile?.display_name?.trim() || null;
@@ -103,6 +108,7 @@ export default function ResetPasswordPage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
+        setNeedsLink(false);
         if (!passwordsMatch) {
             setError(t("pwreset.new.mismatch"));
             return;
@@ -111,19 +117,28 @@ export default function ResetPasswordPage() {
             setError(t("pwreset.new.tooShort", { n: PASSWORD_MIN_LENGTH }));
             return;
         }
-        if (!hasLettersAndDigits) {
-            setError(t("pwreset.new.needMix"));
-            return;
-        }
 
         setIsLoading(true);
         try {
-            const { error: updateError } = await updatePassword(password);
-            if (updateError) {
+            // Through our server, which also keeps (or clears) the weak password reminder.
+            const res = await fetch("/api/auth/password", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ password }),
+            });
+            if (!res.ok) {
+                const body: { code?: unknown; reasons?: unknown } = await res.json().catch(() => ({}));
+                if (body.code === "reauthentication_needed") setNeedsLink(true);
                 setError(
-                    isAuthWeakPasswordError(updateError)
-                        ? t(weakPasswordReason(updateError.reasons) === "leaked" ? "signup.err.passwordLeaked" : "signup.err.passwordRules", { n: PASSWORD_MIN_LENGTH })
-                        : updateError.message,
+                    body.code === "weak_password"
+                        ? t(WEAK_PASSWORD_MESSAGE_KEYS[weakPasswordReason(body.reasons)], { n: PASSWORD_MIN_LENGTH })
+                        : body.code === "same_password"
+                          ? t("pwreset.new.samePassword")
+                          : body.code === "reauthentication_needed"
+                            ? t("pwreset.new.reauth")
+                            : body.code === "too_many"
+                              ? t("signup.err.tooMany")
+                              : t("pwreset.forgot.unexpected"),
                 );
                 setIsLoading(false);
                 return;
@@ -194,14 +209,25 @@ export default function ResetPasswordPage() {
                                     className="flex items-center gap-3 p-3.5 rounded-2xl bg-[#FCEEF1] border border-[#F4C7CF]"
                                 >
                                     <AlertCircle className="w-5 h-5 text-red-500 shrink-0" />
-                                    <p dir={dir} className="text-left text-sm text-[#1E1E1E]">{error}</p>
+                                    <p dir={dir} className="text-left text-sm text-[#1E1E1E]">
+                                        {error}
+                                        {needsLink && (
+                                            <>
+                                                {" "}
+                                                <Link href="/forgot-password" className="font-semibold underline underline-offset-2">
+                                                    {t("pwreset.new.reauthLink")}
+                                                </Link>
+                                            </>
+                                        )}
+                                    </p>
                                 </motion.div>
                             )}
 
                             <div>
                                 <PasswordField label={t("pwreset.new.password")} value={password} onChange={setPassword} autoFocus />
-                                <div className="mt-3">
+                                <div className="mt-3 space-y-2">
                                     <PasswordStrengthMeter password={password} />
+                                    {weak && <WeakPasswordNote />}
                                 </div>
                             </div>
 
@@ -209,7 +235,6 @@ export default function ResetPasswordPage() {
 
                             <ul className="space-y-1.5">
                                 <PasswordRule ok={longEnough}>{t("pwreset.new.ruleLength", { n: PASSWORD_MIN_LENGTH })}</PasswordRule>
-                                <PasswordRule ok={hasLettersAndDigits}>{t("pwreset.new.ruleMix")}</PasswordRule>
                                 <PasswordRule ok={passwordsMatch}>{t("pwreset.new.ruleMatch")}</PasswordRule>
                             </ul>
 

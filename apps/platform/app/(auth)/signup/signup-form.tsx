@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     Eye,
@@ -31,6 +31,7 @@ import {
     type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { governorateLabel, IRAQ_GOVERNORATES, isValidIraqiMobile, resolveI18n, toLatinDigits } from "@scheniders/shared";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { BUSINESS_TYPES, type BusinessTypeId } from "@/lib/business-types";
@@ -41,13 +42,15 @@ import { SignupPhoneCheck, useSignupPhoneCodeSwitch } from "@/components/auth/si
 import { StoreAddressField, storeAddressSendable, useStoreAddress } from "@/components/auth/store-address-field";
 import { PasswordRule } from "@/components/auth/password-rule";
 import { PasswordStrengthMeter } from "@/components/auth/password-strength-meter";
+import { WeakPasswordNote } from "@/components/auth/weak-password-note";
 import {
     PASSWORD_LONG_LENGTH,
     PASSWORD_MAX_LENGTH,
     PASSWORD_MIN_LENGTH,
-    passwordMeetsRules,
-    passwordRules,
+    passwordIsWeak,
+    passwordLongEnough,
     passwordTips,
+    WEAK_PASSWORD_MESSAGE_KEYS,
     weakPasswordReason,
 } from "@/lib/password-policy";
 import { trackSignupComplete } from "@/lib/fermi-pixel";
@@ -94,6 +97,19 @@ const FIELD_IDS: Record<SignupField, string> = {
     phone: "signup-phone",
 };
 
+/** How the page left open after sign-up asks whether the email was confirmed elsewhere. */
+const WAIT_FAST_EVERY_MS = 4_000;
+const WAIT_SLOW_EVERY_MS = 10_000;
+/** Every 4 s for the first 10 minutes, then every 10 s, then not at all after 30 minutes. */
+const WAIT_FAST_MS = 10 * 60_000;
+const WAIT_GIVE_UP_MS = 30 * 60_000;
+
+function isConfirmedAnswer(body: unknown): boolean {
+    if (typeof body !== "object" || body === null || !("data" in body)) return false;
+    const { data } = body;
+    return typeof data === "object" && data !== null && "confirmed" in data && data.confirmed === true;
+}
+
 /** Something, an @, a dot and something: the server checks the rest. */
 const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -116,6 +132,7 @@ function FieldError({ id, message, dir }: { id: string; message: string | null; 
 export function SignupForm({ handover }: { handover: SignupHandover }) {
     const { t, language } = useLanguage();
     const dir = useTextDir();
+    const router = useRouter();
 
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -134,6 +151,14 @@ export function SignupForm({ handover }: { handover: SignupHandover }) {
     const [success, setSuccess] = useState<string | null>(null);
     /** The address the confirm link went to; the form is replaced by "check your email". */
     const [sentTo, setSentTo] = useState<string | null>(null);
+    /**
+     * Lets this page ask whether the new account's email is confirmed yet: the
+     * link is mostly opened on the owner's phone, and this page then carries
+     * on here by itself (lib/signup-wait.ts).
+     */
+    const [waitTicket, setWaitTicket] = useState<{ userId: string; ticket: string } | null>(null);
+    /** The email was confirmed on another device: this page signs in and opens the app. */
+    const [confirmedElsewhere, setConfirmedElsewhere] = useState(false);
     const captcha = useAuthCaptcha();
     // While the console's switch is on, the owner proves their WhatsApp number with a code (B11).
     const phoneCode = useSignupPhoneCodeSwitch();
@@ -188,7 +213,9 @@ export function SignupForm({ handover }: { handover: SignupHandover }) {
             ? "border-[#E5243B] hover:border-[#E5243B] focus:border-[#E5243B]"
             : "border-[#E2DCCF] hover:border-[#CFC8B9] focus:border-[#1E1E1E]";
 
-    const rules = passwordRules(password);
+    const longEnough = passwordLongEnough(password);
+    // Accepted all the same (Ali): said so kindly, and asked again in a week.
+    const weak = longEnough && passwordIsWeak(password);
     const tips = passwordTips(password);
 
     /**
@@ -218,6 +245,83 @@ export function SignupForm({ handover }: { handover: SignupHandover }) {
         else setError(t("signup.confirmSendFailed"));
     };
 
+    /**
+     * The email is confirmed (on the phone, most often): sign in here with the
+     * email and password just typed, through Supabase like any sign-in, and open
+     * the app where the confirm link would have.
+     */
+    const continueHere = useCallback(async () => {
+        if (!sentTo) return;
+        setError(null);
+        setIsLoading(true);
+        const captchaToken = await captcha.fresh();
+        if (captcha.enabled && !captchaToken) {
+            setError(t("signup.wait.captcha"));
+            setIsLoading(false);
+            return;
+        }
+        const { error: signInError } = await supabase.auth.signInWithPassword({ email: sentTo, password, options: { captchaToken } });
+        captcha.reset();
+        if (signInError) {
+            setError(t("signup.wait.signInFailed"));
+            setIsLoading(false);
+            return;
+        }
+        // Where the confirm link would have opened the app (sendConfirmMail).
+        router.push("/store");
+    }, [sentTo, password, captcha, t, router]);
+
+    // While "check your email" is up, ask every few seconds (and as soon as the
+    // owner comes back to this tab) whether the link was opened elsewhere.
+    useEffect(() => {
+        if (!waitTicket || confirmedElsewhere) return;
+        let stopped = false;
+        let asking = false;
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        const started = Date.now();
+        const ask = async () => {
+            if (stopped || asking) return;
+            asking = true;
+            clearTimeout(timer);
+            const res = await fetch("/api/auth/signup/wait", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ user_id: waitTicket.userId, ticket: waitTicket.ticket }),
+                // Offline for a moment (the owner is on their phone): the next round asks again.
+            }).catch(() => null);
+            asking = false;
+            if (stopped) return;
+            if (res?.ok) {
+                const body: unknown = await res.json().catch(() => null);
+                if (isConfirmedAnswer(body)) {
+                    stopped = true;
+                    setConfirmedElsewhere(true);
+                    void continueHere();
+                    return;
+                }
+            } else if (res && res.status !== 429) {
+                // The ticket is not known or has run out: the owner signs in from the link or the login page.
+                stopped = true;
+                return;
+            }
+            const waited = Date.now() - started;
+            if (waited > WAIT_GIVE_UP_MS) return;
+            timer = setTimeout(ask, waited < WAIT_FAST_MS ? WAIT_FAST_EVERY_MS : WAIT_SLOW_EVERY_MS);
+        };
+        timer = setTimeout(ask, WAIT_FAST_EVERY_MS);
+        const onBack = () => {
+            if (document.visibilityState === "visible") void ask();
+        };
+        document.addEventListener("visibilitychange", onBack);
+        window.addEventListener("focus", onBack);
+        return () => {
+            stopped = true;
+            clearTimeout(timer);
+            document.removeEventListener("visibilitychange", onBack);
+            window.removeEventListener("focus", onBack);
+        };
+    }, [waitTicket, confirmedElsewhere, continueHere]);
+
     const toggleSells = (id: BusinessTypeId) => {
         clearError("sells");
         setSells((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -232,9 +336,7 @@ export function SignupForm({ handover }: { handover: SignupHandover }) {
         const typedEmail = email.trim();
         if (typedEmail.length === 0) return { field: "email", message: t("signup.err.emailMissing") };
         if (!EMAIL_SHAPE.test(typedEmail)) return { field: "email", message: t("signup.err.emailInvalid") };
-        if (!passwordMeetsRules(password)) {
-            return { field: "password", message: t("signup.err.passwordRules", { n: PASSWORD_MIN_LENGTH }) };
-        }
+        if (!longEnough) return { field: "password", message: t("signup.err.passwordShort", { n: PASSWORD_MIN_LENGTH }) };
         // Optional, but a number that is there must be an Iraqi mobile: it is the store's WhatsApp.
         if (contactPhone.trim().length > 0 && !isValidIraqiMobile(contactPhone)) {
             return { field: "phone", message: t("signup.err.phoneInvalid") };
@@ -246,17 +348,16 @@ export function SignupForm({ handover }: { handover: SignupHandover }) {
     /** The server's refusals that belong to one field: the password, or an email already used. */
     const serverFieldError = (data: { code?: unknown; reasons?: unknown; field?: unknown }) => {
         if (data.code === "weak_password") {
-            const leaked = weakPasswordReason(data.reasons) === "leaked";
             return {
                 field: "password" as const,
-                message: leaked ? t("signup.err.passwordLeaked") : t("signup.err.passwordRules", { n: PASSWORD_MIN_LENGTH }),
+                message: t(WEAK_PASSWORD_MESSAGE_KEYS[weakPasswordReason(data.reasons)], { n: PASSWORD_MIN_LENGTH }),
             };
         }
         if (data.code === "email_taken") return { field: "email" as const, message: t("signup.err.emailTaken") };
         if (data.code === "invalid") {
             if (data.field === "email") return { field: "email" as const, message: t("signup.err.emailInvalid") };
             if (data.field === "password") {
-                return { field: "password" as const, message: t("signup.err.passwordRules", { n: PASSWORD_MIN_LENGTH }) };
+                return { field: "password" as const, message: t("signup.err.passwordShort", { n: PASSWORD_MIN_LENGTH }) };
             }
             if (data.field === "business_name") return { field: "businessName" as const, message: t("signup.err.businessName") };
             if (data.field === "contact_phone") return { field: "phone" as const, message: t("signup.err.phoneInvalid") };
@@ -344,6 +445,9 @@ export function SignupForm({ handover }: { handover: SignupHandover }) {
             const address = email.trim();
             const sent = await sendConfirmMail(address);
             setSentTo(address);
+            if (typeof data.user_id === "string" && typeof data.wait_ticket === "string") {
+                setWaitTicket({ userId: data.user_id, ticket: data.wait_ticket });
+            }
             if (!sent) setError(t("signup.confirmSendFailed"));
             setIsLoading(false);
         } catch {
@@ -402,6 +506,32 @@ export function SignupForm({ handover }: { handover: SignupHandover }) {
                                 </p>
                             </div>
                         </div>
+                        {waitTicket &&
+                            (confirmedElsewhere ? (
+                                <div role="status" data-testid="signup-confirmed-elsewhere" className="flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-[#E8F8E0]">
+                                    {isLoading ? (
+                                        <Loader2 className="w-5 h-5 text-green-700 animate-spin flex-shrink-0" />
+                                    ) : (
+                                        <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
+                                    )}
+                                    <p dir={dir} className="text-left text-sm font-medium text-[#1E1E1E]">{t("signup.wait.confirmed")}</p>
+                                </div>
+                            ) : (
+                                <div role="status" data-testid="signup-waiting" className="flex items-start gap-3 px-4 py-4 rounded-2xl bg-[#FAF8F3] border border-[#ECE8DD]">
+                                    <Smartphone className="w-5 h-5 mt-0.5 text-[#1E1E1E] flex-shrink-0" aria-hidden />
+                                    <div dir={dir} className="text-left">
+                                        <p className="text-sm font-semibold text-[#1E1E1E]">{t("signup.wait.phoneTitle")}</p>
+                                        <p className="mt-1 text-sm text-[#5F5A52]">{t("signup.wait.phoneBody")}</p>
+                                        <p className="mt-2.5 flex items-center gap-2 text-xs text-[#8A847A]">
+                                            <span className="relative flex h-2 w-2" aria-hidden>
+                                                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#22C55E] opacity-60 motion-reduce:animate-none" />
+                                                <span className="relative inline-flex h-2 w-2 rounded-full bg-[#22C55E]" />
+                                            </span>
+                                            {t("signup.wait.watching")}
+                                        </p>
+                                    </div>
+                                </div>
+                            ))}
                         {error && (
                             <div className="flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-[#FCEEF1]">
                                 <AlertCircle className="w-[18px] h-[18px] text-[#E5243B] flex-shrink-0" />
@@ -415,6 +545,23 @@ export function SignupForm({ handover }: { handover: SignupHandover }) {
                             </div>
                         )}
                         <AuthCaptcha captcha={captcha} />
+                        {confirmedElsewhere ? (
+                            // Shown only when signing in here did not go through: try again, or use the login page.
+                            error && !isLoading && (
+                                <div className="space-y-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => void continueHere()}
+                                        className="w-full h-[54px] rounded-2xl font-semibold text-[15px] text-white bg-[#1E1E1E] hover:bg-black transition-colors"
+                                    >
+                                        {t("signup.wait.continue")}
+                                    </button>
+                                    <Link href="/login" className="block text-center text-[14px] font-semibold text-[#1E1E1E] underline decoration-[#EFFF00] decoration-[3px] underline-offset-4">
+                                        {t("signup.signIn")}
+                                    </Link>
+                                </div>
+                            )
+                        ) : (
                         <button
                             type="button"
                             onClick={handleResend}
@@ -430,6 +577,7 @@ export function SignupForm({ handover }: { handover: SignupHandover }) {
                                 t("signup.confirmResend")
                             )}
                         </button>
+                        )}
                     </div>
                 ) : (
                 <form ref={formRef} onSubmit={handleSubmit} noValidate className="mt-8 space-y-5">
@@ -556,13 +704,13 @@ export function SignupForm({ handover }: { handover: SignupHandover }) {
                             </button>
                         </div>
                         <FieldError id="signup-password-error" message={errorFor("password")} dir={dir} />
-                        {/* The rules Supabase holds the password to, ticked as they are met, then what would make it stronger. */}
+                        {/* The one rule (length), ticked once met; a weak password is accepted and said so; then what would make it stronger. */}
                         <div id="signup-password-help" className="mt-3 space-y-2">
                             <PasswordStrengthMeter password={password} />
                             <ul className="space-y-1.5">
-                                <PasswordRule ok={rules.longEnough}>{t("pwreset.new.ruleLength", { n: PASSWORD_MIN_LENGTH })}</PasswordRule>
-                                <PasswordRule ok={rules.lettersAndDigits}>{t("pwreset.new.ruleMix")}</PasswordRule>
+                                <PasswordRule ok={longEnough}>{t("pwreset.new.ruleLength", { n: PASSWORD_MIN_LENGTH })}</PasswordRule>
                             </ul>
+                            {weak && <WeakPasswordNote />}
                             {password.length > 0 && tips.length > 0 && (
                                 <p className="flex items-start gap-2 text-[12.5px] text-[#8A847A]" data-testid="signup-password-tips">
                                     <Lightbulb className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#A8A196]" aria-hidden />

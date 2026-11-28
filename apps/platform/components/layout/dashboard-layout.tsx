@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { PageGuard } from "@/components/auth/role-guard";
 import { TrialBanner } from "@/components/billing/trial-banner";
 import { TenantPausedBanner } from "@/components/billing/tenant-paused-banner";
+import { PasswordReminderBanner } from "@/components/auth/password-reminder-banner";
 import { BillingLockGate } from "@/components/billing/billing-lock-gate";
 import { AmbientBackdrop } from "./ambient-backdrop";
 import { usePageTabTitle } from "@/hooks/use-page-tab-title";
@@ -136,6 +137,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 >
                     <TrialBanner />
                     <TenantPausedBanner />
+                    <PasswordReminderBanner />
                     <TopBar
                         onMenuClick={() => handleSetMobileMenuOpen(true)}
                         isMobile={isMobile}
