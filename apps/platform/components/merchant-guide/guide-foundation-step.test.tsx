@@ -2,7 +2,7 @@
 // @vitest-environment jsdom
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { GUIDE_LINES } from "@/lib/merchant-guide/script";
 import type { FoundationStatus, FoundationStep } from "@/lib/merchant-guide/foundation";
@@ -160,5 +160,28 @@ describe("GuideFoundationStep: going back", () => {
         renderStep("product", <button data-guide="products-add" />, { done: true });
         await waitFor(() => expect(caption()).toBe(line("step.doneAgain")));
         expect(screen.queryByTestId("merchant-guide-spot")).toBeNull();
+    });
+});
+
+describe("GuideFoundationStep: the first product walks itself", () => {
+    it("keeps the light on the field being typed in, and moves on once the merchant leaves it", async () => {
+        nav.pathname = "/products/new";
+        renderStep(
+            "product",
+            <>
+                <div data-guide="product-name">
+                    <input aria-label="name" />
+                </div>
+                <div data-guide="product-media" />
+            </>,
+        );
+        await waitFor(() => expect(caption()).toBe(line("product.name")));
+        const input = screen.getByLabelText("name");
+        act(() => input.focus());
+        // The first letter fills the name: the light stays while typing goes on (Ali, 28 Nov).
+        act(() => useGuideSetup.setState({ productDraft: { name: "u", imageUrl: "", price: 0, stock: 0 } }));
+        expect(caption()).toBe(line("product.name"));
+        act(() => input.blur());
+        await waitFor(() => expect(caption()).toBe(line("product.photo")));
     });
 });

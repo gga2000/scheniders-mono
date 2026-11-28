@@ -48,10 +48,13 @@ const phasesSchema = z.object({
     look: tourRecordSchema.optional(),
     /** The staff tour, for a staff member's own row. */
     staff: tourRecordSchema.optional(),
+    /** The practice after the first product: from Orders back to it, alone. */
+    find_product: tourRecordSchema.optional(),
     /** «دليلك» hidden for good from its list; Settings brings it back. */
     list_hidden_at: z.string().optional(),
 });
 export type GuidePhases = z.infer<typeof phasesSchema>;
+export type GuideTourRecord = z.infer<typeof tourRecordSchema>;
 
 const progressSchema = z.object({
     answers: answersSchema,

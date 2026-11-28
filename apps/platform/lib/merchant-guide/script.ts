@@ -123,6 +123,18 @@ export const GUIDE_LINES = {
         ar: "خلصت هاي الخطوة. غيّر اللي تريده، لو اضغط التالي ونرجع لوين ما وگفت.",
         en: "This step is done. Change anything you like, or press Next to go back to where you stopped.",
     },
+    "practice.intro": {
+        ar: "منتجك انضاف! هسه تمرين صغير: راح أوديك لصفحة الطلبات، وانت ارجع لمنتجك بنفسك.",
+        en: "Your product is in! Now a quick practice: I'll take you to Orders, and you find your way back to your product.",
+    },
+    "practice.find": {
+        ar: "يلا، ارجع لمنتجك بنفسك. إذا تحيّرت، أدلّك بعد شوية.",
+        en: "Go on, find your way back to your product. If you get stuck, I'll show you in a moment.",
+    },
+    "practice.found": {
+        ar: "عفية عليك! لكيت منتجك بنفسك. كل منتجاتك تلكاها هنا. اضغط التالي ونكمل.",
+        en: "Well done! You found your product yourself. All your products live here. Press Next and we'll carry on.",
+    },
     "open.publish": {
         ar: "لا تشيل هم شكل المحل هسه. انشره، وبعدين نرجعله سوه ونخليه حلو وعلى ذوقك.",
         en: "Don't worry about how the shop looks yet. Publish it, and later we'll come back and make it beautiful, your way.",
