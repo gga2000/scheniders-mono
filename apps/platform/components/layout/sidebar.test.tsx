@@ -67,3 +67,16 @@ describe("Sidebar while the role is loading", () => {
         expect(container.querySelectorAll("nav .animate-pulse").length).toBe(0);
     });
 });
+
+describe("Sidebar brand", () => {
+    it("shows the Fermi logo, open and folded, and no old name", () => {
+        auth.current = { ...auth.current, role: "super_admin", profileLoaded: true };
+        for (const collapsed of [false, true]) {
+            const { getByRole, container } = render(<Sidebar collapsed={collapsed} setCollapsed={() => {}} />);
+            const brand = getByRole("img", { name: "Fermi" });
+            expect(brand.querySelectorAll("svg").length).toBe(2);
+            expect(container.textContent).not.toMatch(/Scheniders/);
+            cleanup();
+        }
+    });
+});

@@ -28,6 +28,7 @@ import { usePrefetchProducts } from "@/hooks/use-products-query";
 import { useLanguage } from "@/hooks/use-language";
 import { useMemo, useState, type ComponentType } from "react";
 import { canAccessRoute, filterNavSections } from "@/lib/route-permissions";
+import { FermiMark, FermiName } from "./fermi-logo";
 import { NotificationCenter } from "@/components/ui/notification-center";
 import { useSettingsAttention } from "@/hooks/use-settings-attention";
 import { useScrollEdgeFade } from "@/hooks/use-scroll-edge-fade";
@@ -375,23 +376,23 @@ export function Sidebar({
                 {/* Logo Section */}
                 <motion.div
                     initial={false}
-                    animate={{
-                        paddingLeft: collapsed ? 18 : 8,
-                        gap: collapsed ? 0 : 12,
-                    }}
+                    // Folded, the 36px mark sits in the middle of the 72px rail.
+                    animate={{ paddingLeft: collapsed ? 18 : 8 }}
                     transition={sidebarSpring}
-                    className="flex items-center mb-8 overflow-hidden pl-2 gap-3"
+                    role="img"
+                    aria-label="Fermi"
+                    className="flex items-center h-9 mb-8 overflow-hidden pl-2"
                 >
-                    <div className="w-9 h-9 rounded-xl bg-[var(--primary)] text-[var(--primary-fg)] flex items-center justify-center flex-shrink-0 dark:shadow-[0_0_15px_rgba(239,255,0,0.3)]">
-                        <Package className="w-5 h-5" />
-                    </div>
+                    <FermiMark className="w-[36px] h-[32px] flex-shrink-0" />
+                    {/* The space before the name lives inside the folding span (framer
+                        does not animate `gap`), so it folds away with the name. */}
                     <motion.span
                         initial={false}
                         animate={collapsed ? "collapsed" : "expanded"}
                         variants={labelVariants}
-                        className="font-bold tracking-tight text-xl whitespace-nowrap overflow-hidden inline-block flex-shrink-0"
+                        className="overflow-hidden inline-block flex-shrink-0"
                     >
-                        Scheniders
+                        <FermiName className="block ml-2.5 w-[58px] h-[32px]" />
                     </motion.span>
                 </motion.div>
 
@@ -581,13 +582,9 @@ export function Sidebar({
                     >
                         {/* Header with Close Button */}
                         <div className="flex items-center justify-between mb-8 px-2">
-                            <div className="flex items-center gap-3">
-                                <div className="w-9 h-9 rounded-xl bg-[var(--primary)] text-[var(--primary-fg)] flex items-center justify-center flex-shrink-0 dark:shadow-[0_0_15px_rgba(239,255,0,0.3)]">
-                                    <Package className="w-5 h-5" />
-                                </div>
-                                <span className="font-bold text-xl tracking-tight">
-                                    Scheniders
-                                </span>
+                            <div role="img" aria-label="Fermi" className="flex items-center gap-2.5">
+                                <FermiMark className="w-[36px] h-[32px] flex-shrink-0" />
+                                <FermiName className="w-[58px] h-[32px]" />
                             </div>
                             <button
                                 onClick={() => setMobileMenuOpen?.(false)}
