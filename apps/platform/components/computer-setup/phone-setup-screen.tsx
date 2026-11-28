@@ -11,7 +11,7 @@
 // laptop or iPad asks for a call or carries on with the phone.
 // =====================================================================
 
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import Image from "next/image";
 import { motion, useReducedMotion } from "framer-motion";
 import { Copy, Laptop, LogOut, ScanLine, Smartphone, Tablet } from "lucide-react";
@@ -37,12 +37,15 @@ export interface PhoneSetupScreenProps {
     onSignOut: () => void;
 }
 
+// The page's own address does not change while it is open.
+const neverChanges = () => () => {};
+
 export function PhoneSetupScreen({ status, loadFailed, onRetry, computerOpen, saving, onUsePhone, onSignOut }: PhoneSetupScreenProps) {
     const { t } = useLanguage();
     const dir = useTextDir();
     const [scanning, setScanning] = useState(false);
     const [noComputer, setNoComputer] = useState(false);
-    const address = typeof window === "undefined" ? "app.usefermi.com" : window.location.host;
+    const address = useSyncExternalStore(neverChanges, () => window.location.host, () => "");
 
     const copyAddress = () => {
         navigator.clipboard.writeText(address).then(
