@@ -4,6 +4,7 @@ import { useLanguage } from "@/hooks/use-language";
 import { FileText } from "lucide-react";
 import type { Order } from "@/types/order";
 import { showReorderNote } from "@/lib/order-format-utils";
+import { VoiceMicButton } from "@/components/voice/voice-mic-button";
 
 type NotesKey = "notes" | "internal_notes";
 
@@ -42,13 +43,20 @@ export function OrderNotes({
                 </div>
                 <div className="p-4">
                     {isEditing ? (
-                        <textarea
-                            value={displayValue("notes")}
-                            onChange={(e) => updateFormData("notes", e.target.value)}
-                            placeholder={t("orderDetail.orderNotesPlaceholder")}
-                            rows={2}
-                            className="w-full px-3 py-2 bg-amber-50/50 border border-amber-200 rounded-lg text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-amber-200 resize-none"
-                        />
+                        <div className="relative">
+                            <textarea
+                                value={displayValue("notes")}
+                                onChange={(e) => updateFormData("notes", e.target.value)}
+                                placeholder={t("orderDetail.orderNotesPlaceholder")}
+                                rows={2}
+                                className="w-full pl-3 pr-10 py-2 bg-amber-50/50 border border-amber-200 rounded-lg text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-amber-200 resize-none"
+                            />
+                            <VoiceMicButton
+                                value={displayValue("notes")}
+                                onValueChange={(next) => updateFormData("notes", next)}
+                                className="right-1.5 top-1.5"
+                            />
+                        </div>
                     ) : (
                         // dir="auto": a note takes the direction of its own first letter, so
                         // «إعادة طلب من #…» reads words first, and an English note stays left to right.
@@ -73,13 +81,20 @@ export function OrderNotes({
                 </div>
                 <div className="p-4">
                     {isEditing ? (
-                        <textarea
-                            value={displayValue("internal_notes")}
-                            onChange={(e) => updateFormData("internal_notes", e.target.value)}
-                            placeholder={t("orderDetail.internalNotesPlaceholder")}
-                            rows={2}
-                            className="w-full px-3 py-2 bg-blue-50/50 border border-blue-200 rounded-lg text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 resize-none"
-                        />
+                        <div className="relative">
+                            <textarea
+                                value={displayValue("internal_notes")}
+                                onChange={(e) => updateFormData("internal_notes", e.target.value)}
+                                placeholder={t("orderDetail.internalNotesPlaceholder")}
+                                rows={2}
+                                className="w-full pl-3 pr-10 py-2 bg-blue-50/50 border border-blue-200 rounded-lg text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 resize-none"
+                            />
+                            <VoiceMicButton
+                                value={displayValue("internal_notes")}
+                                onValueChange={(next) => updateFormData("internal_notes", next)}
+                                className="right-1.5 top-1.5"
+                            />
+                        </div>
                     ) : (
                         <p dir="auto" className="text-sm text-blue-800 min-h-[40px]">
                             {order.internal_notes || <span className="text-muted italic">{t("orderDetail.noInternalNotes")}</span>}

@@ -5,6 +5,7 @@ import { RichTextEditor } from "./rich-text-editor";
 import { useLanguage } from "@/hooks/use-language";
 import { useBusinessTypes } from "@/hooks/use-tenant";
 import { examplePlaceholder } from "@/lib/business-types";
+import { VoiceMicButton } from "@/components/voice/voice-mic-button";
 
 interface ProductBasicSectionProps {
     formData: ProductEditorFormData;
@@ -27,15 +28,22 @@ export function ProductBasicSection({ formData, updateField }: ProductBasicSecti
                     <label htmlFor="product-name" className="block text-sm font-medium text-foreground mb-2">
                         {t("products.ed.name")} <span className="text-rose-500">*</span>
                     </label>
-                    <input
-                        id="product-name"
-                        type="text"
-                        dir="auto"
-                        value={formData.name}
-                        onChange={(e) => updateField("name", e.target.value)}
-                        placeholder={examplePlaceholder(businessTypes, "product_i18n", language, t("products.ed.namePh"))}
-                        className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
-                    />
+                    <div className="relative">
+                        <input
+                            id="product-name"
+                            type="text"
+                            dir="auto"
+                            value={formData.name}
+                            onChange={(e) => updateField("name", e.target.value)}
+                            placeholder={examplePlaceholder(businessTypes, "product_i18n", language, t("products.ed.namePh"))}
+                            className="w-full pl-4 pr-12 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
+                        />
+                        <VoiceMicButton
+                            value={formData.name}
+                            onValueChange={(next) => updateField("name", next)}
+                            className="right-2.5 top-1/2 -translate-y-1/2"
+                        />
+                    </div>
                 </div>
 
                 <div>
@@ -87,16 +95,24 @@ export function ProductBasicSection({ formData, updateField }: ProductBasicSecti
                     {t("products.ed.shortDescription")}
                     <span className="text-xs text-muted ms-1">{t("products.ed.shortDescriptionHint")}</span>
                 </label>
-                <textarea
-                    id="product-short-description"
-                    dir="auto"
-                    value={formData.short_description}
-                    onChange={(e) => updateField("short_description", e.target.value)}
-                    placeholder={t("products.ed.shortDescriptionPh")}
-                    rows={2}
-                    maxLength={200}
-                    className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all resize-none"
-                />
+                <div className="relative">
+                    <textarea
+                        id="product-short-description"
+                        dir="auto"
+                        value={formData.short_description}
+                        onChange={(e) => updateField("short_description", e.target.value)}
+                        placeholder={t("products.ed.shortDescriptionPh")}
+                        rows={2}
+                        maxLength={200}
+                        className="w-full pl-4 pr-12 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all resize-none"
+                    />
+                    <VoiceMicButton
+                        value={formData.short_description}
+                        onValueChange={(next) => updateField("short_description", next)}
+                        maxLength={200}
+                        className="right-2.5 top-2.5"
+                    />
+                </div>
                 <p className="text-xs text-muted mt-1 text-end">
                     {formData.short_description.length}/200
                 </p>
