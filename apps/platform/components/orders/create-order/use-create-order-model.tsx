@@ -18,6 +18,8 @@ import { routeCreateOrderDate } from "@/lib/order-date-guard";
 import { useLanguage } from "@/hooks/use-language";
 import { primeDistrictOfOrder, type PrimeDistrict } from "@/lib/prime/district";
 import { authedFetch } from "@/lib/authed-fetch";
+import { appendSpoken } from "@/lib/voice/speech-text";
+import type { VoiceOrder } from "@/lib/voice/order-from-voice";
 
 // TikTok icon component
 export const TikTokIcon = ({ className }: { className?: string }) => (
@@ -98,6 +100,8 @@ export function useCreateOrderModel(props: CreateOrderModalProps) {
     const [editingPriceIndex, setEditingPriceIndex] = useState<number | null>(null);
     const [isAnalyzingImage, setIsAnalyzingImage] = useState(false);
     const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+    const [isAnalyzingVoice, setIsAnalyzingVoice] = useState(false);
+    const [voiceFilled, setVoiceFilled] = useState(false);
     const [showBulkUpload, setShowBulkUpload] = useState(false);
     const [customCreatedAt, setCustomCreatedAt] = useState<string>(new Date().toISOString());
     // The picker opens on "now" so it has something to show, but only a date
@@ -307,6 +311,7 @@ export function useCreateOrderModel(props: CreateOrderModalProps) {
             order_id: "",
         });
         setUploadedImage(null);
+        setVoiceFilled(false);
         setDiscount(0);
         setDeliveryFee(5000);
         setIncludeDeliveryFee(false);
@@ -382,6 +387,51 @@ export function useCreateOrderModel(props: CreateOrderModalProps) {
             toast.error(t("orders.create.uploadFailed"));
         } finally {
             setIsAnalyzingImage(false);
+        }
+    };
+
+    /**
+     * «احجي الطلب»: the recording goes to Gemini and what it heard fills the
+     * customer fields. A field it did not hear keeps what is typed; notes are
+     * added after the merchant's own.
+     */
+    const handleVoiceOrder = async (recording: Blob) => {
+        setIsAnalyzingVoice(true);
+        try {
+            const body = new FormData();
+            body.append("audio", recording, "order");
+            const response = await authedFetch("/api/orders/analyze-voice", { method: "POST", body });
+            if (response.status === 429) {
+                toast.error(t("voice.order.limit"));
+                return;
+            }
+            if (!response.ok) {
+                toast.error(t("voice.order.failed"));
+                return;
+            }
+            const result: { data: VoiceOrder } = await response.json();
+            const heard = result.data;
+            if (!heard.customer_name && !heard.phone && !heard.city && !heard.address && !heard.notes) {
+                toast.warning(t("voice.order.nothing"));
+                return;
+            }
+            setFormData((prev) => ({
+                ...prev,
+                customer_name: heard.customer_name || prev.customer_name,
+                phone: heard.phone || prev.phone,
+                secondary_phone: heard.secondary_phone || prev.secondary_phone,
+                city: heard.city || prev.city,
+                address_details: heard.address || prev.address_details,
+                notes: appendSpoken(prev.notes ?? "", heard.notes),
+                prime_district: heard.city && heard.city !== prev.city ? null : prev.prime_district,
+            }));
+            setVoiceFilled(true);
+            toast.success(t("voice.order.filled"));
+        } catch (error) {
+            console.error("Error reading the voice order:", error);
+            toast.error(t("voice.order.failed"));
+        } finally {
+            setIsAnalyzingVoice(false);
         }
     };
 
@@ -637,6 +687,9 @@ export function useCreateOrderModel(props: CreateOrderModalProps) {
         setIsAnalyzingImage,
         uploadedImage,
         setUploadedImage,
+        isAnalyzingVoice,
+        voiceFilled,
+        handleVoiceOrder,
         showBulkUpload,
         setShowBulkUpload,
         customCreatedAt,

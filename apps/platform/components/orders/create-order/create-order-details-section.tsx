@@ -8,6 +8,7 @@ import { DateTimePicker } from "@scheniders/ui/datetime-picker";
 import { formatScheduledDate } from "@/lib/order-format-utils";
 import { ORDER_SOURCES } from "./use-create-order-model";
 import type { CreateOrderModel } from "./use-create-order-model";
+import { CreateOrderVoiceStrip } from "./create-order-voice-strip";
 
 /** One section of CreateOrderModal. */
 export function CreateOrderDetailsSection({ m }: { m: CreateOrderModel }) {
@@ -159,47 +160,51 @@ export function CreateOrderDetailsSection({ m }: { m: CreateOrderModel }) {
                     id="chat-image-upload"
                     disabled={isAnalyzingImage}
                 />
-                <label
-                    htmlFor="chat-image-upload"
-                    className={cn(
-                        "flex items-center gap-3 px-3 py-2.5 rounded-xl border border-dashed cursor-pointer transition-all",
-                        isAnalyzingImage
-                            ? "border-purple-300 bg-purple-50/50 cursor-wait"
-                            : uploadedImage
-                                ? "border-purple-400 bg-purple-50/50"
-                                : "border-gray-300 bg-gray-50/30 hover:border-purple-400 hover:bg-purple-50/30"
-                    )}
-                >
-                    {isAnalyzingImage ? (
-                        <Loader2 className="h-4 w-4 text-purple-600 animate-spin shrink-0" />
-                    ) : uploadedImage ? (
-                        <div className="relative">
-                            <img src={uploadedImage} alt="" className="w-8 h-8 rounded-lg object-cover border border-purple-300" />
-                            <button
-                                type="button"
-                                onClick={(e) => { e.preventDefault(); handleRemoveImage(); }}
-                                className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center"
-                            >
-                                <X className="h-2.5 w-2.5" />
-                            </button>
-                        </div>
-                    ) : (
-                        <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center shrink-0">
-                            <Sparkles className="h-4 w-4 text-purple-600" />
-                        </div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium text-gray-700">
-                            {isAnalyzingImage ? t("orders.create.analyzing") : uploadedImage ? t("orders.create.analyzed") : t("orders.create.uploadChat")}
-                        </p>
-                        {!isAnalyzingImage && !uploadedImage && (
-                            <p className="text-[11px] text-gray-400 mt-0.5">{t("orders.create.uploadChatHint")}</p>
+                {/* Screenshot reader and «احجي الطلب» side by side. */}
+                <div className="flex flex-col gap-2 sm:flex-row">
+                    <label
+                        htmlFor="chat-image-upload"
+                        className={cn(
+                            "flex min-w-0 items-center gap-3 px-3 py-2.5 rounded-xl border border-dashed cursor-pointer transition-all sm:flex-1",
+                            isAnalyzingImage
+                                ? "border-purple-300 bg-purple-50/50 cursor-wait"
+                                : uploadedImage
+                                    ? "border-purple-400 bg-purple-50/50"
+                                    : "border-gray-300 bg-gray-50/30 hover:border-purple-400 hover:bg-purple-50/30"
                         )}
-                    </div>
-                    {uploadedImage && !isAnalyzingImage && (
-                        <Check className="h-4 w-4 text-purple-600 shrink-0" />
-                    )}
-                </label>
+                    >
+                        {isAnalyzingImage ? (
+                            <Loader2 className="h-4 w-4 text-purple-600 animate-spin shrink-0" />
+                        ) : uploadedImage ? (
+                            <div className="relative">
+                                <img src={uploadedImage} alt="" className="w-8 h-8 rounded-lg object-cover border border-purple-300" />
+                                <button
+                                    type="button"
+                                    onClick={(e) => { e.preventDefault(); handleRemoveImage(); }}
+                                    className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center"
+                                >
+                                    <X className="h-2.5 w-2.5" />
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center shrink-0">
+                                <Sparkles className="h-4 w-4 text-purple-600" />
+                            </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium text-gray-700">
+                                {isAnalyzingImage ? t("orders.create.analyzing") : uploadedImage ? t("orders.create.analyzed") : t("orders.create.uploadChat")}
+                            </p>
+                            {!isAnalyzingImage && !uploadedImage && (
+                                <p className="text-[11px] text-gray-400 mt-0.5">{t("orders.create.uploadChatHint")}</p>
+                            )}
+                        </div>
+                        {uploadedImage && !isAnalyzingImage && (
+                            <Check className="h-4 w-4 text-purple-600 shrink-0" />
+                        )}
+                    </label>
+                    <CreateOrderVoiceStrip m={m} />
+                </div>
                 <button
                     type="button"
                     onClick={() => setShowBulkUpload(true)}

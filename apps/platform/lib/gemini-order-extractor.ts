@@ -43,16 +43,20 @@ If you cannot find certain information, use empty strings for those fields.
 // model is briefly unavailable.
 const MODELS = ["gemini-flash-latest", "gemini-2.5-flash", "gemini-2.0-flash"];
 
-export async function extractOrderFromImage(
-    buffer: Buffer,
-    mimeType: string
-): Promise<ExtractedOrder> {
+/** One piece of a Gemini request: the prompt, or an inline file. */
+export type GeminiPart = string | { inlineData: { data: string; mimeType: string } };
+
+/**
+ * Sends one request, falling back through MODELS, and returns the reply with
+ * any markdown code fence removed. Throws when the key is missing or every
+ * model fails; callers log the detail and never return it to the browser.
+ */
+export async function generateGeminiText(parts: GeminiPart[]): Promise<string> {
     if (!process.env.GEMINI_API_KEY) {
         throw new Error("GEMINI_API_KEY is not configured");
     }
 
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const base64Image = buffer.toString("base64");
 
     let result;
     const errors: string[] = [];
@@ -62,10 +66,7 @@ export async function extractOrderFromImage(
                 { model: modelName },
                 { baseUrl: providerBaseUrls.GEMINI_API_BASE_URL },
             );
-            result = await model.generateContent([
-                PROMPT,
-                { inlineData: { data: base64Image, mimeType } },
-            ]);
+            result = await model.generateContent(parts);
             console.log(`[gemini] used ${modelName}`);
             break;
         } catch (error) {
@@ -80,6 +81,16 @@ export async function extractOrderFromImage(
     }
 
     const text = (await result.response).text();
-    const cleaned = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-    return JSON.parse(cleaned) as ExtractedOrder;
+    return text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+}
+
+export async function extractOrderFromImage(
+    buffer: Buffer,
+    mimeType: string
+): Promise<ExtractedOrder> {
+    const text = await generateGeminiText([
+        PROMPT,
+        { inlineData: { data: buffer.toString("base64"), mimeType } },
+    ]);
+    return JSON.parse(text) as ExtractedOrder;
 }
