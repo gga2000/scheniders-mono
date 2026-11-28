@@ -58,6 +58,9 @@ function pickTarget(
 export function GuideFoundationStep({
     step,
     done,
+    revisit,
+    logoLater,
+    onLater,
     status,
     working,
     locale,
@@ -68,8 +71,14 @@ export function GuideFoundationStep({
     onReturn,
 }: {
     step: FoundationStep;
-    /** A finished step the merchant came back to with the back arrow. */
+    /** The step is finished. */
     done: boolean;
+    /** The merchant came back to this step with the back arrow: Next returns to where they stopped. */
+    revisit: boolean;
+    /** The merchant put the logo off for later; on the shop step it is the last thing left before opening. */
+    logoLater: boolean;
+    /** Puts the logo off for later. */
+    onLater: () => void;
     status: FoundationStatus;
     working: StoreConfigV2 | null;
     locale: GuideLocale;
@@ -125,7 +134,15 @@ export function GuideFoundationStep({
     const routeMissing = useMissingAfterGrace(route ? route.id : null, routeHit !== null, ROUTE_GRACE_MS);
     const fieldMissing = useMissingAfterGrace(onPage && !route && target ? target.selector : null, fieldBox !== null);
 
-    const line: GuideLineId = route ? (routeTarget?.line ?? route.idle) : done || !target ? "step.doneAgain" : target.line;
+    // The logo put off for later comes back last, before the shop opens.
+    const logoBack = step === "shop" && logoLater && !revisit && target?.line === "shop.logo";
+    const line: GuideLineId = route
+        ? (routeTarget?.line ?? route.idle)
+        : done || !target
+          ? "step.doneAgain"
+          : logoBack
+            ? "shop.logoLast"
+            : target.line;
     const voice = useGuideVoice(line, lineText(line, locale), locale, soundOn && !minimized);
     const box = route ? (routeHit?.box ?? null) : fieldBox;
 
@@ -161,9 +178,14 @@ export function GuideFoundationStep({
     const back = walk && part > 0 ? () => setPart(part - 1) : onBack;
     const next = routeTarget?.explain
         ? { label: t("guide.next"), onClick: () => setEmptyRead(true) }
-        : done
+        : done || revisit
           ? { label: t("guide.next"), onClick: onReturn }
           : undefined;
+    // No logo yet: the merchant may carry on and add it before the shop opens.
+    const later =
+        step === "shop" && !done && !revisit && !logoLater && target?.line === "shop.logo"
+            ? { label: t("guide.logoLater"), onClick: onLater }
+            : undefined;
 
     return (
         <>
@@ -179,6 +201,7 @@ export function GuideFoundationStep({
                 part={walk}
                 onBack={back}
                 next={next}
+                later={later}
                 waitingFor={route ? "click" : "step"}
                 onLost={lost ? go : undefined}
                 done={done}

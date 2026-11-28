@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { GUIDE_LINES } from "@/lib/merchant-guide/script";
+import type { StoreConfigV2 } from "@scheniders/shared";
 import type { FoundationStatus, FoundationStep } from "@/lib/merchant-guide/foundation";
 import { GuideFoundationStep } from "./guide-foundation-step";
 import { useGuideSetup } from "./guide-setup-store";
@@ -37,15 +38,28 @@ afterEach(() => {
 
 const OPEN: FoundationStatus = { shop: false, product: false, delivery: false, open: false };
 
-function renderStep(step: FoundationStep, page: ReactNode, more: { done?: boolean; onBack?: (() => void) | null; onReturn?: () => void } = {}) {
+interface More {
+    done?: boolean;
+    revisit?: boolean;
+    logoLater?: boolean;
+    onLater?: () => void;
+    working?: StoreConfigV2 | null;
+    onBack?: (() => void) | null;
+    onReturn?: () => void;
+}
+
+function renderStep(step: FoundationStep, page: ReactNode, more: More = {}) {
     return render(
         <>
             {page}
             <GuideFoundationStep
                 step={step}
                 done={more.done ?? false}
+                revisit={more.revisit ?? more.done ?? false}
+                logoLater={more.logoLater ?? false}
+                onLater={more.onLater ?? (() => {})}
                 status={OPEN}
-                working={null}
+                working={more.working ?? null}
                 locale="en"
                 soundOn={false}
                 onToggleSound={() => {}}
@@ -104,6 +118,9 @@ describe("GuideFoundationStep: the way to a step", () => {
                 <GuideFoundationStep
                     step="shop"
                     done={false}
+                    revisit={false}
+                    logoLater={false}
+                    onLater={() => {}}
                     status={OPEN}
                     working={null}
                     locale="en"
@@ -183,5 +200,44 @@ describe("GuideFoundationStep: the first product walks itself", () => {
         expect(caption()).toBe(line("product.name"));
         act(() => input.blur());
         await waitFor(() => expect(caption()).toBe(line("product.photo")));
+    });
+});
+
+describe("GuideFoundationStep: no logo yet", () => {
+    const named = { brand_kit: { identity: { name: "Perfume House" } } } as unknown as StoreConfigV2;
+    const logoPage = <div data-guide="identity-logo" />;
+
+    it("offers «Later» on the logo, and it puts the logo off", async () => {
+        nav.pathname = "/store/edit";
+        const onLater = vi.fn();
+        renderStep("shop", logoPage, { working: named, onLater });
+        await waitFor(() => expect(caption()).toBe(line("shop.logo")));
+        fireEvent.click(screen.getByTestId("merchant-guide-later"));
+        expect(onLater).toHaveBeenCalledTimes(1);
+    });
+
+    it("doesn't offer it before the shop has a name", async () => {
+        nav.pathname = "/store/edit";
+        renderStep("shop", <div data-guide="identity-name" />);
+        await waitFor(() => expect(caption()).toBe(line("shop.name")));
+        expect(screen.queryByTestId("merchant-guide-later")).toBeNull();
+    });
+
+    it("the back arrow brings the put-off logo back, and Next returns to where the merchant stopped", async () => {
+        nav.pathname = "/store/edit";
+        const onReturn = vi.fn();
+        renderStep("shop", logoPage, { working: named, revisit: true, logoLater: true, onReturn });
+        await waitFor(() => expect(caption()).toBe(line("shop.logo")));
+        expect(screen.queryByTestId("merchant-guide-later")).toBeNull();
+        expect(screen.queryByTestId("merchant-guide-step-done")).toBeNull();
+        fireEvent.click(screen.getByTestId("merchant-guide-next"));
+        expect(onReturn).toHaveBeenCalledTimes(1);
+    });
+
+    it("comes back by itself as the last thing before opening", async () => {
+        nav.pathname = "/store/edit";
+        renderStep("shop", logoPage, { working: named, logoLater: true });
+        await waitFor(() => expect(caption()).toBe(line("shop.logoLast")));
+        expect(screen.queryByTestId("merchant-guide-later")).toBeNull();
     });
 });

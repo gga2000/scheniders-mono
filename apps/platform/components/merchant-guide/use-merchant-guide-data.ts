@@ -50,6 +50,8 @@ const phasesSchema = z.object({
     staff: tourRecordSchema.optional(),
     /** The practice after the first product: from Orders back to it, alone. */
     find_product: tourRecordSchema.optional(),
+    /** The merchant had no logo yet and put it off: it comes back before the shop opens. */
+    logo_later_at: z.string().optional(),
     /** «دليلك» hidden for good from its list; Settings brings it back. */
     list_hidden_at: z.string().optional(),
 });

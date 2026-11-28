@@ -3466,31 +3466,42 @@ html[lang="ar"] .till-screen .tracking-wide {
    The dim never takes clicks, so the merchant works the real page under it. */
 .merchant-guide-spot {
   position: fixed;
+  top: 0;
+  left: 0;
   z-index: 44;
   border-radius: 12px;
   pointer-events: none;
   box-shadow: 0 0 0 200vmax rgb(10 10 10 / 0.5);
   outline: 3px solid #EFFF00;
   outline-offset: 3px;
-  transition: top 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), left 0.5s cubic-bezier(0.2, 0.8, 0.2, 1),
-    width 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), height 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+  will-change: transform;
+}
+/* Only a move to another element glides (use-glide.ts). A field that scrolls
+   is followed frame by frame: a glide there trailed behind it on tablets. */
+.merchant-guide-spot[data-glide="true"] {
+  transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), width 0.5s cubic-bezier(0.2, 0.8, 0.2, 1),
+    height 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 /* Over the sidebar (50), the phone menu (60) and bottom sheets (61) when the light is on something inside them. */
 .merchant-guide-spot[data-raised="true"] { z-index: 62; }
-.merchant-guide-spot::after {
-  content: "";
+/* The pulse grows by scale and fades, never by size: animating its inset
+   re-laid out the page every frame while the light sat still. It is a real
+   element, not ::after, so the browser runs it off the main thread. The light
+   sets the scale that takes the ring from 3px out to 14px out (guide-spotlight.tsx). */
+.merchant-guide-ring {
   position: absolute;
   inset: -3px;
   border-radius: 14px;
   border: 2px solid #EFFF00;
   animation: merchant-guide-pulse 1.8s ease-out infinite;
+  will-change: transform, opacity;
 }
 @keyframes merchant-guide-pulse {
-  0% { opacity: 0.9; inset: -3px; }
-  100% { opacity: 0; inset: -14px; }
+  0% { opacity: 0.9; transform: scale(1, 1); }
+  100% { opacity: 0; transform: scale(var(--guide-pulse-x, 1.1), var(--guide-pulse-y, 1.4)); }
 }
 .merchant-guide-card { animation: merchant-guide-in 0.3s ease both; }
-.merchant-guide-card[data-placed="true"] {
+.merchant-guide-card[data-glide="true"] {
   transition: top 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), left 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 @keyframes merchant-guide-in {
@@ -3529,17 +3540,18 @@ html[lang="ar"] .till-screen .tracking-wide {
 .merchant-guide-wave i {
   display: block;
   width: 2px;
-  height: 30%;
+  height: 100%;
   border-radius: 2px;
   background: #EFFF00;
+  transform: scaleY(0.3);
 }
 .merchant-guide-wave[data-speaking="true"] i { animation: merchant-guide-wave 0.9s ease-in-out infinite; }
 .merchant-guide-wave i:nth-child(2) { animation-delay: 0.15s; }
 .merchant-guide-wave i:nth-child(3) { animation-delay: 0.3s; }
 .merchant-guide-wave i:nth-child(4) { animation-delay: 0.45s; }
 @keyframes merchant-guide-wave {
-  0%, 100% { height: 30%; }
-  50% { height: 100%; }
+  0%, 100% { transform: scaleY(0.3); }
+  50% { transform: scaleY(1); }
 }
 /* The done moment: the ring fills, the tick draws, a slow lime ring turns. */
 .merchant-guide-done-fill { animation: merchant-guide-fill 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) 0.15s both; }
@@ -3562,9 +3574,10 @@ html[lang="ar"] .till-screen .tracking-wide {
   .merchant-guide-done-tick,
   .merchant-guide-burst { animation: none; }
   .merchant-guide-spot,
+  .merchant-guide-spot[data-glide="true"],
   .merchant-guide-card,
-  .merchant-guide-card[data-placed="true"] { transition: none; animation: none; }
-  .merchant-guide-spot::after,
+  .merchant-guide-card[data-glide="true"] { transition: none; animation: none; }
+  .merchant-guide-ring,
   .merchant-guide-wave[data-speaking="true"] i,
   .merchant-guide-mark::before,
   .merchant-guide-mark::after,

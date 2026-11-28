@@ -6,12 +6,15 @@
 // the box actually changes.
 
 import { useEffect, useState } from "react";
+import { flushSync } from "react-dom";
 
 export interface TargetBox {
     top: number;
     left: number;
     width: number;
     height: number;
+    /** The selector of the element measured: the light glides only when this changes (use-glide.ts). */
+    of: string;
 }
 
 /** The first of several elements found on screen, and which one it is (-1 for a moment while the list changes). */
@@ -22,6 +25,7 @@ export interface TargetHit {
 
 function sameBox(a: TargetBox, b: TargetBox): boolean {
     return (
+        a.of === b.of &&
         Math.abs(a.top - b.top) < 0.5 &&
         Math.abs(a.left - b.left) < 0.5 &&
         Math.abs(a.width - b.width) < 0.5 &&
@@ -34,10 +38,10 @@ function sameHit(a: TargetHit | null, b: TargetHit | null): boolean {
     return a.index === b.index && sameBox(a.box, b.box);
 }
 
-function visibleBox(el: Element): TargetBox | null {
+function visibleBox(el: Element, of: string): TargetBox | null {
     const r = el.getBoundingClientRect();
     if (r.width === 0 && r.height === 0) return null;
-    return { top: r.top, left: r.left, width: r.width, height: r.height };
+    return { top: r.top, left: r.left, width: r.width, height: r.height, of };
 }
 
 /** Joins selectors into one stable key, so a list made fresh each render doesn't restart the loop. */
@@ -64,7 +68,7 @@ export function useFirstTargetBox(selectors: readonly string[] | null): TargetHi
             let next: TargetHit | null = null;
             for (let index = 0; index < list.length; index++) {
                 const el = document.querySelector(list[index]);
-                const box = el ? visibleBox(el) : null;
+                const box = el ? visibleBox(el, list[index]) : null;
                 if (!el || !box) continue;
                 next = { box, index };
                 if (!scrolled.has(index)) {
@@ -76,7 +80,10 @@ export function useFirstTargetBox(selectors: readonly string[] | null): TargetHi
             }
             if (last === undefined || !sameHit(last, next)) {
                 last = next;
-                setHit({ key, hit: next });
+                // Drawn in this same frame: left to React's own timing, the
+                // light landed a frame late and trailed a scrolling field.
+                const found = next;
+                flushSync(() => setHit({ key, hit: found }));
             }
             frame = requestAnimationFrame(tick);
         };

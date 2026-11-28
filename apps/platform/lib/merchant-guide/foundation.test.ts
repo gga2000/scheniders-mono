@@ -83,4 +83,12 @@ describe("foundationStatus", () => {
         expect(nextFoundationStep(status)).toBe("shop");
         expect(foundationDoneCount(status)).toBe(1);
     });
+
+    it("a logo put off for later comes after the product and delivery, before opening", () => {
+        const none = { shop: false, product: false, delivery: false, open: false };
+        expect(nextFoundationStep(none, true)).toBe("product");
+        expect(nextFoundationStep({ ...none, product: true }, true)).toBe("delivery");
+        expect(nextFoundationStep({ ...none, product: true, delivery: true }, true)).toBe("shop");
+        expect(nextFoundationStep({ shop: true, product: true, delivery: true, open: false }, true)).toBe("open");
+    });
 });
